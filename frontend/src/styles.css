@@ -36,53 +36,58 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.5rem;
+  background: var(--color-dark);
 }
 
 .login-box {
-  width: min(520px, 100%);
+  width: min(420px, 100%);
   background: var(--color-white);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  padding: 1.2rem;
+  border-radius: 12px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  padding: 2rem 2.1rem;
 }
 
 .login-logo {
-  margin-bottom: 1rem;
+  margin-bottom: 1.4rem;
+  text-align: center;
 }
 
 .login-logo h1 {
-  color: var(--color-dark);
-  font-size: 1.5rem;
+  color: var(--color-primary);
+  font-size: 2.05rem;
   font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .login-logo p {
-  color: var(--color-text-light);
-  font-size: 0.9rem;
-  margin-top: 0.15rem;
+  color: #7b7b7b;
+  font-size: 0.92rem;
+  margin-top: 0.2rem;
 }
 
 .login-tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.35rem;
+  border-bottom: 1px solid #cfcfcf;
 }
 
 .login-tab {
-  border: 1px solid var(--color-gray);
-  background: var(--color-white);
-  color: var(--color-text);
-  border-radius: 4px;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.86rem;
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #666666;
+  border-bottom: 2px solid transparent;
+  padding: 0.6rem 0.25rem 0.7rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
+  margin-bottom: -1px;
 }
 
 .login-tab.active {
-  border-color: var(--color-primary);
-  background: rgba(238, 127, 0, 0.12);
-  color: #9d5400;
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .header {
@@ -260,18 +265,23 @@ label {
 }
 
 .form-group {
-  margin-bottom: 0.9rem;
+  margin-bottom: 1rem;
 }
 
 .form-group label {
   display: block;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.4rem;
+  color: var(--color-dark);
 }
 
 .form-submit {
   width: 100%;
+  margin-top: 0.2rem;
+  padding: 0.7rem 1rem;
+  font-size: 1.02rem;
+  border-radius: 10px;
 }
 
 .error {
