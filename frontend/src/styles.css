@@ -305,6 +305,11 @@ label {
   font-size: 0.8rem;
 }
 
+.muted-inline {
+  color: var(--color-text-light);
+  font-size: 0.85rem;
+}
+
 .error {
   color: var(--color-error);
   margin-top: 0.7rem;

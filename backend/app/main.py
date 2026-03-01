@@ -19,6 +19,7 @@ from .document_storage import (
 )
 from .graph import graph_healthcheck
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
+from .provider_storage import get_provider, list_providers, update_provider
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -101,6 +102,20 @@ class MinioPullRequest(BaseModel):
 
 class ExtractDocumentsRequest(BaseModel):
     max_documents: int = Field(default=20, ge=1, le=500)
+
+
+class ProviderConfigResponse(BaseModel):
+    id: Optional[str] = None
+    provider_name: str
+    is_enabled: bool = False
+    key_present: bool = False
+    updated_by: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ProviderUpdateRequest(BaseModel):
+    is_enabled: Optional[bool] = None
+    key_value: Optional[str] = None
 
 
 @app.on_event("startup")
@@ -241,6 +256,50 @@ async def admin_update_user(
 @app.get("/api/admin/config/connectors", response_model=List[ConnectorConfigResponse])
 async def admin_list_connectors(_: Dict = Depends(require_admin)) -> List[ConnectorConfigResponse]:
     return [ConnectorConfigResponse(**row) for row in list_connectors()]
+
+
+@app.get("/api/admin/config/providers", response_model=List[ProviderConfigResponse])
+async def admin_list_providers(_: Dict = Depends(require_admin)) -> List[ProviderConfigResponse]:
+    return [ProviderConfigResponse(**row) for row in list_providers()]
+
+
+@app.put("/api/admin/config/providers/{provider_name}", response_model=ProviderConfigResponse)
+async def admin_update_provider(
+    provider_name: str,
+    payload: ProviderUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> ProviderConfigResponse:
+    before = get_provider(provider_name)
+    if not before:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    after = update_provider(
+        provider_name,
+        is_enabled=payload.is_enabled,
+        key_value=payload.key_value,
+        actor_user_id=admin_user["id"],
+    )
+    if not after:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    log_admin_event(
+        event_type="admin.provider_updated",
+        actor_user_id=admin_user["id"],
+        target_type="provider",
+        target_id=provider_name,
+        metadata_json={
+            "is_enabled": payload.is_enabled,
+            "key_updated": payload.key_value is not None,
+        },
+        diff_before={"provider": {"provider_name": before.get("provider_name"), "is_enabled": before.get("is_enabled")}},
+        diff_after={"provider": {"provider_name": after.get("provider_name"), "is_enabled": after.get("is_enabled"), "key_present": bool(after.get("key_value"))}},
+    )
+    return ProviderConfigResponse(
+        id=after.get("id"),
+        provider_name=after.get("provider_name"),
+        is_enabled=bool(after.get("is_enabled", False)),
+        key_present=bool(after.get("key_value")),
+        updated_by=after.get("updated_by"),
+        updated_at=after.get("updated_at"),
+    )
 
 
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)

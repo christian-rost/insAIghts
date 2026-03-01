@@ -29,6 +29,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/admin/users` (ADMIN)
 - `PATCH /api/admin/users/{user_id}` (ADMIN)
 - `GET /api/admin/config/connectors` (ADMIN)
+- `GET /api/admin/config/providers` (ADMIN)
+- `PUT /api/admin/config/providers/{provider_name}` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
@@ -39,6 +41,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_users`
 - `insaights_admin_audit_log`
 - `insaights_config_connectors`
+- `insaights_config_provider_keys`
 - `insaights_documents`
 
 Hinweis:
@@ -56,6 +59,7 @@ Hinweis:
   - `bucket`
   - optional: `prefix`, `secure` (default `true`)
 - Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract).
+- Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
 
 ## Coolify
 
@@ -77,7 +81,6 @@ Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
    - `GRAPH_DB_URI` (default `bolt://neo4j:7687`)
    - `GRAPH_DB_USER` (default `neo4j`)
    - `GRAPH_DB_PASSWORD`
-   - `MISTRAL_API_KEY` (fuer OCR/Extract von PDF/Bild)
 5. Deploy starten.
 6. Nach Deploy pruefen:
    - `GET /api/health` am Backend

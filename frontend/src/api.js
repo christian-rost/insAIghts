@@ -77,6 +77,25 @@ export async function listConnectors(token) {
   return handleJson(response)
 }
 
+export async function listProviders(token) {
+  const response = await fetch(`${API_BASE}/api/admin/config/providers`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateProvider(token, providerName, payload) {
+  const response = await fetch(`${API_BASE}/api/admin/config/providers/${providerName}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  })
+  return handleJson(response)
+}
+
 export async function updateConnector(token, connectorName, payload) {
   const response = await fetch(`${API_BASE}/api/admin/config/connectors/${connectorName}`, {
     method: "PUT",

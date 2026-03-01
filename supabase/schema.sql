@@ -44,6 +44,19 @@ insert into insaights_config_connectors (connector_name, enabled)
 values ('mail', false), ('rest', false), ('minio', false)
 on conflict (connector_name) do nothing;
 
+create table if not exists insaights_config_provider_keys (
+  id uuid primary key default gen_random_uuid(),
+  provider_name text not null unique check (provider_name in ('mistral')),
+  is_enabled boolean not null default false,
+  key_value text,
+  updated_by uuid,
+  updated_at timestamptz not null default now()
+);
+
+insert into insaights_config_provider_keys (provider_name, is_enabled)
+values ('mistral', false)
+on conflict (provider_name) do nothing;
+
 create table if not exists insaights_documents (
   id uuid primary key default gen_random_uuid(),
   source_system text not null,

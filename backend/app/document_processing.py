@@ -6,8 +6,8 @@ from typing import Any, Dict, Tuple
 import httpx
 from minio import Minio
 
-from .config import MISTRAL_API_KEY
 from .minio_ingestion import MinioIngestionConfig
+from .provider_storage import get_provider_key
 
 
 def parse_minio_source_uri(source_uri: str) -> Tuple[str, str]:
@@ -39,8 +39,9 @@ def download_minio_object(config: MinioIngestionConfig, source_uri: str) -> byte
 
 
 def _mistral_extract(file_type: str, file_bytes: bytes) -> str:
-    if not MISTRAL_API_KEY:
-        raise ValueError("MISTRAL_API_KEY not configured")
+    api_key = get_provider_key("mistral")
+    if not api_key:
+        raise ValueError("Mistral API key is not configured/enabled in Admin settings")
 
     if file_type == "pdf":
         b64 = base64.b64encode(file_bytes).decode("ascii")
@@ -59,7 +60,7 @@ def _mistral_extract(file_type: str, file_bytes: bytes) -> str:
         return file_bytes.decode("utf-8", errors="replace")
 
     headers = {
-        "Authorization": f"Bearer {MISTRAL_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     with httpx.Client(timeout=120.0) as client:
@@ -83,4 +84,3 @@ def extract_text_for_document(file_type: str, file_bytes: bytes) -> str:
     if file_type == "txt":
         return file_bytes.decode("utf-8", errors="replace")
     return _mistral_extract(file_type, file_bytes)
-

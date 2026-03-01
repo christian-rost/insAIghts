@@ -20,6 +20,7 @@ USERS_TABLE = os.getenv("USERS_TABLE", "insaights_users")
 ADMIN_AUDIT_TABLE = os.getenv("ADMIN_AUDIT_TABLE", "insaights_admin_audit_log")
 CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
 DOCUMENTS_TABLE = os.getenv("DOCUMENTS_TABLE", "insaights_documents")
+PROVIDER_KEYS_TABLE = os.getenv("PROVIDER_KEYS_TABLE", "insaights_config_provider_keys")
 
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
@@ -29,6 +30,3 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 GRAPH_DB_URI = os.getenv("GRAPH_DB_URI", "bolt://neo4j:7687")
 GRAPH_DB_USER = os.getenv("GRAPH_DB_USER", "neo4j")
 GRAPH_DB_PASSWORD = os.getenv("GRAPH_DB_PASSWORD", "")
-
-# OCR provider (Mistral)
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")

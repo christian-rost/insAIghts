@@ -316,7 +316,7 @@ Festlegung:
 - Wenn strukturierte OCR aktiv ist, werden Annotationen (Dokument/Bild) zusaetzlich verarbeitet.
 
 ### Konfiguration (MVP)
-- `MISTRAL_API_KEY` als Runtime-Provider-Key in der Admin-Oberflaeche (Pflicht fuer PDF/Bild-OCR)
+- Mistral API-Key als Runtime-Provider-Key in der Admin-Oberflaeche (Pflicht fuer PDF/Bild-OCR)
 - `MISTRAL_OCR_STRUCTURED` (Default: `true`)
 - `MISTRAL_OCR_INCLUDE_IMAGE_BASE64` (Default: `false` in `.env.example` der Referenzplattform)
 - Ohne Mistral-Key:
@@ -451,11 +451,13 @@ Festlegung:
   - MinIO Ingestion Endpoint (`POST /api/ingestion/minio/pull`) mit idempotenter Dokumentanlage
   - Dokumentliste Endpoint (`GET /api/documents`)
   - Extraktions-Endpoint (`POST /api/processing/documents/extract`) fuer INGESTED->EXTRACTED (Mistral OCR bei PDF/Bild)
+  - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste)
+  - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:

@@ -4,12 +4,14 @@ import {
   extractDocuments,
   listConnectors,
   listDocuments,
+  listProviders,
   listUsers,
   login,
   logout,
   me,
   pullMinio,
   register,
+  updateProvider,
   testConnector,
   updateConnector,
 } from "./api"
@@ -106,6 +108,11 @@ function AdminView({ token, currentUser, onLogout }) {
     password: "",
     roles: "AP_CLERK",
   })
+  const [providers, setProviders] = useState({
+    mistral_enabled: false,
+    mistral_key: "",
+    mistral_key_present: false,
+  })
   const [minio, setMinio] = useState({
     enabled: false,
     endpoint: "",
@@ -148,6 +155,21 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadProvidersConfig() {
+    try {
+      const rows = await listProviders(token)
+      const mistral = rows.find((r) => r.provider_name === "mistral")
+      if (!mistral) return
+      setProviders((p) => ({
+        ...p,
+        mistral_enabled: !!mistral.is_enabled,
+        mistral_key_present: !!mistral.key_present,
+      }))
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   async function loadDocumentsList() {
     try {
       const res = await listDocuments(token, 50)
@@ -159,6 +181,7 @@ function AdminView({ token, currentUser, onLogout }) {
 
   useEffect(() => {
     loadUsers()
+    loadProvidersConfig()
     loadMinioConnector()
     loadDocumentsList()
   }, [])
@@ -244,6 +267,57 @@ function AdminView({ token, currentUser, onLogout }) {
               </label>
               <button className="btn btn-primary" type="submit">Benutzer speichern</button>
             </form>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header"><h3>Provider (Mistral)</h3></div>
+            <div className="card-body">
+              <form
+                className="grid"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  try {
+                    setError("")
+                    setNotice("")
+                    await updateProvider(token, "mistral", {
+                      is_enabled: providers.mistral_enabled,
+                      key_value: providers.mistral_key ? providers.mistral_key : undefined,
+                    })
+                    setProviders((p) => ({ ...p, mistral_key: "" }))
+                    await loadProvidersConfig()
+                    setNotice("Mistral Provider gespeichert")
+                  } catch (err) {
+                    setError(String(err.message || err))
+                  }
+                }}
+              >
+                <label>
+                  Mistral aktiv
+                  <select
+                    className="input"
+                    value={providers.mistral_enabled ? "true" : "false"}
+                    onChange={(e) => setProviders((p) => ({ ...p, mistral_enabled: e.target.value === "true" }))}
+                  >
+                    <option value="false">Nein</option>
+                    <option value="true">Ja</option>
+                  </select>
+                </label>
+                <label>
+                  Mistral API Key
+                  <input
+                    className="input"
+                    type="password"
+                    value={providers.mistral_key}
+                    onChange={(e) => setProviders((p) => ({ ...p, mistral_key: e.target.value }))}
+                    placeholder={providers.mistral_key_present ? "Key vorhanden (nur bei Aenderung neu setzen)" : "Mistral API Key"}
+                  />
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">Provider speichern</button>
+                  <span className="muted-inline">Key vorhanden: {providers.mistral_key_present ? "ja" : "nein"}</span>
+                </div>
+              </form>
             </div>
           </section>
 
