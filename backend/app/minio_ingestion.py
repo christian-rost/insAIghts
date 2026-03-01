@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from minio import Minio
 
@@ -26,12 +27,27 @@ def _as_bool(value: Any, default: bool = True) -> bool:
 
 
 def parse_minio_config(config_json: Dict[str, Any]) -> MinioIngestionConfig:
-    endpoint = str(config_json.get("endpoint", "")).strip()
+    endpoint_raw = str(config_json.get("endpoint", "")).strip()
     access_key = str(config_json.get("access_key", "")).strip()
     secret_key = str(config_json.get("secret_key", "")).strip()
     bucket = str(config_json.get("bucket", "")).strip()
     prefix = str(config_json.get("prefix", "")).strip()
-    secure = _as_bool(config_json.get("secure", True), default=True)
+    secure_override = config_json.get("secure", None)
+
+    endpoint = endpoint_raw
+    secure_from_url: Optional[bool] = None
+    if endpoint_raw.startswith("http://") or endpoint_raw.startswith("https://"):
+        parsed = urlparse(endpoint_raw)
+        if parsed.path and parsed.path not in {"", "/"}:
+            raise ValueError(
+                "MinIO endpoint darf keinen Pfad enthalten (z. B. nur 'minio.example.com:9000')."
+            )
+        endpoint = parsed.netloc.strip()
+        if not endpoint:
+            raise ValueError("MinIO endpoint ist ungueltig.")
+        secure_from_url = parsed.scheme == "https"
+
+    secure = _as_bool(secure_override, default=secure_from_url if secure_from_url is not None else True)
 
     missing = [k for k, v in {
         "endpoint": endpoint,
@@ -89,4 +105,3 @@ def classify_file_type(filename: str) -> str:
 
 def source_uri(bucket: str, object_name: str) -> str:
     return f"minio://{bucket}/{object_name}"
-

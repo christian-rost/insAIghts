@@ -49,7 +49,7 @@ Hinweis:
 - Quelle aktuell: nur MinIO.
 - MinIO-Connector muss in Admin-Config aktiviert sein (`enabled=true`).
 - Erwartete `config_json`-Felder fuer Connector `minio`:
-  - `endpoint`
+  - `endpoint` (nur Host[:Port], ohne Pfad; `https://...` ist erlaubt, Pfad aber nicht)
   - `access_key`
   - `secret_key`
   - `bucket`
