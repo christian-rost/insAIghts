@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   createUser,
+  extractDocuments,
   listConnectors,
   listDocuments,
   listUsers,
@@ -114,6 +115,7 @@ function AdminView({ token, currentUser, onLogout }) {
     prefix: "",
     secure: true,
     max_objects: 200,
+    max_extract: 20,
   })
 
   async function loadUsers() {
@@ -325,6 +327,17 @@ function AdminView({ token, currentUser, onLogout }) {
                     onChange={(e) => setMinio((m) => ({ ...m, max_objects: Number(e.target.value || 1) }))}
                   />
                 </label>
+                <label>
+                  Max Documents Extract
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={minio.max_extract}
+                    onChange={(e) => setMinio((m) => ({ ...m, max_extract: Number(e.target.value || 1) }))}
+                  />
+                </label>
                 <div className="actions-row">
                   <button className="btn btn-primary" type="submit">Speichern</button>
                   <button
@@ -359,6 +372,23 @@ function AdminView({ token, currentUser, onLogout }) {
                     }}
                   >
                     Pull ausfuehren
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        const res = await extractDocuments(token, minio.max_extract || 20)
+                        setNotice(`Extract: ${res.extracted} EXTRACTED, ${res.failed} ERROR`)
+                        await loadDocumentsList()
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    OCR/Extract
                   </button>
                 </div>
               </form>

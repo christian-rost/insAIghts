@@ -450,6 +450,7 @@ Festlegung:
   - Basis-Audit-Logging fuer Login, User-Admin-Aktionen und Connector-Aenderungen
   - MinIO Ingestion Endpoint (`POST /api/ingestion/minio/pull`) mit idempotenter Dokumentanlage
   - Dokumentliste Endpoint (`GET /api/documents`)
+  - Extraktions-Endpoint (`POST /api/processing/documents/extract`) fuer INGESTED->EXTRACTED (Mistral OCR bei PDF/Bild)
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header

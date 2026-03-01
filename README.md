@@ -32,6 +32,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
+- `POST /api/processing/documents/extract` (ADMIN)
 - `GET /api/documents`
 
 ## Supabase Tabellen
@@ -54,7 +55,7 @@ Hinweis:
   - `secret_key`
   - `bucket`
   - optional: `prefix`, `secure` (default `true`)
-- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste).
+- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract).
 
 ## Coolify
 
@@ -76,6 +77,7 @@ Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
    - `GRAPH_DB_URI` (default `bolt://neo4j:7687`)
    - `GRAPH_DB_USER` (default `neo4j`)
    - `GRAPH_DB_PASSWORD`
+   - `MISTRAL_API_KEY` (fuer OCR/Extract von PDF/Bild)
 5. Deploy starten.
 6. Nach Deploy pruefen:
    - `GET /api/health` am Backend

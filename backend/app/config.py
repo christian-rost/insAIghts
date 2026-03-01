@@ -29,3 +29,6 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 GRAPH_DB_URI = os.getenv("GRAPH_DB_URI", "bolt://neo4j:7687")
 GRAPH_DB_USER = os.getenv("GRAPH_DB_USER", "neo4j")
 GRAPH_DB_PASSWORD = os.getenv("GRAPH_DB_PASSWORD", "")
+
+# OCR provider (Mistral)
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")

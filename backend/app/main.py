@@ -9,7 +9,14 @@ from .auth import authenticate_user, create_access_token, get_current_user, requ
 from .audit_storage import log_admin_event
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, CORS_ORIGINS
 from .config_storage import get_connector, list_connectors, update_connector
-from .document_storage import create_document, get_document_by_source_uri, list_documents
+from .document_processing import download_minio_object, extract_text_for_document
+from .document_storage import (
+    create_document,
+    get_document_by_source_uri,
+    list_documents,
+    list_documents_by_status,
+    update_document,
+)
 from .graph import graph_healthcheck
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
@@ -90,6 +97,10 @@ class ConnectorUpdateRequest(BaseModel):
 
 class MinioPullRequest(BaseModel):
     max_objects: int = Field(default=200, ge=1, le=5000)
+
+
+class ExtractDocumentsRequest(BaseModel):
+    max_documents: int = Field(default=20, ge=1, le=500)
 
 
 @app.on_event("startup")
@@ -349,3 +360,51 @@ async def documents_list(
 ) -> Dict:
     items = list_documents(limit=limit)
     return {"count": len(items), "items": items}
+
+
+@app.post("/api/processing/documents/extract")
+async def processing_documents_extract(
+    payload: ExtractDocumentsRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    connector = get_connector("minio")
+    if not connector:
+        raise HTTPException(status_code=404, detail="MinIO connector config not found")
+    if not connector.get("enabled", False):
+        raise HTTPException(status_code=400, detail="MinIO connector is disabled")
+
+    try:
+        cfg = parse_minio_config(connector.get("config_json") or {})
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    candidates = list_documents_by_status("INGESTED", limit=payload.max_documents)
+    extracted = 0
+    failed = 0
+    details = []
+    for doc in candidates:
+        doc_id = str(doc.get("id"))
+        try:
+            file_bytes = download_minio_object(cfg, str(doc.get("source_uri", "")))
+            text = extract_text_for_document(str(doc.get("file_type", "")), file_bytes).strip()
+            update_document(doc_id, {"status": "EXTRACTED", "extracted_text": text})
+            extracted += 1
+            details.append({"id": doc_id, "status": "EXTRACTED"})
+        except Exception as exc:
+            update_document(doc_id, {"status": "ERROR"})
+            failed += 1
+            details.append({"id": doc_id, "status": "ERROR", "reason": str(exc)[:240]})
+
+    log_admin_event(
+        event_type="processing.documents_extract",
+        actor_user_id=admin_user["id"],
+        target_type="documents",
+        metadata_json={"selected": len(candidates), "extracted": extracted, "failed": failed},
+    )
+    return {
+        "status": "ok",
+        "selected": len(candidates),
+        "extracted": extracted,
+        "failed": failed,
+        "details": details,
+    }

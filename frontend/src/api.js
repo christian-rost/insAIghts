@@ -115,3 +115,15 @@ export async function listDocuments(token, limit = 50) {
   })
   return handleJson(response)
 }
+
+export async function extractDocuments(token, maxDocuments = 20) {
+  const response = await fetch(`${API_BASE}/api/processing/documents/extract`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_documents: maxDocuments }),
+  })
+  return handleJson(response)
+}
