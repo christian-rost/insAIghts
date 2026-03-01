@@ -33,3 +33,21 @@ Startpunkt fuer die insAIghts-Plattform mit:
 
 Fuer Coolify kann `docker-compose.coolify.yml` verwendet werden.
 Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
+
+### Coolify Quickstart
+1. In Coolify `New Resource` -> `Docker Compose` waehlen.
+2. Repository `https://github.com/christian-rost/insAIghts` verbinden.
+3. `docker-compose.coolify.yml` als Compose-Datei verwenden.
+4. Folgende Variablen setzen:
+   - `JWT_SECRET`
+   - `CORS_ORIGINS` (Frontend-URL)
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+   - `ADMIN_USERNAME`
+   - `ADMIN_PASSWORD`
+   - `VITE_API_BASE` (Backend-URL, z. B. `https://api.deinedomain.tld`)
+   - `NEO4J_PASSWORD`
+5. Deploy starten.
+6. Nach Deploy pruefen:
+   - `GET /api/health` am Backend
+   - Frontend-Login mit Bootstrap-Admin

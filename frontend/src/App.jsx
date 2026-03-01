@@ -6,8 +6,11 @@ function LoginView({ onLogin, loading, error }) {
   const [password, setPassword] = useState("")
 
   return (
-    <section className="card">
-      <h1>insAIghts</h1>
+    <section className="card login-card">
+      <div className="card-header">
+        <h1>insAIghts</h1>
+      </div>
+      <div className="card-body">
       <p className="muted">Login mit Username</p>
       <form
         onSubmit={(e) => {
@@ -17,17 +20,18 @@ function LoginView({ onLogin, loading, error }) {
       >
         <label>
           Username
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} required />
         </label>
         <label>
           Passwort
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        <button disabled={loading} type="submit">
+        <button className="btn btn-primary" disabled={loading} type="submit">
           {loading ? "Anmelden..." : "Anmelden"}
         </button>
       </form>
       {error ? <p className="error">{error}</p> : null}
+      </div>
     </section>
   )
 }
@@ -58,20 +62,21 @@ function AdminView({ token, currentUser }) {
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
 
   return (
-    <main className="layout">
-      <header className="card">
-        <h2>Admin-Panel</h2>
-        <p className="muted">Angemeldet als {currentUser?.username}</p>
+    <main className="app-layout">
+      <header className="header">
+        <h2>insAIghts Admin</h2>
+        <div className="header-user">Angemeldet als <span>{currentUser?.username}</span></div>
       </header>
 
       {!isAdmin ? (
         <section className="card">
-          <p>Kein Admin-Zugriff.</p>
+          <div className="card-body"><p>Kein Admin-Zugriff.</p></div>
         </section>
       ) : (
         <>
           <section className="card">
-            <h3>Benutzer anlegen</h3>
+            <div className="card-header"><h3>Benutzer anlegen</h3></div>
+            <div className="card-body">
             <form
               className="grid"
               onSubmit={async (e) => {
@@ -94,6 +99,7 @@ function AdminView({ token, currentUser }) {
               <label>
                 Username
                 <input
+                  className="input"
                   value={form.username}
                   onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                   required
@@ -102,6 +108,7 @@ function AdminView({ token, currentUser }) {
               <label>
                 E-Mail
                 <input
+                  className="input"
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -111,6 +118,7 @@ function AdminView({ token, currentUser }) {
               <label>
                 Passwort
                 <input
+                  className="input"
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
@@ -120,21 +128,24 @@ function AdminView({ token, currentUser }) {
               <label>
                 Rollen (CSV)
                 <input
+                  className="input"
                   value={form.roles}
                   onChange={(e) => setForm((f) => ({ ...f, roles: e.target.value }))}
                   required
                 />
               </label>
-              <button type="submit">Benutzer speichern</button>
+              <button className="btn btn-primary" type="submit">Benutzer speichern</button>
             </form>
+            </div>
           </section>
 
           <section className="card">
-            <div className="row">
+            <div className="card-header row">
               <h3>Benutzerliste</h3>
-              <button onClick={loadUsers}>Neu laden</button>
+              <button className="btn btn-outline" onClick={loadUsers}>Neu laden</button>
             </div>
-            <table>
+            <div className="card-body">
+            <table className="table">
               <thead>
                 <tr>
                   <th>Username</th>
@@ -154,6 +165,7 @@ function AdminView({ token, currentUser }) {
                 ))}
               </tbody>
             </table>
+            </div>
           </section>
         </>
       )}
@@ -196,9 +208,12 @@ export default function App() {
   }, [token])
 
   if (!token) {
-    return <LoginView onLogin={handleLogin} loading={loading} error={error} />
+    return (
+      <main className="app-layout">
+        <LoginView onLogin={handleLogin} loading={loading} error={error} />
+      </main>
+    )
   }
 
   return <AdminView token={token} currentUser={currentUser} />
 }
-
