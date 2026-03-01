@@ -23,6 +23,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/health/graph`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/admin/users` (ADMIN)
 - `POST /api/admin/users` (ADMIN)

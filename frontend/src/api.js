@@ -43,6 +43,14 @@ export async function me(token) {
   return handleJson(response)
 }
 
+export async function logout(token) {
+  const response = await fetch(`${API_BASE}/api/auth/logout`, {
+    method: "POST",
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
 export async function listUsers(token) {
   const response = await fetch(`${API_BASE}/api/admin/users`, {
     headers: { ...authHeaders(token) },

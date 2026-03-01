@@ -440,6 +440,7 @@ Festlegung:
 - Backend bereits umgesetzt:
   - Registrierung (`/api/auth/register`)
   - Username-Login (`/api/auth/login`)
+  - Logout-Endpoint (`/api/auth/logout`)
   - `me` Endpoint (`/api/auth/me`)
   - Graph-Healthcheck (`/api/health/graph`) mit Neo4j Query-Test (`RETURN 1`)
   - Admin-Bootstrap via `ADMIN_USERNAME`/`ADMIN_PASSWORD`

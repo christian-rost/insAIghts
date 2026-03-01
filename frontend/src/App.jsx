@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { createUser, listUsers, login, me, register } from "./api"
+import { createUser, listUsers, login, logout, me, register } from "./api"
 
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
@@ -259,7 +259,14 @@ export default function App() {
       })
   }, [token])
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      if (token) {
+        await logout(token)
+      }
+    } catch {
+      // ignore logout API errors; local sign-out still applies
+    }
     localStorage.removeItem("access_token")
     setToken("")
     setCurrentUser(null)

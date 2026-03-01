@@ -165,6 +165,20 @@ async def auth_me(current_user: Dict = Depends(get_current_user)) -> UserRespons
     return UserResponse(**current_user)
 
 
+@app.post("/api/auth/logout")
+async def auth_logout(current_user: Dict = Depends(get_current_user)) -> Dict[str, str]:
+    # JWT is stateless in current MVP. Logout is client-side token discard,
+    # but we still expose this endpoint for explicit session-close semantics + audit.
+    log_admin_event(
+        event_type="auth.logout",
+        actor_user_id=current_user["id"],
+        target_type="user",
+        target_id=current_user["id"],
+        metadata_json={"username": current_user["username"]},
+    )
+    return {"status": "ok", "detail": "logged out"}
+
+
 @app.get("/api/admin/users", response_model=List[UserResponse])
 async def admin_list_users(_: Dict = Depends(require_admin)) -> List[UserResponse]:
     return [UserResponse(**u) for u in list_users()]
