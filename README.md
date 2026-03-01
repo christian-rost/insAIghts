@@ -51,3 +51,7 @@ Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
 6. Nach Deploy pruefen:
    - `GET /api/health` am Backend
    - Frontend-Login mit Bootstrap-Admin
+
+Hinweis:
+- In Coolify bei Compose-Services keine festen Host-Ports fuer Web-Services erzwingen.
+- Domains/Ingress in Coolify steuern den Zugriff; Compose nutzt intern `expose`.
