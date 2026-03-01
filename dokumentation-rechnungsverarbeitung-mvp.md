@@ -430,6 +430,7 @@ Festlegung:
 - DSGVO-relevante Betriebsparameter (Retention/Loeschung/DSR): ueber Admin-UI konfigurierbar.
 - Connector-Parameter (Mail/REST/MinIO): ueber Admin-UI konfigurierbar.
 - Umgebung: aktuell nur Dev; Staging/Prod spaeter zu definieren.
+- Umsetzungsreihenfolge Quellen: initial nur MinIO aktiv.
 
 ## 17. Implementierungsstand (aktueller Code)
 - Projektgrundgeruest erstellt:
@@ -447,6 +448,8 @@ Festlegung:
   - Admin-User APIs (`GET/POST/PATCH /api/admin/users`)
   - Connector-Config APIs (`GET/PUT/POST-test /api/admin/config/connectors/...`)
   - Basis-Audit-Logging fuer Login, User-Admin-Aktionen und Connector-Aenderungen
+  - MinIO Ingestion Endpoint (`POST /api/ingestion/minio/pull`) mit idempotenter Dokumentanlage
+  - Dokumentliste Endpoint (`GET /api/documents`)
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header

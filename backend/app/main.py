@@ -9,7 +9,9 @@ from .auth import authenticate_user, create_access_token, get_current_user, requ
 from .audit_storage import log_admin_event
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, CORS_ORIGINS
 from .config_storage import get_connector, list_connectors, update_connector
+from .document_storage import create_document, get_document_by_source_uri, list_documents
 from .graph import graph_healthcheck
+from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -84,6 +86,10 @@ class ConnectorUpdateRequest(BaseModel):
     retry_backoff_seconds: Optional[int] = Field(default=None, ge=0)
     timeout_seconds: Optional[int] = Field(default=None, ge=1)
     config_json: Optional[Dict] = None
+
+
+class MinioPullRequest(BaseModel):
+    max_objects: int = Field(default=200, ge=1, le=5000)
 
 
 @app.on_event("startup")
@@ -267,3 +273,79 @@ async def admin_test_connector(
         metadata_json={"result": "ok-simulated"},
     )
     return {"status": "ok", "connector": connector_name, "mode": "simulated"}
+
+
+@app.post("/api/ingestion/minio/pull")
+async def ingestion_minio_pull(
+    payload: MinioPullRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    connector = get_connector("minio")
+    if not connector:
+        raise HTTPException(status_code=404, detail="MinIO connector config not found")
+    if not connector.get("enabled", False):
+        raise HTTPException(status_code=400, detail="MinIO connector is disabled")
+
+    try:
+        cfg = parse_minio_config(connector.get("config_json") or {})
+        objects = list_minio_objects(cfg, max_objects=payload.max_objects)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"MinIO read failed: {exc}")
+
+    created = 0
+    skipped = 0
+    sample_documents = []
+    for obj in objects:
+        uri = source_uri(cfg.bucket, obj["object_name"])
+        if get_document_by_source_uri(uri):
+            skipped += 1
+            continue
+        doc = create_document(
+            source_system="minio",
+            source_uri=uri,
+            filename=obj["object_name"].split("/")[-1],
+            file_type=classify_file_type(obj["object_name"]),
+            file_size_bytes=int(obj.get("size") or 0),
+            status="INGESTED",
+            raw_metadata_json=obj,
+        )
+        created += 1
+        if len(sample_documents) < 10:
+            sample_documents.append(
+                {
+                    "id": doc.get("id"),
+                    "filename": doc.get("filename"),
+                    "source_uri": doc.get("source_uri"),
+                }
+            )
+
+    log_admin_event(
+        event_type="ingestion.minio_pull",
+        actor_user_id=admin_user["id"],
+        target_type="connector",
+        target_id="minio",
+        metadata_json={
+            "total_seen": len(objects),
+            "created": created,
+            "skipped": skipped,
+            "max_objects": payload.max_objects,
+        },
+    )
+    return {
+        "status": "ok",
+        "total_seen": len(objects),
+        "created": created,
+        "skipped": skipped,
+        "sample_documents": sample_documents,
+    }
+
+
+@app.get("/api/documents")
+async def documents_list(
+    limit: int = 100,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    items = list_documents(limit=limit)
+    return {"count": len(items), "items": items}

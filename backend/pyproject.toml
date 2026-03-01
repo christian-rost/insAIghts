@@ -13,6 +13,7 @@ dependencies = [
   "bcrypt==4.0.1",
   "supabase>=2.0.0",
   "neo4j>=5.28.0",
+  "minio>=7.2.9",
 ]
 
 [tool.uvicorn]

@@ -19,6 +19,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 USERS_TABLE = os.getenv("USERS_TABLE", "insaights_users")
 ADMIN_AUDIT_TABLE = os.getenv("ADMIN_AUDIT_TABLE", "insaights_admin_audit_log")
 CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
+DOCUMENTS_TABLE = os.getenv("DOCUMENTS_TABLE", "insaights_documents")
 
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")

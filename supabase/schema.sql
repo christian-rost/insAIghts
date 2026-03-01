@@ -43,3 +43,20 @@ create table if not exists insaights_config_connectors (
 insert into insaights_config_connectors (connector_name, enabled)
 values ('mail', false), ('rest', false), ('minio', false)
 on conflict (connector_name) do nothing;
+
+create table if not exists insaights_documents (
+  id uuid primary key default gen_random_uuid(),
+  source_system text not null,
+  source_uri text not null unique,
+  filename text not null,
+  file_type text not null,
+  file_size_bytes bigint not null default 0,
+  status text not null default 'INGESTED',
+  raw_metadata_json jsonb not null default '{}'::jsonb,
+  extracted_text text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_documents_source on insaights_documents(source_system);
+create index if not exists idx_insaights_documents_created on insaights_documents(created_at desc);

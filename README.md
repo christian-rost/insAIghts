@@ -31,16 +31,29 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/admin/config/connectors` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
+- `POST /api/ingestion/minio/pull` (ADMIN)
+- `GET /api/documents`
 
 ## Supabase Tabellen
 - `insaights_users`
 - `insaights_admin_audit_log`
 - `insaights_config_connectors`
+- `insaights_documents`
 
 Hinweis:
 - Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
 - Falls in einem geteilten Supabase-Projekt bereits `app_users` angepasst wurde:
   - `supabase/reset_app_users_to_legacy.sql` ausfuehren.
+
+## MinIO Ingestion V1
+- Quelle aktuell: nur MinIO.
+- MinIO-Connector muss in Admin-Config aktiviert sein (`enabled=true`).
+- Erwartete `config_json`-Felder fuer Connector `minio`:
+  - `endpoint`
+  - `access_key`
+  - `secret_key`
+  - `bucket`
+  - optional: `prefix`, `secure` (default `true`)
 
 ## Coolify
 
