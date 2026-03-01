@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
-import { createUser, listUsers, login, logout, me, register } from "./api"
+import {
+  createUser,
+  listConnectors,
+  listDocuments,
+  listUsers,
+  login,
+  logout,
+  me,
+  pullMinio,
+  register,
+  testConnector,
+  updateConnector,
+} from "./api"
 
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
@@ -84,12 +96,24 @@ function LoginView({ onLogin, loading, error }) {
 
 function AdminView({ token, currentUser, onLogout }) {
   const [users, setUsers] = useState([])
+  const [documents, setDocuments] = useState([])
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [form, setForm] = useState({
     username: "",
     email: "",
     password: "",
     roles: "AP_CLERK",
+  })
+  const [minio, setMinio] = useState({
+    enabled: false,
+    endpoint: "",
+    access_key: "",
+    secret_key: "",
+    bucket: "",
+    prefix: "",
+    secure: true,
+    max_objects: 200,
   })
 
   async function loadUsers() {
@@ -101,8 +125,40 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadMinioConnector() {
+    try {
+      const connectors = await listConnectors(token)
+      const row = connectors.find((c) => c.connector_name === "minio")
+      if (!row) return
+      const cfg = row.config_json || {}
+      setMinio((prev) => ({
+        ...prev,
+        enabled: !!row.enabled,
+        endpoint: cfg.endpoint || "",
+        access_key: cfg.access_key || "",
+        secret_key: cfg.secret_key || "",
+        bucket: cfg.bucket || "",
+        prefix: cfg.prefix || "",
+        secure: cfg.secure !== false,
+      }))
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadDocumentsList() {
+    try {
+      const res = await listDocuments(token, 50)
+      setDocuments(res.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   useEffect(() => {
     loadUsers()
+    loadMinioConnector()
+    loadDocumentsList()
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
@@ -132,6 +188,7 @@ function AdminView({ token, currentUser, onLogout }) {
                 e.preventDefault()
                 try {
                   setError("")
+                  setNotice("")
                   await createUser(token, {
                     username: form.username,
                     email: form.email,
@@ -189,6 +246,155 @@ function AdminView({ token, currentUser, onLogout }) {
           </section>
 
           <section className="card">
+            <div className="card-header"><h3>MinIO Connector</h3></div>
+            <div className="card-body">
+              <form
+                className="grid"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  try {
+                    setError("")
+                    setNotice("")
+                    await updateConnector(token, "minio", {
+                      enabled: minio.enabled,
+                      config_json: {
+                        endpoint: minio.endpoint,
+                        access_key: minio.access_key,
+                        secret_key: minio.secret_key,
+                        bucket: minio.bucket,
+                        prefix: minio.prefix,
+                        secure: minio.secure,
+                      },
+                    })
+                    setNotice("MinIO-Konfiguration gespeichert")
+                  } catch (err) {
+                    setError(String(err.message || err))
+                  }
+                }}
+              >
+                <label>
+                  Aktiv
+                  <select
+                    className="input"
+                    value={minio.enabled ? "true" : "false"}
+                    onChange={(e) => setMinio((m) => ({ ...m, enabled: e.target.value === "true" }))}
+                  >
+                    <option value="false">Nein</option>
+                    <option value="true">Ja</option>
+                  </select>
+                </label>
+                <label>
+                  Endpoint
+                  <input className="input" value={minio.endpoint} onChange={(e) => setMinio((m) => ({ ...m, endpoint: e.target.value }))} required />
+                </label>
+                <label>
+                  Access Key
+                  <input className="input" value={minio.access_key} onChange={(e) => setMinio((m) => ({ ...m, access_key: e.target.value }))} required />
+                </label>
+                <label>
+                  Secret Key
+                  <input className="input" type="password" value={minio.secret_key} onChange={(e) => setMinio((m) => ({ ...m, secret_key: e.target.value }))} required />
+                </label>
+                <label>
+                  Bucket
+                  <input className="input" value={minio.bucket} onChange={(e) => setMinio((m) => ({ ...m, bucket: e.target.value }))} required />
+                </label>
+                <label>
+                  Prefix (optional)
+                  <input className="input" value={minio.prefix} onChange={(e) => setMinio((m) => ({ ...m, prefix: e.target.value }))} />
+                </label>
+                <label>
+                  Secure
+                  <select
+                    className="input"
+                    value={minio.secure ? "true" : "false"}
+                    onChange={(e) => setMinio((m) => ({ ...m, secure: e.target.value === "true" }))}
+                  >
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </select>
+                </label>
+                <label>
+                  Max Objects Pull
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="5000"
+                    value={minio.max_objects}
+                    onChange={(e) => setMinio((m) => ({ ...m, max_objects: Number(e.target.value || 1) }))}
+                  />
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">Speichern</button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        await testConnector(token, "minio")
+                        setNotice("MinIO-Test erfolgreich")
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Testen
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        const res = await pullMinio(token, minio.max_objects || 200)
+                        setNotice(`MinIO Pull: ${res.created} neu, ${res.skipped} uebersprungen`)
+                        await loadDocumentsList()
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Pull ausfuehren
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header row">
+              <h3>Dokumente (MinIO Ingestion)</h3>
+              <button className="btn btn-outline" onClick={loadDocumentsList}>Neu laden</button>
+            </div>
+            <div className="card-body">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Datei</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Quelle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.filename}</td>
+                      <td>{d.file_type}</td>
+                      <td>{d.status}</td>
+                      <td className="mono">{d.source_uri}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card">
             <div className="card-header row">
               <h3>Benutzerliste</h3>
               <button className="btn btn-outline" onClick={loadUsers}>Neu laden</button>
@@ -219,6 +425,7 @@ function AdminView({ token, currentUser, onLogout }) {
         </>
       )}
 
+      {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </main>
   )

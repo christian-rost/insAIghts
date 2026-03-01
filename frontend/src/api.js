@@ -69,3 +69,49 @@ export async function createUser(token, payload) {
   })
   return handleJson(response)
 }
+
+export async function listConnectors(token) {
+  const response = await fetch(`${API_BASE}/api/admin/config/connectors`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateConnector(token, connectorName, payload) {
+  const response = await fetch(`${API_BASE}/api/admin/config/connectors/${connectorName}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  })
+  return handleJson(response)
+}
+
+export async function testConnector(token, connectorName) {
+  const response = await fetch(`${API_BASE}/api/admin/config/connectors/${connectorName}/test`, {
+    method: "POST",
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function pullMinio(token, maxObjects = 200) {
+  const response = await fetch(`${API_BASE}/api/ingestion/minio/pull`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_objects: maxObjects }),
+  })
+  return handleJson(response)
+}
+
+export async function listDocuments(token, limit = 50) {
+  const response = await fetch(`${API_BASE}/api/documents?limit=${encodeURIComponent(limit)}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}

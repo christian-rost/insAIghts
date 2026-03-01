@@ -54,6 +54,7 @@ Hinweis:
   - `secret_key`
   - `bucket`
   - optional: `prefix`, `secure` (default `true`)
+- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste).
 
 ## Coolify
 

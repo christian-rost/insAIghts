@@ -235,6 +235,14 @@ label {
   gap: 1rem;
 }
 
+.actions-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -282,6 +290,19 @@ label {
   padding: 0.7rem 1rem;
   font-size: 1.02rem;
   border-radius: 10px;
+}
+
+.notice {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
 }
 
 .error {

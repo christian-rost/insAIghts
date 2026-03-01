@@ -454,6 +454,7 @@ Festlegung:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
+  - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:
