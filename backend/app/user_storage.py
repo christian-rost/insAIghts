@@ -104,6 +104,11 @@ def bootstrap_admin(admin_username: str, admin_password: str) -> Optional[Dict]:
         return None
     existing = get_user_by_username(admin_username)
     if existing:
+        roles = existing.get("roles", []) or []
+        if "ADMIN" not in roles:
+            new_roles = list(dict.fromkeys([*roles, "ADMIN"]))
+            updated = update_user(existing["id"], {"roles": new_roles})
+            return updated or existing
         return existing
     return create_user(
         username=admin_username,
