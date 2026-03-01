@@ -22,7 +22,7 @@ services:
     image: neo4j:5
     restart: unless-stopped
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}
+      - NEO4J_AUTH=neo4j/${GRAPH_DB_PASSWORD}
       - NEO4J_server_memory_heap_initial__size=1G
       - NEO4J_server_memory_heap_max__size=1G
       - NEO4J_server_memory_pagecache_size=1G
@@ -57,7 +57,7 @@ environment:
 1. Neues Projekt oder bestehendes Projekt oeffnen.
 2. `Add Resource` -> `Docker Compose` (oder Service mit Custom Image) auswaehlen.
 3. Compose-Datei einfuegen (oben).
-4. Environment Variable `NEO4J_PASSWORD` in Coolify setzen.
+4. Environment Variable `GRAPH_DB_PASSWORD` in Coolify setzen.
 5. Persistent Volumes aktiv lassen (nicht ephemer).
 6. Deploy ausfuehren.
 7. Health pruefen:
@@ -89,6 +89,7 @@ Wichtig fuer Coolify:
 
 ## 9. Troubleshooting (haeufig)
 - Container startet nicht: `NEO4J_AUTH`/Passwortformat pruefen.
+- Verwende keinen Env-Namen mit Prefix `NEO4J_` fuer das Rohpasswort (z. B. nicht `NEO4J_PASSWORD`), da Neo4j solche Variablen als Config-Keys interpretiert.
 - Daten weg nach Redeploy: Volume-Mounts fehlen oder falsch.
 - Speicherprobleme: Heap/Pagecache auf Server-RAM abstimmen.
 - Keine Verbindung vom Backend: interne Service-DNS/Port/Firewall pruefen.

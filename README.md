@@ -46,7 +46,7 @@ Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
    - `ADMIN_USERNAME`
    - `ADMIN_PASSWORD`
    - `VITE_API_BASE` (Backend-URL, z. B. `https://api.deinedomain.tld`)
-   - `NEO4J_PASSWORD`
+   - `GRAPH_DB_PASSWORD`
 5. Deploy starten.
 6. Nach Deploy pruefen:
    - `GET /api/health` am Backend
