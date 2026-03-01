@@ -6,61 +6,83 @@ function LoginView({ onLogin, loading, error }) {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [localError, setLocalError] = useState("")
 
   return (
-    <section className="card login-card">
-      <div className="card-header">
+    <div className="login-container">
+      <section className="login-box">
+      <div className="login-logo">
         <h1>insAIghts</h1>
+        <p>Daten- und Operationsplattform</p>
       </div>
-      <div className="card-body">
-      <p className="muted">Login mit Username</p>
-      <div className="auth-mode-row">
+
+      <div className="login-tabs">
         <button
           type="button"
-          className={`btn ${mode === "login" ? "btn-primary" : "btn-outline"}`}
-          onClick={() => setMode("login")}
+          className={`login-tab ${mode === "login" ? "active" : ""}`}
+          onClick={() => {
+            setMode("login")
+            setLocalError("")
+          }}
         >
           Login
         </button>
         <button
           type="button"
-          className={`btn ${mode === "register" ? "btn-primary" : "btn-outline"}`}
-          onClick={() => setMode("register")}
+          className={`login-tab ${mode === "register" ? "active" : ""}`}
+          onClick={() => {
+            setMode("register")
+            setLocalError("")
+          }}
         >
           Registrieren
         </button>
       </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault()
+          if (mode === "register" && password !== confirmPassword) {
+            setLocalError("Passwoerter stimmen nicht ueberein")
+            return
+          }
+          setLocalError("")
           onLogin({ mode, username, email, password })
         }}
       >
-        <label>
-          Username
+        <div className="form-group">
+          <label>Benutzername</label>
           <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} required />
-        </label>
+        </div>
         {mode === "register" ? (
-          <label>
-            E-Mail
+          <div className="form-group">
+            <label>E-Mail</label>
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
+          </div>
         ) : null}
-        <label>
-          Passwort
+        <div className="form-group">
+          <label>Passwort</label>
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <button className="btn btn-primary" disabled={loading} type="submit">
+        </div>
+        {mode === "register" ? (
+          <div className="form-group">
+            <label>Passwort bestaetigen</label>
+            <input className="input" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+          </div>
+        ) : null}
+        <button className="btn btn-primary form-submit" disabled={loading} type="submit">
           {loading ? "Bitte warten..." : mode === "login" ? "Anmelden" : "Registrieren"}
         </button>
       </form>
+      {localError ? <p className="error">{localError}</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }
 
-function AdminView({ token, currentUser }) {
+function AdminView({ token, currentUser, onLogout }) {
   const [users, setUsers] = useState([])
   const [error, setError] = useState("")
   const [form, setForm] = useState({
@@ -89,7 +111,10 @@ function AdminView({ token, currentUser }) {
     <main className="app-layout">
       <header className="header">
         <h2>insAIghts Admin</h2>
-        <div className="header-user">Angemeldet als <span>{currentUser?.username}</span></div>
+        <div className="header-user">
+          Angemeldet als <span>{currentUser?.username}</span>
+          <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
+        </div>
       </header>
 
       {!isAdmin ? (
@@ -234,13 +259,18 @@ export default function App() {
       })
   }, [token])
 
+  function handleLogout() {
+    localStorage.removeItem("access_token")
+    setToken("")
+    setCurrentUser(null)
+    setError("")
+  }
+
   if (!token) {
     return (
-      <main className="app-layout">
-        <LoginView onLogin={handleLogin} loading={loading} error={error} />
-      </main>
+      <LoginView onLogin={handleLogin} loading={loading} error={error} />
     )
   }
 
-  return <AdminView token={token} currentUser={currentUser} />
+  return <AdminView token={token} currentUser={currentUser} onLogout={handleLogout} />
 }

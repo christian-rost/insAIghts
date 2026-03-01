@@ -31,6 +31,60 @@ body {
   gap: 1rem;
 }
 
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.login-box {
+  width: min(520px, 100%);
+  background: var(--color-white);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 1.2rem;
+}
+
+.login-logo {
+  margin-bottom: 1rem;
+}
+
+.login-logo h1 {
+  color: var(--color-dark);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.login-logo p {
+  color: var(--color-text-light);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.login-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.login-tab {
+  border: 1px solid var(--color-gray);
+  background: var(--color-white);
+  color: var(--color-text);
+  border-radius: 4px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.login-tab.active {
+  border-color: var(--color-primary);
+  background: rgba(238, 127, 0, 0.12);
+  color: #9d5400;
+}
+
 .header {
   background-color: var(--color-dark);
   color: var(--color-white);
@@ -47,6 +101,9 @@ body {
 }
 
 .header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.85);
 }
@@ -54,6 +111,21 @@ body {
 .header-user span {
   color: var(--color-primary);
   font-weight: 600;
+}
+
+.btn-outline-light {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+}
+
+.btn-outline-light:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-sm {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.8rem;
 }
 
 .card {
@@ -185,6 +257,21 @@ label {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.9rem;
+}
+
+.form-group {
+  margin-bottom: 0.9rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.form-submit {
+  width: 100%;
 }
 
 .error {

@@ -447,6 +447,7 @@ Festlegung:
   - Basis-Audit-Logging fuer Login, User-Admin-Aktionen und Connector-Aenderungen
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
+  - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
