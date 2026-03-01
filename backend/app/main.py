@@ -29,6 +29,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=64)
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -126,6 +132,26 @@ async def login(payload: LoginRequest) -> LoginResponse:
         metadata_json={"username": user["username"]},
     )
     return LoginResponse(access_token=token)
+
+
+@app.post("/api/auth/register", response_model=UserResponse)
+async def register(payload: RegisterRequest) -> UserResponse:
+    try:
+        user = create_user(
+            username=payload.username,
+            email=payload.email,
+            password=payload.password,
+            roles=["AP_CLERK"],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    log_admin_event(
+        event_type="auth.register",
+        target_type="user",
+        target_id=user["id"],
+        metadata_json={"username": user["username"]},
+    )
+    return UserResponse(**user)
 
 
 @app.get("/api/auth/me", response_model=UserResponse)

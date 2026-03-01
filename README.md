@@ -20,6 +20,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 ## Wichtige Endpunkte
 
 - `GET /api/health`
+- `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `GET /api/admin/users` (ADMIN)

@@ -438,6 +438,7 @@ Festlegung:
   - `supabase/schema.sql`
   - `docker-compose.coolify.yml`
 - Backend bereits umgesetzt:
+  - Registrierung (`/api/auth/register`)
   - Username-Login (`/api/auth/login`)
   - `me` Endpoint (`/api/auth/me`)
   - Admin-Bootstrap via `ADMIN_USERNAME`/`ADMIN_PASSWORD`
@@ -445,7 +446,7 @@ Festlegung:
   - Connector-Config APIs (`GET/PUT/POST-test /api/admin/config/connectors/...`)
   - Basis-Audit-Logging fuer Login, User-Admin-Aktionen und Connector-Aenderungen
 - Frontend bereits umgesetzt:
-  - Login-View
+  - Login-/Registrierungs-View
   - Basis-Admin-View fuer User-Liste und User-Anlage
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen

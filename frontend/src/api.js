@@ -27,6 +27,15 @@ export async function login(username, password) {
   return handleJson(response)
 }
 
+export async function register(username, email, password) {
+  const response = await fetch(`${API_BASE}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email, password }),
+  })
+  return handleJson(response)
+}
+
 export async function me(token) {
   const response = await fetch(`${API_BASE}/api/auth/me`, {
     headers: { ...authHeaders(token) },
@@ -52,4 +61,3 @@ export async function createUser(token, payload) {
   })
   return handleJson(response)
 }
-

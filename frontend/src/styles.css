@@ -181,6 +181,12 @@ label {
   margin-bottom: 0.8rem;
 }
 
+.auth-mode-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
 .error {
   color: var(--color-error);
   margin-top: 0.7rem;
@@ -197,4 +203,3 @@ label {
     gap: 0.4rem;
   }
 }
-

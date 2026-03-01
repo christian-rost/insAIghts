@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
-import { createUser, listUsers, login, me } from "./api"
+import { createUser, listUsers, login, me, register } from "./api"
 
 function LoginView({ onLogin, loading, error }) {
+  const [mode, setMode] = useState("login")
   const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
   return (
@@ -12,22 +14,44 @@ function LoginView({ onLogin, loading, error }) {
       </div>
       <div className="card-body">
       <p className="muted">Login mit Username</p>
+      <div className="auth-mode-row">
+        <button
+          type="button"
+          className={`btn ${mode === "login" ? "btn-primary" : "btn-outline"}`}
+          onClick={() => setMode("login")}
+        >
+          Login
+        </button>
+        <button
+          type="button"
+          className={`btn ${mode === "register" ? "btn-primary" : "btn-outline"}`}
+          onClick={() => setMode("register")}
+        >
+          Registrieren
+        </button>
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          onLogin(username, password)
+          onLogin({ mode, username, email, password })
         }}
       >
         <label>
           Username
           <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} required />
         </label>
+        {mode === "register" ? (
+          <label>
+            E-Mail
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+        ) : null}
         <label>
           Passwort
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         <button className="btn btn-primary" disabled={loading} type="submit">
-          {loading ? "Anmelden..." : "Anmelden"}
+          {loading ? "Bitte warten..." : mode === "login" ? "Anmelden" : "Registrieren"}
         </button>
       </form>
       {error ? <p className="error">{error}</p> : null}
@@ -181,10 +205,13 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  async function handleLogin(username, password) {
+  async function handleLogin({ mode, username, email, password }) {
     try {
       setLoading(true)
       setError("")
+      if (mode === "register") {
+        await register(username, email, password)
+      }
       const result = await login(username, password)
       localStorage.setItem("access_token", result.access_token)
       setToken(result.access_token)
