@@ -23,3 +23,8 @@ CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+# Graph DB
+GRAPH_DB_URI = os.getenv("GRAPH_DB_URI", "bolt://neo4j:7687")
+GRAPH_DB_USER = os.getenv("GRAPH_DB_USER", "neo4j")
+GRAPH_DB_PASSWORD = os.getenv("GRAPH_DB_PASSWORD", "")

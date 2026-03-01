@@ -20,6 +20,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 ## Wichtige Endpunkte
 
 - `GET /api/health`
+- `GET /api/health/graph`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
@@ -57,6 +58,8 @@ Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
    - `ADMIN_USERNAME`
    - `ADMIN_PASSWORD`
    - `VITE_API_BASE` (Backend-URL, z. B. `https://api.deinedomain.tld`)
+   - `GRAPH_DB_URI` (default `bolt://neo4j:7687`)
+   - `GRAPH_DB_USER` (default `neo4j`)
    - `GRAPH_DB_PASSWORD`
 5. Deploy starten.
 6. Nach Deploy pruefen:

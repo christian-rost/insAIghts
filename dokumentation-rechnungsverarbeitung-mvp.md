@@ -441,6 +441,7 @@ Festlegung:
   - Registrierung (`/api/auth/register`)
   - Username-Login (`/api/auth/login`)
   - `me` Endpoint (`/api/auth/me`)
+  - Graph-Healthcheck (`/api/health/graph`) mit Neo4j Query-Test (`RETURN 1`)
   - Admin-Bootstrap via `ADMIN_USERNAME`/`ADMIN_PASSWORD`
   - Admin-User APIs (`GET/POST/PATCH /api/admin/users`)
   - Connector-Config APIs (`GET/PUT/POST-test /api/admin/config/connectors/...`)

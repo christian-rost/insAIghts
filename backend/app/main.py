@@ -9,6 +9,7 @@ from .auth import authenticate_user, create_access_token, get_current_user, requ
 from .audit_storage import log_admin_event
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, CORS_ORIGINS
 from .config_storage import get_connector, list_connectors, update_connector
+from .graph import graph_healthcheck
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -112,6 +113,11 @@ async def root() -> Dict[str, str]:
 @app.get("/api/health")
 async def health() -> Dict[str, str]:
     return {"status": "healthy"}
+
+
+@app.get("/api/health/graph")
+async def health_graph() -> Dict:
+    return graph_healthcheck()
 
 
 @app.post("/api/auth/login", response_model=LoginResponse)
