@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Dict, List, Optional
 
+from .config import USERS_TABLE
 from .database import get_db
 from .security import hash_password
 
@@ -35,7 +36,7 @@ def _normalize_user(row: Dict) -> Dict:
 def list_users() -> List[Dict]:
     db = get_db()
     if db:
-        result = db.table("app_users").select("*").order("created_at").execute()
+        result = db.table(USERS_TABLE).select("*").order("created_at").execute()
         return [_normalize_user(r) for r in (result.data or [])]
     return sorted(_mem_users.values(), key=lambda u: u.get("created_at", ""))
 
@@ -43,7 +44,7 @@ def list_users() -> List[Dict]:
 def get_user_by_id(user_id: str) -> Optional[Dict]:
     db = get_db()
     if db:
-        result = db.table("app_users").select("*").eq("id", user_id).limit(1).execute()
+        result = db.table(USERS_TABLE).select("*").eq("id", user_id).limit(1).execute()
         rows = result.data or []
         return _normalize_user(rows[0]) if rows else None
     return _mem_users.get(user_id)
@@ -52,7 +53,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
 def get_user_by_username(username: str) -> Optional[Dict]:
     db = get_db()
     if db:
-        result = db.table("app_users").select("*").eq("username", username).limit(1).execute()
+        result = db.table(USERS_TABLE).select("*").eq("username", username).limit(1).execute()
         rows = result.data or []
         return _normalize_user(rows[0]) if rows else None
     for user in _mem_users.values():
@@ -77,7 +78,7 @@ def create_user(username: str, email: str, password: str, roles: Optional[List[s
     }
     db = get_db()
     if db:
-        result = db.table("app_users").insert(user).execute()
+        result = db.table(USERS_TABLE).insert(user).execute()
         rows = result.data or []
         return _normalize_user(rows[0]) if rows else _normalize_user(user)
     _mem_users[user["id"]] = user
@@ -88,7 +89,7 @@ def update_user(user_id: str, updates: Dict) -> Optional[Dict]:
     updates = {**updates, "updated_at": _now_iso()}
     db = get_db()
     if db:
-        result = db.table("app_users").update(updates).eq("id", user_id).execute()
+        result = db.table(USERS_TABLE).update(updates).eq("id", user_id).execute()
         rows = result.data or []
         return _normalize_user(rows[0]) if rows else None
     existing = _mem_users.get(user_id)

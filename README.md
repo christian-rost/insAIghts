@@ -29,6 +29,16 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 
+## Supabase Tabellen
+- `insaights_users`
+- `insaights_admin_audit_log`
+- `insaights_config_connectors`
+
+Hinweis:
+- Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
+- Falls in einem geteilten Supabase-Projekt bereits `app_users` angepasst wurde:
+  - `supabase/reset_app_users_to_legacy.sql` ausfuehren.
+
 ## Coolify
 
 Fuer Coolify kann `docker-compose.coolify.yml` verwendet werden.

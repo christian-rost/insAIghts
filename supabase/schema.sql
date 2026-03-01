@@ -1,6 +1,6 @@
 create extension if not exists pgcrypto;
 
-create table if not exists app_users (
+create table if not exists insaights_users (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
   email text not null unique,
@@ -11,7 +11,7 @@ create table if not exists app_users (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists app_admin_audit_log (
+create table if not exists insaights_admin_audit_log (
   id uuid primary key default gen_random_uuid(),
   event_type text not null,
   actor_user_id uuid,
@@ -23,10 +23,10 @@ create table if not exists app_admin_audit_log (
   created_at timestamptz not null default now()
 );
 
-create index if not exists idx_app_admin_audit_log_actor on app_admin_audit_log(actor_user_id);
-create index if not exists idx_app_admin_audit_log_created on app_admin_audit_log(created_at desc);
+create index if not exists idx_insaights_admin_audit_log_actor on insaights_admin_audit_log(actor_user_id);
+create index if not exists idx_insaights_admin_audit_log_created on insaights_admin_audit_log(created_at desc);
 
-create table if not exists app_config_connectors (
+create table if not exists insaights_config_connectors (
   id uuid primary key default gen_random_uuid(),
   connector_name text not null unique check (connector_name in ('mail', 'rest', 'minio')),
   enabled boolean not null default false,
@@ -40,6 +40,6 @@ create table if not exists app_config_connectors (
   updated_at timestamptz not null default now()
 );
 
-insert into app_config_connectors (connector_name, enabled)
+insert into insaights_config_connectors (connector_name, enabled)
 values ('mail', false), ('rest', false), ('minio', false)
 on conflict (connector_name) do nothing;

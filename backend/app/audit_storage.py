@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Any, Dict, List, Optional
 
+from .config import ADMIN_AUDIT_TABLE
 from .database import get_db
 
 _mem_audit_events: List[Dict[str, Any]] = []
@@ -36,10 +37,9 @@ def log_admin_event(
 
     db = get_db()
     if db:
-        result = db.table("app_admin_audit_log").insert(row).execute()
+        result = db.table(ADMIN_AUDIT_TABLE).insert(row).execute()
         rows = result.data or []
         return rows[0] if rows else row
 
     _mem_audit_events.append(row)
     return row
-

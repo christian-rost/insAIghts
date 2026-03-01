@@ -15,7 +15,11 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+# insAIghts table namespace (avoid collisions with other apps sharing one Supabase project)
+USERS_TABLE = os.getenv("USERS_TABLE", "insaights_users")
+ADMIN_AUDIT_TABLE = os.getenv("ADMIN_AUDIT_TABLE", "insaights_admin_audit_log")
+CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
+
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
-

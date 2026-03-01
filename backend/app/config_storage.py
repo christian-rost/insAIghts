@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Any, Dict, List, Optional
 
+from .config import CONNECTORS_TABLE
 from .database import get_db
 
 DEFAULT_CONNECTORS = ("mail", "rest", "minio")
@@ -51,11 +52,11 @@ def _ensure_default_connectors_db() -> None:
     if not db:
         return
     for name in DEFAULT_CONNECTORS:
-        result = db.table("app_config_connectors").select("id").eq("connector_name", name).limit(1).execute()
+        result = db.table(CONNECTORS_TABLE).select("id").eq("connector_name", name).limit(1).execute()
         rows = result.data or []
         if rows:
             continue
-        db.table("app_config_connectors").insert(
+        db.table(CONNECTORS_TABLE).insert(
             {
                 "connector_name": name,
                 "enabled": False,
@@ -72,7 +73,7 @@ def list_connectors() -> List[Dict[str, Any]]:
     db = get_db()
     if db:
         _ensure_default_connectors_db()
-        result = db.table("app_config_connectors").select("*").order("connector_name").execute()
+        result = db.table(CONNECTORS_TABLE).select("*").order("connector_name").execute()
         return [_normalize_connector(r) for r in (result.data or [])]
     return [_normalize_connector(v) for v in _mem_connectors.values()]
 
@@ -82,7 +83,7 @@ def get_connector(connector_name: str) -> Optional[Dict[str, Any]]:
     if db:
         _ensure_default_connectors_db()
         result = (
-            db.table("app_config_connectors")
+            db.table(CONNECTORS_TABLE)
             .select("*")
             .eq("connector_name", connector_name)
             .limit(1)
@@ -101,7 +102,7 @@ def update_connector(connector_name: str, updates: Dict[str, Any], actor_user_id
     if db:
         _ensure_default_connectors_db()
         result = (
-            db.table("app_config_connectors")
+            db.table(CONNECTORS_TABLE)
             .update(updates)
             .eq("connector_name", connector_name)
             .execute()
@@ -115,4 +116,3 @@ def update_connector(connector_name: str, updates: Dict[str, Any], actor_user_id
     current.update(updates)
     _mem_connectors[connector_name] = current
     return _normalize_connector(current)
-

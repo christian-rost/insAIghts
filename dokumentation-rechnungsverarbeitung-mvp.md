@@ -449,6 +449,8 @@ Festlegung:
   - Basis-Admin-View fuer User-Liste und User-Anlage
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
+- Datenbank-Namespace:
+  - Eigene Tabellen fuer insAIghts (`insaights_*`) zur Vermeidung von Kollisionen mit anderen Anwendungen.
 
 ## 15. Dokumentations-Governance (verbindlich)
 - Dokumentation wird bei jeder fachlichen oder technischen Aenderung im selben Arbeitsschritt aktualisiert.
