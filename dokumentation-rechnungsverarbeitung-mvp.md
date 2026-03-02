@@ -455,6 +455,7 @@ Festlegung:
   - Invoice-Validation Endpoint (`POST /api/processing/invoices/validate`) fuer MAPPED->VALIDATED/NEEDS_REVIEW
   - Rechnungsliste Endpoint (`GET /api/invoices`)
   - Rechnungsdetail Endpunkte (`GET /api/invoices/{id}`, `GET /api/invoices/{id}/lines`) fuer Anwenderansicht
+  - Dokument-Preview Endpoint (`GET /api/invoices/{id}/document`) fuer PDF/Bild-Vorschau in der Inbox
   - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
@@ -465,7 +466,7 @@ Festlegung:
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
-  - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit Filter/Suche, Rechnungsdetail und Positionsanzeige
+  - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
   - Inbox-Design an Referenz "View Invoices" angeglichen (zweispaltige Listen-/Detaildarstellung)
 - Graph-Engine:

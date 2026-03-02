@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 
@@ -12,6 +12,7 @@ from .config_storage import get_connector, list_connectors, update_connector
 from .document_processing import download_minio_object, extract_text_for_document
 from .document_storage import (
     create_document,
+    get_document_by_id,
     get_document_by_source_uri,
     list_documents,
     list_documents_by_status,
@@ -688,6 +689,54 @@ async def invoice_actions_get(
         raise HTTPException(status_code=404, detail="Invoice not found")
     actions = list_invoice_actions(invoice_id, limit=200)
     return {"count": len(actions), "items": actions}
+
+
+def _content_type_for_file_type(file_type: str) -> str:
+    if file_type == "pdf":
+        return "application/pdf"
+    if file_type == "image":
+        return "image/png"
+    if file_type == "txt":
+        return "text/plain; charset=utf-8"
+    return "application/octet-stream"
+
+
+@app.get("/api/invoices/{invoice_id}/document")
+async def invoice_document_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> Response:
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    document_id = str(invoice.get("document_id") or "")
+    if not document_id:
+        raise HTTPException(status_code=404, detail="No document linked to invoice")
+
+    document = get_document_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if str(document.get("source_system") or "") != "minio":
+        raise HTTPException(status_code=400, detail="Document source is not supported for preview")
+
+    connector = get_connector("minio")
+    if not connector:
+        raise HTTPException(status_code=404, detail="MinIO connector config not found")
+    try:
+        cfg = parse_minio_config(connector.get("config_json") or {})
+        content = download_minio_object(cfg, str(document.get("source_uri") or ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Document fetch failed: {exc}")
+
+    file_type = str(document.get("file_type") or "")
+    filename = str(document.get("filename") or "document.bin")
+    return Response(
+        content=content,
+        media_type=_content_type_for_file_type(file_type),
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceActionRequest, current_user: Dict) -> Dict:

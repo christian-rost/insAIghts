@@ -332,13 +332,14 @@ label {
 
 .inbox-split {
   display: grid;
-  grid-template-columns: minmax(300px, 38%) minmax(0, 62%);
+  grid-template-columns: minmax(260px, 28%) minmax(380px, 40%) minmax(360px, 32%);
   gap: 1rem;
   align-items: start;
 }
 
 .inbox-list-card,
-.inbox-detail-card {
+.inbox-detail-card,
+.inbox-pdf-card {
   min-height: 72vh;
 }
 
@@ -434,6 +435,36 @@ label {
   gap: 0.6rem;
 }
 
+.pdf-viewer {
+  min-height: 66vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-frame {
+  width: 100%;
+  height: 66vh;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.pdf-image {
+  width: 100%;
+  max-height: 66vh;
+  object-fit: contain;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.pdf-empty {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
@@ -454,7 +485,8 @@ label {
   }
 
   .inbox-list-card,
-  .inbox-detail-card {
+  .inbox-detail-card,
+  .inbox-pdf-card {
     min-height: auto;
   }
 
@@ -464,6 +496,12 @@ label {
 
   .invoice-actions {
     grid-template-columns: 1fr;
+  }
+
+  .pdf-frame,
+  .pdf-image {
+    height: 52vh;
+    max-height: 52vh;
   }
 
   .inbox-item-number {

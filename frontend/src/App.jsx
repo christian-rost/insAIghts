@@ -3,6 +3,7 @@ import {
   createUser,
   extractDocuments,
   getInvoice,
+  getInvoiceDocumentBlob,
   invoiceApprove,
   invoiceHold,
   invoiceReject,
@@ -891,6 +892,10 @@ function UserView({ token, currentUser, onLogout }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [selectedLines, setSelectedLines] = useState([])
   const [selectedActions, setSelectedActions] = useState([])
+  const [documentUrl, setDocumentUrl] = useState("")
+  const [documentType, setDocumentType] = useState("")
+  const [documentName, setDocumentName] = useState("")
+  const [documentError, setDocumentError] = useState("")
   const [actionComment, setActionComment] = useState("")
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
@@ -930,13 +935,37 @@ function UserView({ token, currentUser, onLogout }) {
   async function loadInvoiceDetail(invoiceId) {
     try {
       setError("")
+      setDocumentError("")
       const [invoiceRes, linesRes] = await Promise.all([
         getInvoice(token, invoiceId),
         listInvoiceLines(token, invoiceId),
       ])
       const actionsRes = await listInvoiceActions(token, invoiceId)
+      const invoiceItem = invoiceRes.item || null
+
+      if (documentUrl) {
+        URL.revokeObjectURL(documentUrl)
+      }
+      if (invoiceItem?.id) {
+        try {
+          const doc = await getInvoiceDocumentBlob(token, invoiceId)
+          const nextUrl = URL.createObjectURL(doc.blob)
+          setDocumentUrl(nextUrl)
+          setDocumentType(doc.contentType || "")
+          setDocumentName(doc.filename || "document")
+        } catch (docErr) {
+          setDocumentUrl("")
+          setDocumentType("")
+          setDocumentName("")
+          setDocumentError(String(docErr.message || docErr))
+        }
+      } else {
+        setDocumentUrl("")
+        setDocumentType("")
+        setDocumentName("")
+      }
       setSelectedId(invoiceId)
-      setSelectedInvoice(invoiceRes.item || null)
+      setSelectedInvoice(invoiceItem)
       setSelectedLines(linesRes.items || [])
       setSelectedActions(actionsRes.items || [])
     } catch (e) {
@@ -967,6 +996,14 @@ function UserView({ token, currentUser, onLogout }) {
   useEffect(() => {
     loadInbox()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (documentUrl) {
+        URL.revokeObjectURL(documentUrl)
+      }
+    }
+  }, [documentUrl])
 
   return (
     <main className="app-layout inbox-layout">
@@ -1163,6 +1200,29 @@ function UserView({ token, currentUser, onLogout }) {
                   </tbody>
                 </table>
               </>
+            )}
+          </div>
+        </div>
+
+        <div className="card inbox-pdf-card">
+          <div className="card-header"><h3>PDF / Dokument</h3></div>
+          <div className="card-body pdf-viewer">
+            {documentError ? <p className="error">{documentError}</p> : null}
+            {!selectedInvoice ? (
+              <p className="muted">Keine Rechnung ausgewaehlt.</p>
+            ) : !documentUrl ? (
+              <p className="muted">Kein Dokument verfuegbar.</p>
+            ) : documentType.includes("pdf") ? (
+              <iframe title="invoice-pdf" src={documentUrl} className="pdf-frame" />
+            ) : documentType.startsWith("image/") ? (
+              <img className="pdf-image" src={documentUrl} alt={documentName || "Dokument"} />
+            ) : (
+              <div className="pdf-empty">
+                <p className="muted">Vorschau fuer diesen Dateityp nicht verfuegbar.</p>
+                <a className="btn btn-outline" href={documentUrl} download={documentName || "document"}>
+                  Download
+                </a>
+              </div>
             )}
           </div>
         </div>

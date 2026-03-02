@@ -190,6 +190,28 @@ export async function listInvoiceActions(token, invoiceId) {
   return handleJson(response)
 }
 
+export async function getInvoiceDocumentBlob(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/document`, {
+    headers: { ...authHeaders(token) },
+  })
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText}`
+    try {
+      const body = await response.json()
+      if (body?.detail) message = body.detail
+    } catch {
+      // ignore non-json
+    }
+    throw new Error(message)
+  }
+  const blob = await response.blob()
+  const contentType = response.headers.get("content-type") || ""
+  const disposition = response.headers.get("content-disposition") || ""
+  const m = disposition.match(/filename=\"?([^\";]+)\"?/)
+  const filename = m ? m[1] : "document"
+  return { blob, contentType, filename }
+}
+
 export async function invoiceApprove(token, invoiceId, comment = "") {
   const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/approve`, {
     method: "POST",

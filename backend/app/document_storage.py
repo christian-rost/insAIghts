@@ -57,6 +57,15 @@ def get_document_by_source_uri(source_uri: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def get_document_by_id(document_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = db.table(DOCUMENTS_TABLE).select("*").eq("id", document_id).limit(1).execute()
+        rows = result.data or []
+        return rows[0] if rows else None
+    return _mem_documents.get(document_id)
+
+
 def create_document(
     source_system: str,
     source_uri: str,

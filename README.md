@@ -44,6 +44,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/invoices/{invoice_id}`
 - `GET /api/invoices/{invoice_id}/lines`
 - `GET /api/invoices/{invoice_id}/actions`
+- `GET /api/invoices/{invoice_id}/document`
 - `POST /api/invoices/{invoice_id}/approve`
 - `POST /api/invoices/{invoice_id}/reject`
 - `POST /api/invoices/{invoice_id}/hold`
@@ -86,6 +87,7 @@ Hinweis:
   - Filter nach Status
   - Suche nach Lieferant/Rechnungsnummer
   - Rechnungsdetailansicht
+  - Dokumentvorschau (PDF/Bild) in rechter Spalte
   - Positionen (Line-Items) aus `insaights_invoice_lines`
   - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
   - Aktions-Timeline je Rechnung
