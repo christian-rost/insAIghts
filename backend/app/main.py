@@ -19,6 +19,7 @@ from .document_storage import (
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
+from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
     create_invoice,
@@ -125,6 +126,10 @@ class ValidateInvoicesRequest(BaseModel):
     max_invoices: int = Field(default=50, ge=1, le=500)
 
 
+class InvoiceActionRequest(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
 class ProviderConfigResponse(BaseModel):
     id: Optional[str] = None
     provider_name: str
@@ -137,6 +142,25 @@ class ProviderConfigResponse(BaseModel):
 class ProviderUpdateRequest(BaseModel):
     is_enabled: Optional[bool] = None
     key_value: Optional[str] = None
+
+
+ALLOWED_ACTION_TRANSITIONS = {
+    "approve": {
+        "allowed_from": {"VALIDATED", "PENDING_APPROVAL", "NEEDS_REVIEW"},
+        "to_status": "APPROVED",
+        "roles_any_of": {"APPROVER", "ADMIN"},
+    },
+    "reject": {
+        "allowed_from": {"NEEDS_REVIEW", "VALIDATED", "PENDING_APPROVAL", "ON_HOLD"},
+        "to_status": "REJECTED",
+        "roles_any_of": {"AP_CLERK", "APPROVER", "ADMIN"},
+    },
+    "hold": {
+        "allowed_from": {"NEEDS_REVIEW", "VALIDATED", "PENDING_APPROVAL"},
+        "to_status": "ON_HOLD",
+        "roles_any_of": {"AP_CLERK", "APPROVER", "ADMIN"},
+    },
+}
 
 
 class ExtractionFieldResponse(BaseModel):
@@ -652,6 +676,102 @@ async def invoice_lines_get(
         raise HTTPException(status_code=404, detail="Invoice not found")
     lines = list_invoice_lines(invoice_id)
     return {"count": len(lines), "items": lines}
+
+
+@app.get("/api/invoices/{invoice_id}/actions")
+async def invoice_actions_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    item = get_invoice_by_id(invoice_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    actions = list_invoice_actions(invoice_id, limit=200)
+    return {"count": len(actions), "items": actions}
+
+
+def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceActionRequest, current_user: Dict) -> Dict:
+    rule = ALLOWED_ACTION_TRANSITIONS.get(action_type)
+    if not rule:
+        raise HTTPException(status_code=400, detail="Unsupported action")
+
+    user_roles = set(current_user.get("roles") or [])
+    if not user_roles.intersection(set(rule["roles_any_of"])):
+        raise HTTPException(status_code=403, detail=f"Role required: one of {sorted(rule['roles_any_of'])}")
+
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    from_status = str(invoice.get("status") or "")
+    allowed_from = set(rule["allowed_from"])
+    if from_status not in allowed_from:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Action '{action_type}' not allowed from status '{from_status}'",
+        )
+
+    to_status = str(rule["to_status"])
+    updated = update_invoice(invoice_id, {"status": to_status})
+    if not updated:
+        raise HTTPException(status_code=500, detail="Invoice update failed")
+    doc_id = updated.get("document_id")
+    if doc_id:
+        update_document(str(doc_id), {"status": to_status})
+
+    action_row = create_invoice_action(
+        invoice_id=invoice_id,
+        action_type=action_type,
+        from_status=from_status,
+        to_status=to_status,
+        comment=payload.comment,
+        actor_user_id=current_user["id"],
+        actor_username=current_user.get("username"),
+    )
+    log_admin_event(
+        event_type=f"invoices.{action_type}",
+        actor_user_id=current_user["id"],
+        target_type="invoice",
+        target_id=invoice_id,
+        metadata_json={
+            "from_status": from_status,
+            "to_status": to_status,
+            "comment_present": bool(payload.comment),
+        },
+    )
+    return {
+        "status": "ok",
+        "invoice_id": invoice_id,
+        "from_status": from_status,
+        "to_status": to_status,
+        "action": action_row,
+    }
+
+
+@app.post("/api/invoices/{invoice_id}/approve")
+async def invoice_approve(
+    invoice_id: str,
+    payload: InvoiceActionRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    return _execute_invoice_action("approve", invoice_id, payload, current_user)
+
+
+@app.post("/api/invoices/{invoice_id}/reject")
+async def invoice_reject(
+    invoice_id: str,
+    payload: InvoiceActionRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    return _execute_invoice_action("reject", invoice_id, payload, current_user)
+
+
+@app.post("/api/invoices/{invoice_id}/hold")
+async def invoice_hold(
+    invoice_id: str,
+    payload: InvoiceActionRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    return _execute_invoice_action("hold", invoice_id, payload, current_user)
 
 
 @app.post("/api/processing/invoices/validate")

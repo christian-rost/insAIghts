@@ -43,6 +43,10 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/invoices`
 - `GET /api/invoices/{invoice_id}`
 - `GET /api/invoices/{invoice_id}/lines`
+- `GET /api/invoices/{invoice_id}/actions`
+- `POST /api/invoices/{invoice_id}/approve`
+- `POST /api/invoices/{invoice_id}/reject`
+- `POST /api/invoices/{invoice_id}/hold`
 
 ## Supabase Tabellen
 - `insaights_users`
@@ -83,6 +87,8 @@ Hinweis:
   - Suche nach Lieferant/Rechnungsnummer
   - Rechnungsdetailansicht
   - Positionen (Line-Items) aus `insaights_invoice_lines`
+  - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
+  - Aktions-Timeline je Rechnung
 
 ## Coolify
 

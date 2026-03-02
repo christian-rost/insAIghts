@@ -143,3 +143,17 @@ create table if not exists insaights_invoice_lines (
 );
 
 create index if not exists idx_insaights_invoice_lines_invoice on insaights_invoice_lines(invoice_id);
+
+create table if not exists insaights_invoice_actions (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references insaights_invoices(id) on delete cascade,
+  action_type text not null check (action_type in ('approve', 'reject', 'hold')),
+  comment text,
+  from_status text,
+  to_status text not null,
+  actor_user_id uuid,
+  actor_username text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_invoice_actions_invoice on insaights_invoice_actions(invoice_id, created_at desc);

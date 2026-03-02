@@ -183,6 +183,40 @@ export async function listInvoiceLines(token, invoiceId) {
   return handleJson(response)
 }
 
+export async function listInvoiceActions(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/actions`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function invoiceApprove(token, invoiceId, comment = "") {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ comment }),
+  })
+  return handleJson(response)
+}
+
+export async function invoiceReject(token, invoiceId, comment = "") {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ comment }),
+  })
+  return handleJson(response)
+}
+
+export async function invoiceHold(token, invoiceId, comment = "") {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/hold`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ comment }),
+  })
+  return handleJson(response)
+}
+
 export async function validateInvoices(token, maxInvoices = 50) {
   const response = await fetch(`${API_BASE}/api/processing/invoices/validate`, {
     method: "POST",

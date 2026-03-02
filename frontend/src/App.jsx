@@ -3,7 +3,11 @@ import {
   createUser,
   extractDocuments,
   getInvoice,
+  invoiceApprove,
+  invoiceHold,
+  invoiceReject,
   listExtractionFields,
+  listInvoiceActions,
   listInvoiceLines,
   listInvoices,
   listConnectors,
@@ -886,6 +890,9 @@ function UserView({ token, currentUser, onLogout }) {
   const [selectedId, setSelectedId] = useState("")
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [selectedLines, setSelectedLines] = useState([])
+  const [selectedActions, setSelectedActions] = useState([])
+  const [actionComment, setActionComment] = useState("")
+  const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
@@ -911,6 +918,7 @@ function UserView({ token, currentUser, onLogout }) {
         setSelectedId("")
         setSelectedInvoice(null)
         setSelectedLines([])
+        setSelectedActions([])
       }
     } catch (e) {
       setError(String(e.message || e))
@@ -926,9 +934,31 @@ function UserView({ token, currentUser, onLogout }) {
         getInvoice(token, invoiceId),
         listInvoiceLines(token, invoiceId),
       ])
+      const actionsRes = await listInvoiceActions(token, invoiceId)
       setSelectedId(invoiceId)
       setSelectedInvoice(invoiceRes.item || null)
       setSelectedLines(linesRes.items || [])
+      setSelectedActions(actionsRes.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function runAction(actionName) {
+    if (!selectedId) return
+    try {
+      setError("")
+      setNotice("")
+      if (actionName === "approve") {
+        await invoiceApprove(token, selectedId, actionComment)
+      } else if (actionName === "reject") {
+        await invoiceReject(token, selectedId, actionComment)
+      } else if (actionName === "hold") {
+        await invoiceHold(token, selectedId, actionComment)
+      }
+      setActionComment("")
+      await loadInbox(selectedId)
+      setNotice(`Aktion ${actionName} erfolgreich`)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -1083,11 +1113,61 @@ function UserView({ token, currentUser, onLogout }) {
                   )}
                 </tbody>
               </table>
+
+              <h4 style={{ marginTop: "1rem" }}>Aktionen</h4>
+              <div className="actions-row">
+                <input
+                  className="input"
+                  value={actionComment}
+                  onChange={(e) => setActionComment(e.target.value)}
+                  placeholder="Kommentar (optional)"
+                />
+                <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
+                  Approve
+                </button>
+                <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
+                  Reject
+                </button>
+                <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
+                  Hold
+                </button>
+              </div>
+
+              <h4 style={{ marginTop: "1rem" }}>Timeline</h4>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Zeit</th>
+                    <th>Aktion</th>
+                    <th>Von</th>
+                    <th>Nach</th>
+                    <th>User</th>
+                    <th>Kommentar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedActions.length === 0 ? (
+                    <tr><td colSpan={6}>Keine Aktionen vorhanden.</td></tr>
+                  ) : (
+                    selectedActions.map((a) => (
+                      <tr key={a.id}>
+                        <td>{a.created_at || "-"}</td>
+                        <td>{a.action_type || "-"}</td>
+                        <td>{a.from_status || "-"}</td>
+                        <td>{a.to_status || "-"}</td>
+                        <td>{a.actor_username || "-"}</td>
+                        <td>{a.comment || "-"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </>
           )}
         </div>
       </section>
 
+      {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </main>
   )

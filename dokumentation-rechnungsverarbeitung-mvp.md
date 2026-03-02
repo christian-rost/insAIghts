@@ -455,6 +455,7 @@ Festlegung:
   - Invoice-Validation Endpoint (`POST /api/processing/invoices/validate`) fuer MAPPED->VALIDATED/NEEDS_REVIEW
   - Rechnungsliste Endpoint (`GET /api/invoices`)
   - Rechnungsdetail Endpunkte (`GET /api/invoices/{id}`, `GET /api/invoices/{id}/lines`) fuer Anwenderansicht
+  - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
 - Frontend bereits umgesetzt:
@@ -465,6 +466,7 @@ Festlegung:
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit Filter/Suche, Rechnungsdetail und Positionsanzeige
+  - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:
@@ -472,6 +474,7 @@ Festlegung:
   - Rechnungsverarbeitung persistiert in `insaights_invoices` und `insaights_invoice_lines` (keine Fremdtabellen anderer Apps).
   - `insaights_invoice_lines` wird im Mapping-Schritt mit durch das Sprachmodell extrahierten Positionen befuellt.
   - Feldkatalog fuer Extraktion wird in `insaights_config_extraction_fields` gepflegt und zur Prompt-Erstellung genutzt.
+  - Workflow-Aktionshistorie wird in `insaights_invoice_actions` gespeichert.
 
 ## 15. Dokumentations-Governance (verbindlich)
 - Dokumentation wird bei jeder fachlichen oder technischen Aenderung im selben Arbeitsschritt aktualisiert.
