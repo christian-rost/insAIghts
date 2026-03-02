@@ -81,3 +81,37 @@ def list_invoices(limit: int = 100) -> List[Dict[str, Any]]:
 
     rows = sorted(_mem_invoices.values(), key=lambda x: x.get("created_at", ""), reverse=True)
     return rows[:limit]
+
+
+def list_invoices_by_status(status: str, limit: int = 100) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = (
+            db.table(INVOICES_TABLE)
+            .select("*")
+            .eq("status", status)
+            .order("created_at", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
+    rows = [r for r in _mem_invoices.values() if r.get("status") == status]
+    rows = sorted(rows, key=lambda x: x.get("created_at", ""))
+    return rows[:limit]
+
+
+def update_invoice(invoice_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    payload = {**updates, "updated_at": _now_iso()}
+    db = get_db()
+    if db:
+        result = db.table(INVOICES_TABLE).update(payload).eq("id", invoice_id).execute()
+        rows = result.data or []
+        return rows[0] if rows else None
+
+    row = _mem_invoices.get(invoice_id)
+    if not row:
+        return None
+    row.update(payload)
+    _mem_invoices[invoice_id] = row
+    return row

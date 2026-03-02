@@ -19,7 +19,8 @@ from .document_storage import (
 )
 from .graph import graph_healthcheck
 from .invoice_mapping import map_extracted_document
-from .invoice_storage import create_invoice, get_invoice_by_document, list_invoices
+from .invoice_storage import create_invoice, get_invoice_by_document, list_invoices, list_invoices_by_status, update_invoice
+from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
@@ -108,6 +109,10 @@ class ExtractDocumentsRequest(BaseModel):
 
 class MapInvoicesRequest(BaseModel):
     max_documents: int = Field(default=20, ge=1, le=500)
+
+
+class ValidateInvoicesRequest(BaseModel):
+    max_invoices: int = Field(default=50, ge=1, le=500)
 
 
 class ProviderConfigResponse(BaseModel):
@@ -532,3 +537,70 @@ async def invoices_list(
 ) -> Dict:
     items = list_invoices(limit=limit)
     return {"count": len(items), "items": items}
+
+
+@app.post("/api/processing/invoices/validate")
+async def processing_invoices_validate(
+    payload: ValidateInvoicesRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    candidates = list_invoices_by_status("MAPPED", limit=payload.max_invoices)
+    validation_context = load_validation_context(limit=3000)
+    validated = 0
+    review = 0
+    failed = 0
+    details = []
+
+    for inv in candidates:
+        inv_id = str(inv.get("id"))
+        try:
+            result = validate_invoice(inv, validation_context)
+            updated = update_invoice(
+                inv_id,
+                {
+                    "status": result["status"],
+                    "extraction_json": {
+                        **(inv.get("extraction_json") or {}),
+                        "validation": result["validation"],
+                    },
+                },
+            )
+            if not updated:
+                raise ValueError("invoice update failed")
+            if result["status"] == "VALIDATED":
+                validated += 1
+            else:
+                review += 1
+            doc_id = updated.get("document_id")
+            if doc_id:
+                update_document(str(doc_id), {"status": result["status"]})
+            details.append(
+                {
+                    "invoice_id": inv_id,
+                    "status": result["status"],
+                    "errors": result["validation"].get("errors", []),
+                }
+            )
+        except Exception as exc:
+            failed += 1
+            details.append({"invoice_id": inv_id, "status": "ERROR", "reason": str(exc)[:240]})
+
+    log_admin_event(
+        event_type="processing.invoices_validate",
+        actor_user_id=admin_user["id"],
+        target_type="invoices",
+        metadata_json={
+            "selected": len(candidates),
+            "validated": validated,
+            "needs_review": review,
+            "failed": failed,
+        },
+    )
+    return {
+        "status": "ok",
+        "selected": len(candidates),
+        "validated": validated,
+        "needs_review": review,
+        "failed": failed,
+        "details": details,
+    }

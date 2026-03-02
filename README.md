@@ -36,6 +36,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/ingestion/minio/pull` (ADMIN)
 - `POST /api/processing/documents/extract` (ADMIN)
 - `POST /api/processing/invoices/map` (ADMIN)
+- `POST /api/processing/invoices/validate` (ADMIN)
 - `GET /api/documents`
 - `GET /api/invoices`
 
@@ -62,7 +63,7 @@ Hinweis:
   - `secret_key`
   - `bucket`
   - optional: `prefix`, `secure` (default `true`)
-- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping).
+- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping + Invoice Validation).
 - Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
 
 ## Coolify

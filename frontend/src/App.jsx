@@ -14,6 +14,7 @@ import {
   pullMinio,
   register,
   updateProvider,
+  validateInvoices,
   testConnector,
   updateConnector,
 } from "./api"
@@ -127,6 +128,7 @@ function AdminView({ token, currentUser, onLogout }) {
     max_objects: 200,
     max_extract: 20,
     max_map: 20,
+    max_validate: 50,
   })
 
   async function loadUsers() {
@@ -437,6 +439,17 @@ function AdminView({ token, currentUser, onLogout }) {
                     onChange={(e) => setMinio((m) => ({ ...m, max_map: Number(e.target.value || 1) }))}
                   />
                 </label>
+                <label>
+                  Max Invoices Validate
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={minio.max_validate}
+                    onChange={(e) => setMinio((m) => ({ ...m, max_validate: Number(e.target.value || 1) }))}
+                  />
+                </label>
                 <div className="actions-row">
                   <button className="btn btn-primary" type="submit">Speichern</button>
                   <button
@@ -507,6 +520,24 @@ function AdminView({ token, currentUser, onLogout }) {
                   >
                     Invoice Mapping
                   </button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        const res = await validateInvoices(token, minio.max_validate || 50)
+                        setNotice(`Validate: ${res.validated} VALIDATED, ${res.needs_review} NEEDS_REVIEW, ${res.failed} ERROR`)
+                        await loadInvoicesList()
+                        await loadDocumentsList()
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Invoice Validation
+                  </button>
                 </div>
               </form>
             </div>
@@ -555,6 +586,7 @@ function AdminView({ token, currentUser, onLogout }) {
                     <th>Datum</th>
                     <th>Betrag</th>
                     <th>Waehrung</th>
+                    <th>Status</th>
                     <th>Konfidenz</th>
                   </tr>
                 </thead>
@@ -566,6 +598,7 @@ function AdminView({ token, currentUser, onLogout }) {
                       <td>{inv.invoice_date || "-"}</td>
                       <td>{inv.gross_amount ?? "-"}</td>
                       <td>{inv.currency || "-"}</td>
+                      <td>{inv.status || "-"}</td>
                       <td>{inv.confidence_score ?? "-"}</td>
                     </tr>
                   ))}

@@ -165,3 +165,15 @@ export async function listInvoices(token, limit = 50) {
   })
   return handleJson(response)
 }
+
+export async function validateInvoices(token, maxInvoices = 50) {
+  const response = await fetch(`${API_BASE}/api/processing/invoices/validate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_invoices: maxInvoices }),
+  })
+  return handleJson(response)
+}
