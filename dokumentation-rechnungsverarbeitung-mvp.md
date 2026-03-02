@@ -467,6 +467,7 @@ Festlegung:
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit Filter/Suche, Rechnungsdetail und Positionsanzeige
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
+  - Inbox-Design an Referenz "View Invoices" angeglichen (zweispaltige Listen-/Detaildarstellung)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:

@@ -969,9 +969,9 @@ function UserView({ token, currentUser, onLogout }) {
   }, [])
 
   return (
-    <main className="app-layout">
+    <main className="app-layout inbox-layout">
       <header className="header">
-        <h2>insAIghts Inbox</h2>
+        <h2>View Invoices</h2>
         <div className="header-user">
           Angemeldet als <span>{currentUser?.username}</span>
           <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
@@ -979,191 +979,192 @@ function UserView({ token, currentUser, onLogout }) {
       </header>
 
       <section className="card">
-        <div className="card-header"><h3>Filter</h3></div>
-        <div className="card-body">
+        <div className="card-body inbox-filterbar">
           <form
-            className="grid"
+            className="inbox-filter-form"
             onSubmit={async (e) => {
               e.preventDefault()
               await loadInbox()
             }}
           >
-            <label>
-              Status
-              <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">alle</option>
-                <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
-                <option value="VALIDATED">VALIDATED</option>
-                <option value="MAPPED">MAPPED</option>
-                <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
-                <option value="APPROVED">APPROVED</option>
-                <option value="REJECTED">REJECTED</option>
-                <option value="ON_HOLD">ON_HOLD</option>
-              </select>
-            </label>
-            <label>
-              Suche (Lieferant/Rechnungsnr.)
-              <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="z. B. acme oder RE-2026-001" />
-            </label>
-            <div className="actions-row">
-              <button className="btn btn-primary" type="submit" disabled={loading}>
-                {loading ? "Lade..." : "Anwenden"}
-              </button>
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={async () => {
-                  const resetStatus = "NEEDS_REVIEW"
-                  const resetSearch = ""
-                  setStatusFilter(resetStatus)
-                  setSearch(resetSearch)
-                  await loadInbox("", resetStatus, resetSearch)
-                }}
-              >
-                Zuruecksetzen
-              </button>
-            </div>
+            <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">alle Status</option>
+              <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+              <option value="VALIDATED">VALIDATED</option>
+              <option value="MAPPED">MAPPED</option>
+              <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="REJECTED">REJECTED</option>
+              <option value="ON_HOLD">ON_HOLD</option>
+            </select>
+            <input
+              className="input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suche nach Lieferant oder Rechnungsnummer"
+            />
+            <button className="btn btn-primary" type="submit" disabled={loading}>
+              {loading ? "Lade..." : "Filtern"}
+            </button>
+            <button
+              className="btn btn-outline"
+              type="button"
+              onClick={async () => {
+                const resetStatus = "NEEDS_REVIEW"
+                const resetSearch = ""
+                setStatusFilter(resetStatus)
+                setSearch(resetSearch)
+                await loadInbox("", resetStatus, resetSearch)
+              }}
+            >
+              Reset
+            </button>
           </form>
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-header row">
-          <h3>Rechnungs-Inbox</h3>
-          <button className="btn btn-outline" onClick={() => loadInbox(selectedId)}>Neu laden</button>
+      <section className="inbox-split">
+        <div className="card inbox-list-card">
+          <div className="card-header"><h3>Rechnungen ({items.length})</h3></div>
+          <div className="inbox-list">
+            {items.length === 0 ? (
+              <div className="inbox-empty">Keine Rechnungen gefunden.</div>
+            ) : (
+              items.map((inv) => {
+                const isActive = selectedId === inv.id
+                return (
+                  <button
+                    key={inv.id}
+                    type="button"
+                    className={`inbox-item ${isActive ? "active" : ""}`}
+                    onClick={() => loadInvoiceDetail(inv.id)}
+                  >
+                    <div className="inbox-item-number">{inv.invoice_number || "-"}</div>
+                    <div className="inbox-item-date">{inv.invoice_date || "-"}</div>
+                    <div className="inbox-item-supplier">{inv.supplier_name || "-"}</div>
+                  </button>
+                )
+              })
+            )}
+          </div>
         </div>
-        <div className="card-body">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Lieferant</th>
-                <th>Rechnungsnr.</th>
-                <th>Datum</th>
-                <th>Betrag</th>
-                <th>Status</th>
-                <th>Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((inv) => (
-                <tr key={inv.id}>
-                  <td>{inv.supplier_name || "-"}</td>
-                  <td>{inv.invoice_number || "-"}</td>
-                  <td>{inv.invoice_date || "-"}</td>
-                  <td>{inv.gross_amount ?? "-"}</td>
-                  <td>{inv.status || "-"}</td>
-                  <td>
-                    <button className="btn btn-outline" type="button" onClick={() => loadInvoiceDetail(inv.id)}>
-                      Detail
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
 
-      <section className="card">
-        <div className="card-header"><h3>Rechnungsdetail</h3></div>
-        <div className="card-body">
-          {!selectedInvoice ? (
-            <p className="muted">Keine Rechnung ausgewaehlt.</p>
-          ) : (
-            <>
-              <table className="table">
-                <tbody>
-                  <tr><th>ID</th><td className="mono">{selectedInvoice.id}</td></tr>
-                  <tr><th>Lieferant</th><td>{selectedInvoice.supplier_name || "-"}</td></tr>
-                  <tr><th>Rechnungsnr.</th><td>{selectedInvoice.invoice_number || "-"}</td></tr>
-                  <tr><th>Rechnungsdatum</th><td>{selectedInvoice.invoice_date || "-"}</td></tr>
-                  <tr><th>Faelligkeit</th><td>{selectedInvoice.due_date || "-"}</td></tr>
-                  <tr><th>Betrag brutto</th><td>{selectedInvoice.gross_amount ?? "-"}</td></tr>
-                  <tr><th>Status</th><td>{selectedInvoice.status || "-"}</td></tr>
-                  <tr><th>Konfidenz</th><td>{selectedInvoice.confidence_score ?? "-"}</td></tr>
-                </tbody>
-              </table>
+        <div className="card inbox-detail-card">
+          <div className="card-header">
+            <h3>{selectedInvoice?.invoice_number ? `Rechnung ${selectedInvoice.invoice_number}` : "Rechnungsdetail"}</h3>
+          </div>
+          <div className="card-body">
+            {!selectedInvoice ? (
+              <p className="muted">Keine Rechnung ausgewaehlt.</p>
+            ) : (
+              <>
+                <div className="invoice-meta-grid">
+                  <div>
+                    <div className="invoice-label">RECHNUNGSNUMMER</div>
+                    <div className="invoice-value">{selectedInvoice.invoice_number || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="invoice-label">DATUM</div>
+                    <div className="invoice-value">{selectedInvoice.invoice_date || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="invoice-label">GESAMTPREIS</div>
+                    <div className="invoice-value invoice-price">
+                      {selectedInvoice.gross_amount ?? "-"} {selectedInvoice.currency || ""}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="invoice-label">STATUS</div>
+                    <div className="invoice-value">{selectedInvoice.status || "-"}</div>
+                  </div>
+                </div>
 
-              <h4 style={{ marginTop: "1rem" }}>Positionen</h4>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Beschreibung</th>
-                    <th>Menge</th>
-                    <th>Einzelpreis</th>
-                    <th>Betrag</th>
-                    <th>Steuersatz</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedLines.length === 0 ? (
-                    <tr><td colSpan={6}>Keine Positionen gefunden.</td></tr>
-                  ) : (
-                    selectedLines.map((line) => (
-                      <tr key={line.id}>
-                        <td>{line.line_no ?? "-"}</td>
-                        <td>{line.description || "-"}</td>
-                        <td>{line.quantity ?? "-"}</td>
-                        <td>{line.unit_price ?? "-"}</td>
-                        <td>{line.line_amount ?? "-"}</td>
-                        <td>{line.tax_rate ?? "-"}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                <div className="invoice-divider" />
+                <div className="invoice-label">LEISTUNGSERBRINGER</div>
+                <div className="invoice-detail-block">
+                  <div className="invoice-label">NAME</div>
+                  <div className="invoice-value">{selectedInvoice.supplier_name || "-"}</div>
+                </div>
 
-              <h4 style={{ marginTop: "1rem" }}>Aktionen</h4>
-              <div className="actions-row">
-                <input
-                  className="input"
-                  value={actionComment}
-                  onChange={(e) => setActionComment(e.target.value)}
-                  placeholder="Kommentar (optional)"
-                />
-                <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
-                  Approve
-                </button>
-                <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
-                  Reject
-                </button>
-                <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
-                  Hold
-                </button>
-              </div>
+                <div className="invoice-divider" />
+                <div className="invoice-actions">
+                  <input
+                    className="input"
+                    value={actionComment}
+                    onChange={(e) => setActionComment(e.target.value)}
+                    placeholder="Kommentar (optional)"
+                  />
+                  <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
+                    Approve
+                  </button>
+                  <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
+                    Reject
+                  </button>
+                  <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
+                    Hold
+                  </button>
+                </div>
 
-              <h4 style={{ marginTop: "1rem" }}>Timeline</h4>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Zeit</th>
-                    <th>Aktion</th>
-                    <th>Von</th>
-                    <th>Nach</th>
-                    <th>User</th>
-                    <th>Kommentar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedActions.length === 0 ? (
-                    <tr><td colSpan={6}>Keine Aktionen vorhanden.</td></tr>
-                  ) : (
-                    selectedActions.map((a) => (
-                      <tr key={a.id}>
-                        <td>{a.created_at || "-"}</td>
-                        <td>{a.action_type || "-"}</td>
-                        <td>{a.from_status || "-"}</td>
-                        <td>{a.to_status || "-"}</td>
-                        <td>{a.actor_username || "-"}</td>
-                        <td>{a.comment || "-"}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </>
-          )}
+                <div className="invoice-divider" />
+                <div className="invoice-label">LEISTUNGEN</div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>BEZEICHNUNG</th>
+                      <th>MENGE</th>
+                      <th>WERT</th>
+                      <th>STEUER</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedLines.length === 0 ? (
+                      <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
+                    ) : (
+                      selectedLines.map((line) => (
+                        <tr key={line.id}>
+                          <td>{line.line_no ?? "-"}</td>
+                          <td>{line.description || "-"}</td>
+                          <td>{line.quantity ?? "-"}</td>
+                          <td>{line.line_amount ?? "-"}</td>
+                          <td>{line.tax_rate ?? "-"}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+
+                <div className="invoice-divider" />
+                <div className="invoice-label">AKTIONSHISTORIE</div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>ZEIT</th>
+                      <th>AKTION</th>
+                      <th>VON</th>
+                      <th>NACH</th>
+                      <th>USER</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedActions.length === 0 ? (
+                      <tr><td colSpan={5}>Keine Aktionen vorhanden.</td></tr>
+                    ) : (
+                      selectedActions.map((a) => (
+                        <tr key={a.id}>
+                          <td>{a.created_at || "-"}</td>
+                          <td>{a.action_type || "-"}</td>
+                          <td>{a.from_status || "-"}</td>
+                          <td>{a.to_status || "-"}</td>
+                          <td>{a.actor_username || "-"}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
         </div>
       </section>
 

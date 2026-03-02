@@ -89,6 +89,7 @@ Hinweis:
   - Positionen (Line-Items) aus `insaights_invoice_lines`
   - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
   - Aktions-Timeline je Rechnung
+- Layout wurde an die Referenzansicht "View Invoices" angepasst (2-Spalten-Ansicht mit fokussierter Rechnungsdetailkarte).
 
 ## Coolify
 
