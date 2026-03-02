@@ -10,6 +10,37 @@ import httpx
 from .provider_storage import get_provider_key
 
 
+CORE_INVOICE_FIELDS = {
+    "supplier_name",
+    "invoice_number",
+    "invoice_date",
+    "due_date",
+    "currency",
+    "gross_amount",
+    "net_amount",
+    "tax_amount",
+}
+
+
+CORE_LINE_ITEM_FIELDS = {
+    "line_no",
+    "description",
+    "quantity",
+    "unit_price",
+    "line_amount",
+    "tax_rate",
+}
+
+
+TYPE_EXAMPLES = {
+    "string": '"text"',
+    "number": "123.45",
+    "integer": "12",
+    "date": '"YYYY-MM-DD"',
+    "boolean": "true",
+}
+
+
 def _parse_date(value: Any) -> Optional[str]:
     raw = str(value or "").strip()
     if not raw:
@@ -67,10 +98,27 @@ def _extract_json_from_text(content: str) -> Dict[str, Any]:
         return json.loads(match.group(0))
 
 
-def _llm_extract_invoice_fields(text: str, filename: str) -> Dict[str, Any]:
+def _build_field_instructions(fields: List[Dict[str, Any]]) -> str:
+    rows: List[str] = []
+    for field in fields:
+        name = str(field.get("field_name") or "").strip()
+        if not name:
+            continue
+        data_type = str(field.get("data_type") or "string").lower()
+        required = "required" if field.get("is_required") else "optional"
+        description = str(field.get("description") or "").strip()
+        example = TYPE_EXAMPLES.get(data_type, '"text"')
+        rows.append(f'- "{name}": {data_type} ({required}) - {description} | example: {example}')
+    return "\n".join(rows)
+
+
+def _llm_extract_invoice_fields(text: str, filename: str, extraction_fields: List[Dict[str, Any]]) -> Dict[str, Any]:
     api_key = get_provider_key("mistral")
     if not api_key:
         raise ValueError("Mistral API key is not configured/enabled in Admin settings")
+
+    header_fields = [f for f in extraction_fields if f.get("scope") == "header" and f.get("is_enabled", True)]
+    line_fields = [f for f in extraction_fields if f.get("scope") == "line_item" and f.get("is_enabled", True)]
 
     system_prompt = (
         "You extract invoice data from OCR text. "
@@ -78,35 +126,25 @@ def _llm_extract_invoice_fields(text: str, filename: str) -> Dict[str, Any]:
         "If a field is unknown, return null."
     )
 
+    header_instructions = _build_field_instructions(header_fields)
+    line_instructions = _build_field_instructions(line_fields)
+
     user_prompt = (
-        "Extract structured invoice data from this OCR text.\n"
-        "Output schema:\n"
+        "Extract structured invoice data from this OCR text.\n\n"
+        "Return JSON with this structure:\n"
         "{\n"
-        "  \"supplier_name\": string|null,\n"
-        "  \"invoice_number\": string|null,\n"
-        "  \"invoice_date\": string|null,\n"
-        "  \"due_date\": string|null,\n"
-        "  \"currency\": string|null,\n"
-        "  \"gross_amount\": number|null,\n"
-        "  \"net_amount\": number|null,\n"
-        "  \"tax_amount\": number|null,\n"
-        "  \"confidence_score\": number|null,\n"
-        "  \"line_items\": [\n"
-        "    {\n"
-        "      \"line_no\": number|null,\n"
-        "      \"description\": string|null,\n"
-        "      \"quantity\": number|null,\n"
-        "      \"unit_price\": number|null,\n"
-        "      \"line_amount\": number|null,\n"
-        "      \"tax_rate\": number|null\n"
-        "    }\n"
-        "  ]\n"
+        "  \"header\": { ... },\n"
+        "  \"line_items\": [ { ... } ],\n"
+        "  \"confidence_score\": number|null\n"
         "}\n\n"
+        "Header fields to extract:\n"
+        f"{header_instructions or '- none'}\n\n"
+        "Line-item fields to extract:\n"
+        f"{line_instructions or '- none'}\n\n"
         "Rules:\n"
-        "- Dates should stay in source format if unclear.\n"
-        "- currency as ISO code if possible (EUR, USD, CHF, GBP).\n"
         "- confidence_score between 0 and 1.\n"
-        "- line_items should include all recognizable invoice lines.\n\n"
+        "- line_items may be empty array when none can be identified.\n"
+        "- do not include explanation text. only JSON.\n\n"
         f"Filename: {filename}\n\n"
         f"OCR text:\n{text[:120000]}"
     )
@@ -147,11 +185,15 @@ def _llm_extract_invoice_fields(text: str, filename: str) -> Dict[str, Any]:
     return extracted
 
 
-def map_extracted_document(document: Dict[str, Any]) -> Dict[str, Any]:
+def map_extracted_document(document: Dict[str, Any], extraction_fields: List[Dict[str, Any]]) -> Dict[str, Any]:
     text = str(document.get("extracted_text") or "")
     filename = str(document.get("filename") or "")
 
-    extracted = _llm_extract_invoice_fields(text, filename)
+    extracted = _llm_extract_invoice_fields(text, filename, extraction_fields)
+    header = extracted.get("header") if isinstance(extracted.get("header"), dict) else extracted
+    if not isinstance(header, dict):
+        header = {}
+
     raw_confidence = extracted.get("confidence_score")
     try:
         confidence_score = max(0.0, min(1.0, float(raw_confidence))) if raw_confidence is not None else 0.0
@@ -159,9 +201,11 @@ def map_extracted_document(document: Dict[str, Any]) -> Dict[str, Any]:
         confidence_score = 0.0
 
     line_items: List[Dict[str, Any]] = []
+    custom_line_items: List[Dict[str, Any]] = []
     for idx, item in enumerate(extracted.get("line_items") or [], start=1):
         if not isinstance(item, dict):
             continue
+        custom_line_items.append({k: v for k, v in item.items() if k not in CORE_LINE_ITEM_FIELDS})
         line_items.append(
             {
                 "line_no": int(item.get("line_no") or idx),
@@ -173,22 +217,27 @@ def map_extracted_document(document: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    custom_header_fields = {k: v for k, v in header.items() if k not in CORE_INVOICE_FIELDS}
+
     return {
         "source_system": str(document.get("source_system") or "minio"),
-        "supplier_name": extracted.get("supplier_name"),
-        "invoice_number": extracted.get("invoice_number"),
-        "invoice_date": _parse_date(extracted.get("invoice_date")),
-        "due_date": _parse_date(extracted.get("due_date")),
-        "currency": str(extracted.get("currency") or "EUR").upper(),
-        "gross_amount": _parse_amount(extracted.get("gross_amount")),
-        "net_amount": _parse_amount(extracted.get("net_amount")),
-        "tax_amount": _parse_amount(extracted.get("tax_amount")),
+        "supplier_name": header.get("supplier_name"),
+        "invoice_number": header.get("invoice_number"),
+        "invoice_date": _parse_date(header.get("invoice_date")),
+        "due_date": _parse_date(header.get("due_date")),
+        "currency": str(header.get("currency") or "EUR").upper(),
+        "gross_amount": _parse_amount(header.get("gross_amount")),
+        "net_amount": _parse_amount(header.get("net_amount")),
+        "tax_amount": _parse_amount(header.get("tax_amount")),
         "status": "MAPPED",
         "confidence_score": round(confidence_score, 2),
         "line_items": line_items,
         "extraction_json": {
             "method": "mistral_llm",
             "model": "mistral-small-latest",
+            "configured_fields": extraction_fields,
+            "custom_header_fields": custom_header_fields,
+            "custom_line_items": custom_line_items,
             "llm_output": extracted,
         },
     }

@@ -31,6 +31,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/admin/config/connectors` (ADMIN)
 - `GET /api/admin/config/providers` (ADMIN)
 - `PUT /api/admin/config/providers/{provider_name}` (ADMIN)
+- `GET /api/admin/config/extraction-fields` (ADMIN)
+- `POST /api/admin/config/extraction-fields` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
@@ -45,6 +47,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_admin_audit_log`
 - `insaights_config_connectors`
 - `insaights_config_provider_keys`
+- `insaights_config_extraction_fields`
 - `insaights_documents`
 - `insaights_invoices`
 - `insaights_invoice_lines`
@@ -66,6 +69,7 @@ Hinweis:
 - Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping + Invoice Validation).
 - Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
 - Feldextraktion fuer Rechnungen erfolgt im Mapping-Schritt modellbasiert ueber Mistral (strukturierter JSON-Output), nicht ueber starre Regex.
+- Welche Felder extrahiert werden, ist in der Admin-Oberflaeche konfigurierbar (`field_name`, `description`, `data_type`, `required`, `enabled`, `scope=header|line_item`).
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 
 ## Coolify

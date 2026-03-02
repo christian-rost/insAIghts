@@ -455,18 +455,21 @@ Festlegung:
   - Invoice-Validation Endpoint (`POST /api/processing/invoices/validate`) fuer MAPPED->VALIDATED/NEEDS_REVIEW
   - Rechnungsliste Endpoint (`GET /api/invoices`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
+  - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
+  - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:
   - Eigene Tabellen fuer insAIghts (`insaights_*`) zur Vermeidung von Kollisionen mit anderen Anwendungen.
   - Rechnungsverarbeitung persistiert in `insaights_invoices` und `insaights_invoice_lines` (keine Fremdtabellen anderer Apps).
   - `insaights_invoice_lines` wird im Mapping-Schritt mit durch das Sprachmodell extrahierten Positionen befuellt.
+  - Feldkatalog fuer Extraktion wird in `insaights_config_extraction_fields` gepflegt und zur Prompt-Erstellung genutzt.
 
 ## 15. Dokumentations-Governance (verbindlich)
 - Dokumentation wird bei jeder fachlichen oder technischen Aenderung im selben Arbeitsschritt aktualisiert.

@@ -57,6 +57,39 @@ insert into insaights_config_provider_keys (provider_name, is_enabled)
 values ('mistral', false)
 on conflict (provider_name) do nothing;
 
+create table if not exists insaights_config_extraction_fields (
+  id uuid primary key default gen_random_uuid(),
+  entity_name text not null default 'invoice',
+  scope text not null check (scope in ('header', 'line_item')),
+  field_name text not null,
+  description text not null default '',
+  data_type text not null default 'string' check (data_type in ('string', 'number', 'integer', 'date', 'boolean')),
+  is_required boolean not null default false,
+  is_enabled boolean not null default true,
+  sort_order integer not null default 0,
+  updated_by uuid,
+  updated_at timestamptz not null default now(),
+  unique (entity_name, scope, field_name)
+);
+
+insert into insaights_config_extraction_fields (entity_name, scope, field_name, description, data_type, is_required, is_enabled, sort_order)
+values
+('invoice', 'header', 'supplier_name', 'Name des Lieferanten', 'string', true, true, 10),
+('invoice', 'header', 'invoice_number', 'Eindeutige Rechnungsnummer', 'string', true, true, 20),
+('invoice', 'header', 'invoice_date', 'Rechnungsdatum', 'date', true, true, 30),
+('invoice', 'header', 'due_date', 'Faelligkeitsdatum', 'date', false, true, 40),
+('invoice', 'header', 'currency', 'Waehrung als ISO Code', 'string', false, true, 50),
+('invoice', 'header', 'gross_amount', 'Bruttobetrag der Rechnung', 'number', true, true, 60),
+('invoice', 'header', 'net_amount', 'Nettobetrag der Rechnung', 'number', false, true, 70),
+('invoice', 'header', 'tax_amount', 'Steuerbetrag', 'number', false, true, 80),
+('invoice', 'line_item', 'line_no', 'Positionsnummer', 'integer', false, true, 10),
+('invoice', 'line_item', 'description', 'Positionsbeschreibung', 'string', false, true, 20),
+('invoice', 'line_item', 'quantity', 'Menge', 'number', false, true, 30),
+('invoice', 'line_item', 'unit_price', 'Einzelpreis', 'number', false, true, 40),
+('invoice', 'line_item', 'line_amount', 'Gesamtbetrag der Position', 'number', false, true, 50),
+('invoice', 'line_item', 'tax_rate', 'Steuersatz der Position in Prozent', 'number', false, true, 60)
+on conflict (entity_name, scope, field_name) do nothing;
+
 create table if not exists insaights_documents (
   id uuid primary key default gen_random_uuid(),
   source_system text not null,

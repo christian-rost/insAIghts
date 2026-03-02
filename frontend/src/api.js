@@ -177,3 +177,26 @@ export async function validateInvoices(token, maxInvoices = 50) {
   })
   return handleJson(response)
 }
+
+export async function listExtractionFields(token, entityName = "invoice", enabledOnly = false) {
+  const qs = new URLSearchParams({
+    entity_name: entityName,
+    enabled_only: String(enabledOnly),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/config/extraction-fields?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function upsertExtractionField(token, payload) {
+  const response = await fetch(`${API_BASE}/api/admin/config/extraction-fields`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  })
+  return handleJson(response)
+}

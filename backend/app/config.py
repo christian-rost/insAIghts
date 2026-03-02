@@ -23,6 +23,7 @@ DOCUMENTS_TABLE = os.getenv("DOCUMENTS_TABLE", "insaights_documents")
 PROVIDER_KEYS_TABLE = os.getenv("PROVIDER_KEYS_TABLE", "insaights_config_provider_keys")
 INVOICES_TABLE = os.getenv("INVOICES_TABLE", "insaights_invoices")
 INVOICE_LINES_TABLE = os.getenv("INVOICE_LINES_TABLE", "insaights_invoice_lines")
+EXTRACTION_FIELDS_TABLE = os.getenv("EXTRACTION_FIELDS_TABLE", "insaights_config_extraction_fields")
 
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")

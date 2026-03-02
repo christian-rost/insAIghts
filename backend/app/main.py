@@ -17,6 +17,7 @@ from .document_storage import (
     list_documents_by_status,
     update_document,
 )
+from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
@@ -134,6 +135,31 @@ class ProviderConfigResponse(BaseModel):
 class ProviderUpdateRequest(BaseModel):
     is_enabled: Optional[bool] = None
     key_value: Optional[str] = None
+
+
+class ExtractionFieldResponse(BaseModel):
+    id: Optional[str] = None
+    entity_name: str
+    scope: str
+    field_name: str
+    description: str = ""
+    data_type: str = "string"
+    is_required: bool = False
+    is_enabled: bool = True
+    sort_order: int = 0
+    updated_by: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ExtractionFieldUpsertRequest(BaseModel):
+    entity_name: str = "invoice"
+    scope: str = Field(pattern="^(header|line_item)$")
+    field_name: str = Field(min_length=1, max_length=128)
+    description: str = ""
+    data_type: str = Field(default="string", pattern="^(string|number|integer|date|boolean)$")
+    is_required: bool = False
+    is_enabled: bool = True
+    sort_order: int = 0
 
 
 @app.on_event("startup")
@@ -320,6 +346,57 @@ async def admin_update_provider(
     )
 
 
+@app.get("/api/admin/config/extraction-fields", response_model=List[ExtractionFieldResponse])
+async def admin_list_extraction_fields(
+    entity_name: str = "invoice",
+    enabled_only: bool = False,
+    _: Dict = Depends(require_admin),
+) -> List[ExtractionFieldResponse]:
+    rows = list_extraction_fields(entity_name=entity_name, enabled_only=enabled_only)
+    return [ExtractionFieldResponse(**row) for row in rows]
+
+
+@app.post("/api/admin/config/extraction-fields", response_model=ExtractionFieldResponse)
+async def admin_upsert_extraction_field(
+    payload: ExtractionFieldUpsertRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> ExtractionFieldResponse:
+    before = list_extraction_fields(entity_name=payload.entity_name, enabled_only=False)
+    before_row = next(
+        (
+            row
+            for row in before
+            if row.get("scope") == payload.scope and row.get("field_name") == payload.field_name
+        ),
+        None,
+    )
+    after = upsert_extraction_field(
+        entity_name=payload.entity_name,
+        scope=payload.scope,
+        field_name=payload.field_name,
+        description=payload.description,
+        data_type=payload.data_type,
+        is_required=payload.is_required,
+        is_enabled=payload.is_enabled,
+        sort_order=payload.sort_order,
+        actor_user_id=admin_user["id"],
+    )
+    log_admin_event(
+        event_type="admin.extraction_field_upserted",
+        actor_user_id=admin_user["id"],
+        target_type="extraction_field",
+        target_id=f"{payload.entity_name}:{payload.scope}:{payload.field_name}",
+        metadata_json={
+            "entity_name": payload.entity_name,
+            "scope": payload.scope,
+            "field_name": payload.field_name,
+        },
+        diff_before={"field": before_row} if before_row else None,
+        diff_after={"field": after},
+    )
+    return ExtractionFieldResponse(**after)
+
+
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)
 async def admin_update_connector(
     connector_name: str,
@@ -493,6 +570,7 @@ async def processing_invoices_map(
     admin_user: Dict = Depends(require_admin),
 ) -> Dict:
     candidates = list_documents_by_status("EXTRACTED", limit=payload.max_documents)
+    extraction_fields = list_extraction_fields(entity_name="invoice", enabled_only=True)
     mapped = 0
     skipped = 0
     failed = 0
@@ -505,7 +583,7 @@ async def processing_invoices_map(
             details.append({"id": doc_id, "status": "SKIPPED", "reason": "already mapped"})
             continue
         try:
-            mapped_row = map_extracted_document(doc)
+            mapped_row = map_extracted_document(doc, extraction_fields)
             line_items = mapped_row.pop("line_items", [])
             invoice = create_invoice({"document_id": doc_id, **mapped_row})
             lines = create_invoice_lines(str(invoice.get("id")), line_items)

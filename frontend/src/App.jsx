@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import {
   createUser,
   extractDocuments,
+  listExtractionFields,
   listInvoices,
   listConnectors,
   listDocuments,
@@ -14,6 +15,7 @@ import {
   pullMinio,
   register,
   updateProvider,
+  upsertExtractionField,
   validateInvoices,
   testConnector,
   updateConnector,
@@ -104,6 +106,7 @@ function AdminView({ token, currentUser, onLogout }) {
   const [users, setUsers] = useState([])
   const [documents, setDocuments] = useState([])
   const [invoices, setInvoices] = useState([])
+  const [extractionFields, setExtractionFields] = useState([])
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [form, setForm] = useState({
@@ -129,6 +132,16 @@ function AdminView({ token, currentUser, onLogout }) {
     max_extract: 20,
     max_map: 20,
     max_validate: 50,
+  })
+  const [fieldForm, setFieldForm] = useState({
+    entity_name: "invoice",
+    scope: "header",
+    field_name: "",
+    description: "",
+    data_type: "string",
+    is_required: false,
+    is_enabled: true,
+    sort_order: 100,
   })
 
   async function loadUsers() {
@@ -194,12 +207,22 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadExtractionFields() {
+    try {
+      const rows = await listExtractionFields(token, "invoice", false)
+      setExtractionFields(rows || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   useEffect(() => {
     loadUsers()
     loadProvidersConfig()
     loadMinioConnector()
     loadDocumentsList()
     loadInvoicesList()
+    loadExtractionFields()
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
@@ -334,6 +357,139 @@ function AdminView({ token, currentUser, onLogout }) {
                   <span className="muted-inline">Key vorhanden: {providers.mistral_key_present ? "ja" : "nein"}</span>
                 </div>
               </form>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header row">
+              <h3>Extraktionsfelder (LLM)</h3>
+              <button className="btn btn-outline" onClick={loadExtractionFields}>Neu laden</button>
+            </div>
+            <div className="card-body">
+              <form
+                className="grid"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  try {
+                    setError("")
+                    setNotice("")
+                    await upsertExtractionField(token, {
+                      entity_name: fieldForm.entity_name,
+                      scope: fieldForm.scope,
+                      field_name: fieldForm.field_name.trim(),
+                      description: fieldForm.description.trim(),
+                      data_type: fieldForm.data_type,
+                      is_required: fieldForm.is_required,
+                      is_enabled: fieldForm.is_enabled,
+                      sort_order: Number(fieldForm.sort_order || 0),
+                    })
+                    setFieldForm((f) => ({ ...f, field_name: "", description: "", sort_order: 100 }))
+                    await loadExtractionFields()
+                    setNotice("Extraktionsfeld gespeichert")
+                  } catch (err) {
+                    setError(String(err.message || err))
+                  }
+                }}
+              >
+                <label>
+                  Scope
+                  <select className="input" value={fieldForm.scope} onChange={(e) => setFieldForm((f) => ({ ...f, scope: e.target.value }))}>
+                    <option value="header">header</option>
+                    <option value="line_item">line_item</option>
+                  </select>
+                </label>
+                <label>
+                  Feldname
+                  <input className="input" value={fieldForm.field_name} onChange={(e) => setFieldForm((f) => ({ ...f, field_name: e.target.value }))} required />
+                </label>
+                <label>
+                  Beschreibung (Prompt)
+                  <input className="input" value={fieldForm.description} onChange={(e) => setFieldForm((f) => ({ ...f, description: e.target.value }))} required />
+                </label>
+                <label>
+                  Datentyp
+                  <select className="input" value={fieldForm.data_type} onChange={(e) => setFieldForm((f) => ({ ...f, data_type: e.target.value }))}>
+                    <option value="string">string</option>
+                    <option value="number">number</option>
+                    <option value="integer">integer</option>
+                    <option value="date">date</option>
+                    <option value="boolean">boolean</option>
+                  </select>
+                </label>
+                <label>
+                  Sortierung
+                  <input className="input" type="number" value={fieldForm.sort_order} onChange={(e) => setFieldForm((f) => ({ ...f, sort_order: Number(e.target.value || 0) }))} />
+                </label>
+                <label>
+                  Pflichtfeld
+                  <select className="input" value={fieldForm.is_required ? "true" : "false"} onChange={(e) => setFieldForm((f) => ({ ...f, is_required: e.target.value === "true" }))}>
+                    <option value="false">Nein</option>
+                    <option value="true">Ja</option>
+                  </select>
+                </label>
+                <label>
+                  Aktiv
+                  <select className="input" value={fieldForm.is_enabled ? "true" : "false"} onChange={(e) => setFieldForm((f) => ({ ...f, is_enabled: e.target.value === "true" }))}>
+                    <option value="true">Ja</option>
+                    <option value="false">Nein</option>
+                  </select>
+                </label>
+                <button className="btn btn-primary" type="submit">Feld speichern</button>
+              </form>
+
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Scope</th>
+                    <th>Feld</th>
+                    <th>Beschreibung</th>
+                    <th>Typ</th>
+                    <th>Pflicht</th>
+                    <th>Aktiv</th>
+                    <th>Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extractionFields.map((f) => (
+                    <tr key={`${f.scope}:${f.field_name}`}>
+                      <td>{f.scope}</td>
+                      <td className="mono">{f.field_name}</td>
+                      <td>{f.description}</td>
+                      <td>{f.data_type}</td>
+                      <td>{f.is_required ? "ja" : "nein"}</td>
+                      <td>{f.is_enabled ? "ja" : "nein"}</td>
+                      <td>
+                        <button
+                          className="btn btn-outline"
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setError("")
+                              setNotice("")
+                              await upsertExtractionField(token, {
+                                entity_name: f.entity_name,
+                                scope: f.scope,
+                                field_name: f.field_name,
+                                description: f.description,
+                                data_type: f.data_type,
+                                is_required: !!f.is_required,
+                                is_enabled: !f.is_enabled,
+                                sort_order: Number(f.sort_order || 0),
+                              })
+                              await loadExtractionFields()
+                              setNotice(`Feld ${f.field_name} aktualisiert`)
+                            } catch (err) {
+                              setError(String(err.message || err))
+                            }
+                          }}
+                        >
+                          {f.is_enabled ? "Deaktivieren" : "Aktivieren"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
 
