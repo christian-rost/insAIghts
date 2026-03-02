@@ -65,6 +65,8 @@ Hinweis:
   - optional: `prefix`, `secure` (default `true`)
 - Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping + Invoice Validation).
 - Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
+- Feldextraktion fuer Rechnungen erfolgt im Mapping-Schritt modellbasiert ueber Mistral (strukturierter JSON-Output), nicht ueber starre Regex.
+- Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 
 ## Coolify
 

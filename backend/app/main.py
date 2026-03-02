@@ -19,7 +19,14 @@ from .document_storage import (
 )
 from .graph import graph_healthcheck
 from .invoice_mapping import map_extracted_document
-from .invoice_storage import create_invoice, get_invoice_by_document, list_invoices, list_invoices_by_status, update_invoice
+from .invoice_storage import (
+    create_invoice,
+    create_invoice_lines,
+    get_invoice_by_document,
+    list_invoices,
+    list_invoices_by_status,
+    update_invoice,
+)
 from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
@@ -499,7 +506,9 @@ async def processing_invoices_map(
             continue
         try:
             mapped_row = map_extracted_document(doc)
+            line_items = mapped_row.pop("line_items", [])
             invoice = create_invoice({"document_id": doc_id, **mapped_row})
+            lines = create_invoice_lines(str(invoice.get("id")), line_items)
             update_document(doc_id, {"status": "MAPPED"})
             mapped += 1
             details.append(
@@ -508,6 +517,7 @@ async def processing_invoices_map(
                     "status": "MAPPED",
                     "invoice_id": invoice.get("id"),
                     "invoice_number": invoice.get("invoice_number"),
+                    "line_items": len(lines),
                 }
             )
         except Exception as exc:
