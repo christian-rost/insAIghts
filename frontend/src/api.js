@@ -159,8 +159,25 @@ export async function mapInvoices(token, maxDocuments = 20) {
   return handleJson(response)
 }
 
-export async function listInvoices(token, limit = 50) {
-  const response = await fetch(`${API_BASE}/api/invoices?limit=${encodeURIComponent(limit)}`, {
+export async function listInvoices(token, { limit = 50, status = "", search = "" } = {}) {
+  const qs = new URLSearchParams({ limit: String(limit) })
+  if (status) qs.set("status", status)
+  if (search) qs.set("search", search)
+  const response = await fetch(`${API_BASE}/api/invoices?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function getInvoice(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function listInvoiceLines(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/lines`, {
     headers: { ...authHeaders(token) },
   })
   return handleJson(response)

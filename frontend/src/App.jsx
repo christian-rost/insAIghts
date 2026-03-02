@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react"
 import {
   createUser,
   extractDocuments,
+  getInvoice,
   listExtractionFields,
+  listInvoiceLines,
   listInvoices,
   listConnectors,
   listDocuments,
@@ -201,7 +203,7 @@ function AdminView({ token, currentUser, onLogout }) {
 
   async function loadInvoicesList() {
     try {
-      const res = await listInvoices(token, 50)
+      const res = await listInvoices(token, { limit: 50 })
       setInvoices(res.items || [])
     } catch (e) {
       setError(String(e.message || e))
@@ -879,6 +881,218 @@ function AdminView({ token, currentUser, onLogout }) {
   )
 }
 
+function UserView({ token, currentUser, onLogout }) {
+  const [items, setItems] = useState([])
+  const [selectedId, setSelectedId] = useState("")
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [selectedLines, setSelectedLines] = useState([])
+  const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
+  const [search, setSearch] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  async function loadInbox(nextSelectedId = "", nextStatus = statusFilter, nextSearch = search) {
+    try {
+      setLoading(true)
+      setError("")
+      const res = await listInvoices(token, {
+        limit: 100,
+        status: nextStatus || "",
+        search: (nextSearch || "").trim(),
+      })
+      const nextItems = res.items || []
+      setItems(nextItems)
+      const keepId = nextSelectedId || selectedId
+      if (keepId && nextItems.find((x) => x.id === keepId)) {
+        await loadInvoiceDetail(keepId)
+      } else if (nextItems[0]?.id) {
+        await loadInvoiceDetail(nextItems[0].id)
+      } else {
+        setSelectedId("")
+        setSelectedInvoice(null)
+        setSelectedLines([])
+      }
+    } catch (e) {
+      setError(String(e.message || e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadInvoiceDetail(invoiceId) {
+    try {
+      setError("")
+      const [invoiceRes, linesRes] = await Promise.all([
+        getInvoice(token, invoiceId),
+        listInvoiceLines(token, invoiceId),
+      ])
+      setSelectedId(invoiceId)
+      setSelectedInvoice(invoiceRes.item || null)
+      setSelectedLines(linesRes.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  useEffect(() => {
+    loadInbox()
+  }, [])
+
+  return (
+    <main className="app-layout">
+      <header className="header">
+        <h2>insAIghts Inbox</h2>
+        <div className="header-user">
+          Angemeldet als <span>{currentUser?.username}</span>
+          <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
+        </div>
+      </header>
+
+      <section className="card">
+        <div className="card-header"><h3>Filter</h3></div>
+        <div className="card-body">
+          <form
+            className="grid"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              await loadInbox()
+            }}
+          >
+            <label>
+              Status
+              <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">alle</option>
+                <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+                <option value="VALIDATED">VALIDATED</option>
+                <option value="MAPPED">MAPPED</option>
+                <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+                <option value="ON_HOLD">ON_HOLD</option>
+              </select>
+            </label>
+            <label>
+              Suche (Lieferant/Rechnungsnr.)
+              <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="z. B. acme oder RE-2026-001" />
+            </label>
+            <div className="actions-row">
+              <button className="btn btn-primary" type="submit" disabled={loading}>
+                {loading ? "Lade..." : "Anwenden"}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={async () => {
+                  const resetStatus = "NEEDS_REVIEW"
+                  const resetSearch = ""
+                  setStatusFilter(resetStatus)
+                  setSearch(resetSearch)
+                  await loadInbox("", resetStatus, resetSearch)
+                }}
+              >
+                Zuruecksetzen
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-header row">
+          <h3>Rechnungs-Inbox</h3>
+          <button className="btn btn-outline" onClick={() => loadInbox(selectedId)}>Neu laden</button>
+        </div>
+        <div className="card-body">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Lieferant</th>
+                <th>Rechnungsnr.</th>
+                <th>Datum</th>
+                <th>Betrag</th>
+                <th>Status</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((inv) => (
+                <tr key={inv.id}>
+                  <td>{inv.supplier_name || "-"}</td>
+                  <td>{inv.invoice_number || "-"}</td>
+                  <td>{inv.invoice_date || "-"}</td>
+                  <td>{inv.gross_amount ?? "-"}</td>
+                  <td>{inv.status || "-"}</td>
+                  <td>
+                    <button className="btn btn-outline" type="button" onClick={() => loadInvoiceDetail(inv.id)}>
+                      Detail
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-header"><h3>Rechnungsdetail</h3></div>
+        <div className="card-body">
+          {!selectedInvoice ? (
+            <p className="muted">Keine Rechnung ausgewaehlt.</p>
+          ) : (
+            <>
+              <table className="table">
+                <tbody>
+                  <tr><th>ID</th><td className="mono">{selectedInvoice.id}</td></tr>
+                  <tr><th>Lieferant</th><td>{selectedInvoice.supplier_name || "-"}</td></tr>
+                  <tr><th>Rechnungsnr.</th><td>{selectedInvoice.invoice_number || "-"}</td></tr>
+                  <tr><th>Rechnungsdatum</th><td>{selectedInvoice.invoice_date || "-"}</td></tr>
+                  <tr><th>Faelligkeit</th><td>{selectedInvoice.due_date || "-"}</td></tr>
+                  <tr><th>Betrag brutto</th><td>{selectedInvoice.gross_amount ?? "-"}</td></tr>
+                  <tr><th>Status</th><td>{selectedInvoice.status || "-"}</td></tr>
+                  <tr><th>Konfidenz</th><td>{selectedInvoice.confidence_score ?? "-"}</td></tr>
+                </tbody>
+              </table>
+
+              <h4 style={{ marginTop: "1rem" }}>Positionen</h4>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Beschreibung</th>
+                    <th>Menge</th>
+                    <th>Einzelpreis</th>
+                    <th>Betrag</th>
+                    <th>Steuersatz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedLines.length === 0 ? (
+                    <tr><td colSpan={6}>Keine Positionen gefunden.</td></tr>
+                  ) : (
+                    selectedLines.map((line) => (
+                      <tr key={line.id}>
+                        <td>{line.line_no ?? "-"}</td>
+                        <td>{line.description || "-"}</td>
+                        <td>{line.quantity ?? "-"}</td>
+                        <td>{line.unit_price ?? "-"}</td>
+                        <td>{line.line_amount ?? "-"}</td>
+                        <td>{line.tax_rate ?? "-"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      </section>
+
+      {error ? <p className="error">{error}</p> : null}
+    </main>
+  )
+}
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("access_token") || "")
   const [currentUser, setCurrentUser] = useState(null)
@@ -934,5 +1148,9 @@ export default function App() {
     )
   }
 
-  return <AdminView token={token} currentUser={currentUser} onLogout={handleLogout} />
+  const isAdmin = (currentUser?.roles || []).includes("ADMIN")
+  if (isAdmin) {
+    return <AdminView token={token} currentUser={currentUser} onLogout={handleLogout} />
+  }
+  return <UserView token={token} currentUser={currentUser} onLogout={handleLogout} />
 }

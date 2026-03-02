@@ -23,8 +23,10 @@ from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
     create_invoice,
     create_invoice_lines,
+    get_invoice_by_id,
     get_invoice_by_document,
-    list_invoices,
+    list_invoice_lines,
+    list_invoices_filtered,
     list_invoices_by_status,
     update_invoice,
 )
@@ -621,10 +623,35 @@ async def processing_invoices_map(
 @app.get("/api/invoices")
 async def invoices_list(
     limit: int = 100,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
     _: Dict = Depends(get_current_user),
 ) -> Dict:
-    items = list_invoices(limit=limit)
+    items = list_invoices_filtered(limit=limit, status=status, search=search)
     return {"count": len(items), "items": items}
+
+
+@app.get("/api/invoices/{invoice_id}")
+async def invoices_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    item = get_invoice_by_id(invoice_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"item": item}
+
+
+@app.get("/api/invoices/{invoice_id}/lines")
+async def invoice_lines_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    item = get_invoice_by_id(invoice_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    lines = list_invoice_lines(invoice_id)
+    return {"count": len(lines), "items": lines}
 
 
 @app.post("/api/processing/invoices/validate")

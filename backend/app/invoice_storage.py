@@ -115,3 +115,62 @@ def update_invoice(invoice_id: str, updates: Dict[str, Any]) -> Optional[Dict[st
     row.update(payload)
     _mem_invoices[invoice_id] = row
     return row
+
+
+def get_invoice_by_id(invoice_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = db.table(INVOICES_TABLE).select("*").eq("id", invoice_id).limit(1).execute()
+        rows = result.data or []
+        return rows[0] if rows else None
+    return _mem_invoices.get(invoice_id)
+
+
+def list_invoice_lines(invoice_id: str) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = (
+            db.table(INVOICE_LINES_TABLE)
+            .select("*")
+            .eq("invoice_id", invoice_id)
+            .order("line_no")
+            .execute()
+        )
+        return result.data or []
+    return sorted(_mem_invoice_lines.get(invoice_id, []), key=lambda x: int(x.get("line_no") or 0))
+
+
+def list_invoices_filtered(
+    *,
+    limit: int = 100,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        query = db.table(INVOICES_TABLE).select("*")
+        if status:
+            query = query.eq("status", status)
+        if search:
+            s = search.replace(",", "").strip()
+            if s:
+                query = query.or_(
+                    f"supplier_name.ilike.%{s}%,invoice_number.ilike.%{s}%"
+                )
+        result = query.order("created_at", desc=True).limit(limit).execute()
+        return result.data or []
+
+    rows = list(_mem_invoices.values())
+    if status:
+        rows = [r for r in rows if str(r.get("status") or "") == status]
+    if search:
+        s = search.lower().strip()
+        if s:
+            rows = [
+                r
+                for r in rows
+                if s in str(r.get("supplier_name") or "").lower()
+                or s in str(r.get("invoice_number") or "").lower()
+            ]
+    rows = sorted(rows, key=lambda x: x.get("created_at", ""), reverse=True)
+    return rows[:limit]

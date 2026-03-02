@@ -454,6 +454,7 @@ Festlegung:
   - Invoice-Mapping Endpoint (`POST /api/processing/invoices/map`) fuer EXTRACTED->MAPPED via Mistral-LLM-Extraktion (strukturierter JSON-Output) in eigene Rechnungstabellen
   - Invoice-Validation Endpoint (`POST /api/processing/invoices/validate`) fuer MAPPED->VALIDATED/NEEDS_REVIEW
   - Rechnungsliste Endpoint (`GET /api/invoices`)
+  - Rechnungsdetail Endpunkte (`GET /api/invoices/{id}`, `GET /api/invoices/{id}/lines`) fuer Anwenderansicht
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
 - Frontend bereits umgesetzt:
@@ -463,6 +464,7 @@ Festlegung:
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
+  - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit Filter/Suche, Rechnungsdetail und Positionsanzeige
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:

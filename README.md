@@ -41,6 +41,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/processing/invoices/validate` (ADMIN)
 - `GET /api/documents`
 - `GET /api/invoices`
+- `GET /api/invoices/{invoice_id}`
+- `GET /api/invoices/{invoice_id}/lines`
 
 ## Supabase Tabellen
 - `insaights_users`
@@ -73,6 +75,14 @@ Hinweis:
 - Bestehende Extraktionsfelder koennen in der Tabelle direkt inline bearbeitet und zeilenweise gespeichert werden.
 - Die Tabelle zeigt pro Feld einen Status (`gespeichert` / `ungespeichert`), damit Aenderungen vor dem Speichern sichtbar sind.
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
+
+## Anwenderoberflaeche (Inbox)
+- Nicht-Admin-User sehen automatisch die AP-Inbox statt der Admin-Konsole.
+- Inbox umfasst:
+  - Filter nach Status
+  - Suche nach Lieferant/Rechnungsnummer
+  - Rechnungsdetailansicht
+  - Positionen (Line-Items) aus `insaights_invoice_lines`
 
 ## Coolify
 
