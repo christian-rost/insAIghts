@@ -460,6 +460,7 @@ function AdminView({ token, currentUser, onLogout }) {
                     <th>Pflicht</th>
                     <th>Aktiv</th>
                     <th>Sort</th>
+                    <th>Status</th>
                     <th>Aktion</th>
                   </tr>
                 </thead>
@@ -473,6 +474,12 @@ function AdminView({ token, currentUser, onLogout }) {
                       is_enabled: !!f.is_enabled,
                       sort_order: Number(f.sort_order || 0),
                     }
+                    const isDirty =
+                      (draft.description || "") !== (f.description || "") ||
+                      (draft.data_type || "string") !== (f.data_type || "string") ||
+                      !!draft.is_required !== !!f.is_required ||
+                      !!draft.is_enabled !== !!f.is_enabled ||
+                      Number(draft.sort_order || 0) !== Number(f.sort_order || 0)
                     return (
                     <tr key={key}>
                       <td>{f.scope}</td>
@@ -526,9 +533,13 @@ function AdminView({ token, currentUser, onLogout }) {
                         />
                       </td>
                       <td>
+                        {isDirty ? <span className="notice">ungespeichert</span> : <span className="muted-inline">gespeichert</span>}
+                      </td>
+                      <td>
                         <button
                           className="btn btn-outline"
                           type="button"
+                          disabled={!isDirty}
                           onClick={async () => {
                             try {
                               setError("")

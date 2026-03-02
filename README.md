@@ -71,6 +71,7 @@ Hinweis:
 - Feldextraktion fuer Rechnungen erfolgt im Mapping-Schritt modellbasiert ueber Mistral (strukturierter JSON-Output), nicht ueber starre Regex.
 - Welche Felder extrahiert werden, ist in der Admin-Oberflaeche konfigurierbar (`field_name`, `description`, `data_type`, `required`, `enabled`, `scope=header|line_item`).
 - Bestehende Extraktionsfelder koennen in der Tabelle direkt inline bearbeitet und zeilenweise gespeichert werden.
+- Die Tabelle zeigt pro Feld einen Status (`gespeichert` / `ungespeichert`), damit Aenderungen vor dem Speichern sichtbar sind.
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 
 ## Coolify
