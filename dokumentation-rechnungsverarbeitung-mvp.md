@@ -451,17 +451,20 @@ Festlegung:
   - MinIO Ingestion Endpoint (`POST /api/ingestion/minio/pull`) mit idempotenter Dokumentanlage
   - Dokumentliste Endpoint (`GET /api/documents`)
   - Extraktions-Endpoint (`POST /api/processing/documents/extract`) fuer INGESTED->EXTRACTED (Mistral OCR bei PDF/Bild)
+  - Invoice-Mapping Endpoint (`POST /api/processing/invoices/map`) fuer EXTRACTED->MAPPED in eigene Rechnungstabellen
+  - Rechnungsliste Endpoint (`GET /api/invoices`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
-  - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste)
+  - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:
   - Eigene Tabellen fuer insAIghts (`insaights_*`) zur Vermeidung von Kollisionen mit anderen Anwendungen.
+  - Rechnungsverarbeitung persistiert in `insaights_invoices` und `insaights_invoice_lines` (keine Fremdtabellen anderer Apps).
 
 ## 15. Dokumentations-Governance (verbindlich)
 - Dokumentation wird bei jeder fachlichen oder technischen Aenderung im selben Arbeitsschritt aktualisiert.

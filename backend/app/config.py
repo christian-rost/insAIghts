@@ -21,6 +21,8 @@ ADMIN_AUDIT_TABLE = os.getenv("ADMIN_AUDIT_TABLE", "insaights_admin_audit_log")
 CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
 DOCUMENTS_TABLE = os.getenv("DOCUMENTS_TABLE", "insaights_documents")
 PROVIDER_KEYS_TABLE = os.getenv("PROVIDER_KEYS_TABLE", "insaights_config_provider_keys")
+INVOICES_TABLE = os.getenv("INVOICES_TABLE", "insaights_invoices")
+INVOICE_LINES_TABLE = os.getenv("INVOICE_LINES_TABLE", "insaights_invoice_lines")
 
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")

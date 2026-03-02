@@ -146,3 +146,22 @@ export async function extractDocuments(token, maxDocuments = 20) {
   })
   return handleJson(response)
 }
+
+export async function mapInvoices(token, maxDocuments = 20) {
+  const response = await fetch(`${API_BASE}/api/processing/invoices/map`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_documents: maxDocuments }),
+  })
+  return handleJson(response)
+}
+
+export async function listInvoices(token, limit = 50) {
+  const response = await fetch(`${API_BASE}/api/invoices?limit=${encodeURIComponent(limit)}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react"
 import {
   createUser,
   extractDocuments,
+  listInvoices,
   listConnectors,
   listDocuments,
   listProviders,
   listUsers,
   login,
+  mapInvoices,
   logout,
   me,
   pullMinio,
@@ -100,6 +102,7 @@ function LoginView({ onLogin, loading, error }) {
 function AdminView({ token, currentUser, onLogout }) {
   const [users, setUsers] = useState([])
   const [documents, setDocuments] = useState([])
+  const [invoices, setInvoices] = useState([])
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [form, setForm] = useState({
@@ -123,6 +126,7 @@ function AdminView({ token, currentUser, onLogout }) {
     secure: true,
     max_objects: 200,
     max_extract: 20,
+    max_map: 20,
   })
 
   async function loadUsers() {
@@ -179,11 +183,21 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadInvoicesList() {
+    try {
+      const res = await listInvoices(token, 50)
+      setInvoices(res.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   useEffect(() => {
     loadUsers()
     loadProvidersConfig()
     loadMinioConnector()
     loadDocumentsList()
+    loadInvoicesList()
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
@@ -412,6 +426,17 @@ function AdminView({ token, currentUser, onLogout }) {
                     onChange={(e) => setMinio((m) => ({ ...m, max_extract: Number(e.target.value || 1) }))}
                   />
                 </label>
+                <label>
+                  Max Documents Map
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={minio.max_map}
+                    onChange={(e) => setMinio((m) => ({ ...m, max_map: Number(e.target.value || 1) }))}
+                  />
+                </label>
                 <div className="actions-row">
                   <button className="btn btn-primary" type="submit">Speichern</button>
                   <button
@@ -464,6 +489,24 @@ function AdminView({ token, currentUser, onLogout }) {
                   >
                     OCR/Extract
                   </button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        const res = await mapInvoices(token, minio.max_map || 20)
+                        setNotice(`Map: ${res.mapped} MAPPED, ${res.skipped} SKIPPED, ${res.failed} ERROR`)
+                        await loadDocumentsList()
+                        await loadInvoicesList()
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Invoice Mapping
+                  </button>
                 </div>
               </form>
             </div>
@@ -491,6 +534,39 @@ function AdminView({ token, currentUser, onLogout }) {
                       <td>{d.file_type}</td>
                       <td>{d.status}</td>
                       <td className="mono">{d.source_uri}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header row">
+              <h3>Rechnungen (Mapped)</h3>
+              <button className="btn btn-outline" onClick={loadInvoicesList}>Neu laden</button>
+            </div>
+            <div className="card-body">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Lieferant</th>
+                    <th>Rechnungsnr.</th>
+                    <th>Datum</th>
+                    <th>Betrag</th>
+                    <th>Waehrung</th>
+                    <th>Konfidenz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => (
+                    <tr key={inv.id}>
+                      <td>{inv.supplier_name || "-"}</td>
+                      <td>{inv.invoice_number || "-"}</td>
+                      <td>{inv.invoice_date || "-"}</td>
+                      <td>{inv.gross_amount ?? "-"}</td>
+                      <td>{inv.currency || "-"}</td>
+                      <td>{inv.confidence_score ?? "-"}</td>
                     </tr>
                   ))}
                 </tbody>

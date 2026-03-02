@@ -73,3 +73,40 @@ create table if not exists insaights_documents (
 
 create index if not exists idx_insaights_documents_source on insaights_documents(source_system);
 create index if not exists idx_insaights_documents_created on insaights_documents(created_at desc);
+
+create table if not exists insaights_invoices (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid references insaights_documents(id) on delete set null,
+  source_system text not null default 'minio',
+  supplier_name text,
+  invoice_number text,
+  invoice_date date,
+  due_date date,
+  currency text not null default 'EUR',
+  gross_amount numeric(14,2),
+  net_amount numeric(14,2),
+  tax_amount numeric(14,2),
+  status text not null default 'MAPPED',
+  confidence_score numeric(5,2) not null default 0,
+  extraction_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_invoices_document on insaights_invoices(document_id);
+create index if not exists idx_insaights_invoices_status on insaights_invoices(status);
+create index if not exists idx_insaights_invoices_created on insaights_invoices(created_at desc);
+
+create table if not exists insaights_invoice_lines (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references insaights_invoices(id) on delete cascade,
+  line_no integer not null,
+  description text,
+  quantity numeric(12,3),
+  unit_price numeric(14,4),
+  line_amount numeric(14,2),
+  tax_rate numeric(6,3),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_invoice_lines_invoice on insaights_invoice_lines(invoice_id);

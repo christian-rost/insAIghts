@@ -35,7 +35,9 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
 - `POST /api/processing/documents/extract` (ADMIN)
+- `POST /api/processing/invoices/map` (ADMIN)
 - `GET /api/documents`
+- `GET /api/invoices`
 
 ## Supabase Tabellen
 - `insaights_users`
@@ -43,6 +45,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_config_connectors`
 - `insaights_config_provider_keys`
 - `insaights_documents`
+- `insaights_invoices`
+- `insaights_invoice_lines`
 
 Hinweis:
 - Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
@@ -58,7 +62,7 @@ Hinweis:
   - `secret_key`
   - `bucket`
   - optional: `prefix`, `secure` (default `true`)
-- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract).
+- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping).
 - Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
 
 ## Coolify

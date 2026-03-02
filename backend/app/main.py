@@ -18,6 +18,8 @@ from .document_storage import (
     update_document,
 )
 from .graph import graph_healthcheck
+from .invoice_mapping import map_extracted_document
+from .invoice_storage import create_invoice, get_invoice_by_document, list_invoices
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
@@ -101,6 +103,10 @@ class MinioPullRequest(BaseModel):
 
 
 class ExtractDocumentsRequest(BaseModel):
+    max_documents: int = Field(default=20, ge=1, le=500)
+
+
+class MapInvoicesRequest(BaseModel):
     max_documents: int = Field(default=20, ge=1, le=500)
 
 
@@ -467,3 +473,62 @@ async def processing_documents_extract(
         "failed": failed,
         "details": details,
     }
+
+
+@app.post("/api/processing/invoices/map")
+async def processing_invoices_map(
+    payload: MapInvoicesRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    candidates = list_documents_by_status("EXTRACTED", limit=payload.max_documents)
+    mapped = 0
+    skipped = 0
+    failed = 0
+    details = []
+
+    for doc in candidates:
+        doc_id = str(doc.get("id"))
+        if get_invoice_by_document(doc_id):
+            skipped += 1
+            details.append({"id": doc_id, "status": "SKIPPED", "reason": "already mapped"})
+            continue
+        try:
+            mapped_row = map_extracted_document(doc)
+            invoice = create_invoice({"document_id": doc_id, **mapped_row})
+            update_document(doc_id, {"status": "MAPPED"})
+            mapped += 1
+            details.append(
+                {
+                    "id": doc_id,
+                    "status": "MAPPED",
+                    "invoice_id": invoice.get("id"),
+                    "invoice_number": invoice.get("invoice_number"),
+                }
+            )
+        except Exception as exc:
+            failed += 1
+            details.append({"id": doc_id, "status": "ERROR", "reason": str(exc)[:240]})
+
+    log_admin_event(
+        event_type="processing.invoices_map",
+        actor_user_id=admin_user["id"],
+        target_type="invoices",
+        metadata_json={"selected": len(candidates), "mapped": mapped, "skipped": skipped, "failed": failed},
+    )
+    return {
+        "status": "ok",
+        "selected": len(candidates),
+        "mapped": mapped,
+        "skipped": skipped,
+        "failed": failed,
+        "details": details,
+    }
+
+
+@app.get("/api/invoices")
+async def invoices_list(
+    limit: int = 100,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    items = list_invoices(limit=limit)
+    return {"count": len(items), "items": items}
