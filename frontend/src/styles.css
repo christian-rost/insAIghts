@@ -316,7 +316,8 @@ label {
 }
 
 .inbox-layout {
-  width: min(1280px, calc(100% - 2rem));
+  width: calc(100% - 2rem);
+  max-width: none;
 }
 
 .inbox-filterbar {
