@@ -70,6 +70,7 @@ Hinweis:
 - Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
 - Feldextraktion fuer Rechnungen erfolgt im Mapping-Schritt modellbasiert ueber Mistral (strukturierter JSON-Output), nicht ueber starre Regex.
 - Welche Felder extrahiert werden, ist in der Admin-Oberflaeche konfigurierbar (`field_name`, `description`, `data_type`, `required`, `enabled`, `scope=header|line_item`).
+- Bestehende Extraktionsfelder koennen in der Tabelle direkt inline bearbeitet und zeilenweise gespeichert werden.
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 
 ## Coolify

@@ -107,6 +107,7 @@ function AdminView({ token, currentUser, onLogout }) {
   const [documents, setDocuments] = useState([])
   const [invoices, setInvoices] = useState([])
   const [extractionFields, setExtractionFields] = useState([])
+  const [extractionFieldDrafts, setExtractionFieldDrafts] = useState({})
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [form, setForm] = useState({
@@ -211,6 +212,18 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const rows = await listExtractionFields(token, "invoice", false)
       setExtractionFields(rows || [])
+      const drafts = {}
+      for (const row of rows || []) {
+        const key = `${row.scope}:${row.field_name}`
+        drafts[key] = {
+          description: row.description || "",
+          data_type: row.data_type || "string",
+          is_required: !!row.is_required,
+          is_enabled: !!row.is_enabled,
+          sort_order: Number(row.sort_order || 0),
+        }
+      }
+      setExtractionFieldDrafts(drafts)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -446,18 +459,72 @@ function AdminView({ token, currentUser, onLogout }) {
                     <th>Typ</th>
                     <th>Pflicht</th>
                     <th>Aktiv</th>
+                    <th>Sort</th>
                     <th>Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {extractionFields.map((f) => (
-                    <tr key={`${f.scope}:${f.field_name}`}>
+                  {extractionFields.map((f) => {
+                    const key = `${f.scope}:${f.field_name}`
+                    const draft = extractionFieldDrafts[key] || {
+                      description: f.description || "",
+                      data_type: f.data_type || "string",
+                      is_required: !!f.is_required,
+                      is_enabled: !!f.is_enabled,
+                      sort_order: Number(f.sort_order || 0),
+                    }
+                    return (
+                    <tr key={key}>
                       <td>{f.scope}</td>
                       <td className="mono">{f.field_name}</td>
-                      <td>{f.description}</td>
-                      <td>{f.data_type}</td>
-                      <td>{f.is_required ? "ja" : "nein"}</td>
-                      <td>{f.is_enabled ? "ja" : "nein"}</td>
+                      <td>
+                        <input
+                          className="input"
+                          value={draft.description}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, description: e.target.value } }))}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={draft.data_type}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, data_type: e.target.value } }))}
+                        >
+                          <option value="string">string</option>
+                          <option value="number">number</option>
+                          <option value="integer">integer</option>
+                          <option value="date">date</option>
+                          <option value="boolean">boolean</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={draft.is_required ? "true" : "false"}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, is_required: e.target.value === "true" } }))}
+                        >
+                          <option value="false">nein</option>
+                          <option value="true">ja</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={draft.is_enabled ? "true" : "false"}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, is_enabled: e.target.value === "true" } }))}
+                        >
+                          <option value="true">ja</option>
+                          <option value="false">nein</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          className="input"
+                          type="number"
+                          value={draft.sort_order}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, sort_order: Number(e.target.value || 0) } }))}
+                        />
+                      </td>
                       <td>
                         <button
                           className="btn btn-outline"
@@ -470,11 +537,11 @@ function AdminView({ token, currentUser, onLogout }) {
                                 entity_name: f.entity_name,
                                 scope: f.scope,
                                 field_name: f.field_name,
-                                description: f.description,
-                                data_type: f.data_type,
-                                is_required: !!f.is_required,
-                                is_enabled: !f.is_enabled,
-                                sort_order: Number(f.sort_order || 0),
+                                description: draft.description,
+                                data_type: draft.data_type,
+                                is_required: !!draft.is_required,
+                                is_enabled: !!draft.is_enabled,
+                                sort_order: Number(draft.sort_order || 0),
                               })
                               await loadExtractionFields()
                               setNotice(`Feld ${f.field_name} aktualisiert`)
@@ -483,11 +550,12 @@ function AdminView({ token, currentUser, onLogout }) {
                             }
                           }}
                         >
-                          {f.is_enabled ? "Deaktivieren" : "Aktivieren"}
+                          Speichern
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
