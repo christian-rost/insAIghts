@@ -138,6 +138,9 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 ## 5.6 Workflow-Regeln
 - `GET /admin/config/workflow-rules`
 - `PUT /admin/config/workflow-rules`
+- Umgesetzt im aktuellen API-Namespace:
+  - `GET /api/admin/config/workflow-rules`
+  - `PUT /api/admin/config/workflow-rules`
 
 ## 5.7 Audit
 - `GET /admin/audit/events`

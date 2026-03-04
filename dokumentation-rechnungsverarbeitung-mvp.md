@@ -475,6 +475,7 @@ Festlegung:
   - Graph-Endpunkte fuer Rechnungssubgraph (`GET /api/graph/invoices/{id}`) und Sync (`POST /api/graph/sync/invoices/{id}`, `POST /api/graph/sync/invoices`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
+  - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
@@ -482,6 +483,7 @@ Festlegung:
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
+  - Admin-UI fuer Workflow-Regeln (JSON-basiert) inkl. Runtime-Update ohne Redeploy
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung
@@ -496,6 +498,7 @@ Festlegung:
   - `insaights_invoice_lines` wird im Mapping-Schritt mit durch das Sprachmodell extrahierten Positionen befuellt.
   - Feldkatalog fuer Extraktion wird in `insaights_config_extraction_fields` gepflegt und zur Prompt-Erstellung genutzt.
   - Workflow-Aktionshistorie wird in `insaights_invoice_actions` gespeichert.
+  - Freigaberegeln werden in `insaights_config_workflow_rules` gepflegt und in `approve` serverseitig erzwungen.
 
 ## 15. Dokumentations-Governance (verbindlich)
 - Dokumentation wird bei jeder fachlichen oder technischen Aenderung im selben Arbeitsschritt aktualisiert.
@@ -513,6 +516,5 @@ Festlegung:
 - LLM-Feldextraktion ist ueber Admin-UI konfigurierbar (Feldname + Beschreibung + Typ + Pflicht + Aktiv + Reihenfolge).
 - Offene Schwerpunkte fuer naechste Iteration:
   - Mail- und REST-Ingestion umsetzen.
-  - Freigaberegeln serverseitig aus Admin-Konfiguration erzwingen.
   - Graph-/Ontologie-Schicht auf weitere Objektklassen erweitern (PO, GoodsReceipt, Case) und Graph-Visualisierung vertiefen.
   - DSGVO-Betriebsprozesse (Retention/DSR) technisch operationalisieren.

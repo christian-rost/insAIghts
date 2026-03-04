@@ -26,7 +26,9 @@ import {
   upsertExtractionField,
   syncInvoicesGraphBulk,
   validateInvoices,
+  getWorkflowRules,
   testConnector,
+  updateWorkflowRules,
   updateConnector,
 } from "./api"
 
@@ -144,6 +146,7 @@ function AdminView({ token, currentUser, onLogout }) {
     max_validate: 50,
   })
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
+  const [workflowRulesText, setWorkflowRulesText] = useState("")
   const [fieldForm, setFieldForm] = useState({
     entity_name: "invoice",
     scope: "header",
@@ -239,6 +242,15 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadWorkflowRules() {
+    try {
+      const row = await getWorkflowRules(token)
+      setWorkflowRulesText(JSON.stringify(row.rules_json || {}, null, 2))
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   useEffect(() => {
     loadUsers()
     loadProvidersConfig()
@@ -246,6 +258,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadDocumentsList()
     loadInvoicesList()
     loadExtractionFields()
+    loadWorkflowRules()
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
@@ -579,6 +592,45 @@ function AdminView({ token, currentUser, onLogout }) {
                   })}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header row">
+              <h3>Workflow-Regeln (Approval)</h3>
+              <button className="btn btn-outline" onClick={loadWorkflowRules}>Neu laden</button>
+            </div>
+            <div className="card-body">
+              <p className="muted">
+                Regeln steuern serverseitig die Freigabepruefung bei <span className="mono">approve</span>
+                (Betragsgrenzen, Rollen, optional 4-Augen).
+              </p>
+              <textarea
+                className="input"
+                style={{ minHeight: "220px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
+                value={workflowRulesText}
+                onChange={(e) => setWorkflowRulesText(e.target.value)}
+              />
+              <div className="actions-row" style={{ marginTop: "0.7rem" }}>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setError("")
+                      setNotice("")
+                      const parsed = JSON.parse(workflowRulesText || "{}")
+                      await updateWorkflowRules(token, parsed)
+                      await loadWorkflowRules()
+                      setNotice("Workflow-Regeln gespeichert")
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Regeln speichern
+                </button>
+              </div>
             </div>
           </section>
 

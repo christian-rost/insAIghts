@@ -44,6 +44,32 @@ insert into insaights_config_connectors (connector_name, enabled)
 values ('mail', false), ('rest', false), ('minio', false)
 on conflict (connector_name) do nothing;
 
+create table if not exists insaights_config_workflow_rules (
+  id uuid primary key default gen_random_uuid(),
+  rule_name text not null unique,
+  rules_json jsonb not null default '{}'::jsonb,
+  updated_by uuid,
+  updated_at timestamptz not null default now()
+);
+
+insert into insaights_config_workflow_rules (rule_name, rules_json)
+values (
+  'invoice_approval',
+  '{
+    "approval": {
+      "four_eyes": false,
+      "require_validated_status": false,
+      "amount_limits": [
+        {"max_amount": 1000, "allowed_roles": ["AP_CLERK", "APPROVER", "ADMIN"]},
+        {"max_amount": 10000, "allowed_roles": ["APPROVER", "ADMIN"]},
+        {"max_amount": null, "allowed_roles": ["ADMIN"]}
+      ],
+      "supplier_role_overrides": []
+    }
+  }'::jsonb
+)
+on conflict (rule_name) do nothing;
+
 create table if not exists insaights_config_provider_keys (
   id uuid primary key default gen_random_uuid(),
   provider_name text not null unique check (provider_name in ('mistral')),

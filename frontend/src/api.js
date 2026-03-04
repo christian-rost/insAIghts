@@ -296,3 +296,22 @@ export async function upsertExtractionField(token, payload) {
   })
   return handleJson(response)
 }
+
+export async function getWorkflowRules(token) {
+  const response = await fetch(`${API_BASE}/api/admin/config/workflow-rules`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateWorkflowRules(token, rulesJson) {
+  const response = await fetch(`${API_BASE}/api/admin/config/workflow-rules`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ rules_json: rulesJson }),
+  })
+  return handleJson(response)
+}

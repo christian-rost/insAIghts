@@ -38,6 +38,7 @@ from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
+from .workflow_rules_storage import get_workflow_rules, update_workflow_rules
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -145,6 +146,18 @@ class ProviderConfigResponse(BaseModel):
 class ProviderUpdateRequest(BaseModel):
     is_enabled: Optional[bool] = None
     key_value: Optional[str] = None
+
+
+class WorkflowRulesResponse(BaseModel):
+    id: Optional[str] = None
+    rule_name: str
+    rules_json: Dict = Field(default_factory=dict)
+    updated_by: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class WorkflowRulesUpdateRequest(BaseModel):
+    rules_json: Dict
 
 
 ALLOWED_ACTION_TRANSITIONS = {
@@ -433,6 +446,31 @@ async def admin_upsert_extraction_field(
         diff_after={"field": after},
     )
     return ExtractionFieldResponse(**after)
+
+
+@app.get("/api/admin/config/workflow-rules", response_model=WorkflowRulesResponse)
+async def admin_get_workflow_rules(_: Dict = Depends(require_admin)) -> WorkflowRulesResponse:
+    row = get_workflow_rules()
+    return WorkflowRulesResponse(**row)
+
+
+@app.put("/api/admin/config/workflow-rules", response_model=WorkflowRulesResponse)
+async def admin_update_workflow_rules(
+    payload: WorkflowRulesUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> WorkflowRulesResponse:
+    before = get_workflow_rules()
+    after = update_workflow_rules(payload.rules_json, actor_user_id=admin_user["id"])
+    log_admin_event(
+        event_type="admin.workflow_rules_updated",
+        actor_user_id=admin_user["id"],
+        target_type="workflow_rules",
+        target_id="invoice_approval",
+        metadata_json={"keys": list((payload.rules_json or {}).keys())},
+        diff_before={"workflow_rules": before.get("rules_json")},
+        diff_after={"workflow_rules": after.get("rules_json")},
+    )
+    return WorkflowRulesResponse(**after)
 
 
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)
@@ -837,6 +875,78 @@ def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceA
             status_code=409,
             detail=f"Action '{action_type}' not allowed from status '{from_status}'",
         )
+
+    if action_type == "approve":
+        wf = get_workflow_rules().get("rules_json") or {}
+        approval_cfg = wf.get("approval") if isinstance(wf, dict) else {}
+        if not isinstance(approval_cfg, dict):
+            approval_cfg = {}
+
+        # Optional hard gate: approval only from VALIDATED status.
+        require_validated_status = bool(approval_cfg.get("require_validated_status", False))
+        if require_validated_status and from_status != "VALIDATED":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Approval requires status VALIDATED, current status is '{from_status}'",
+            )
+
+        supplier_name = str(invoice.get("supplier_name") or "").strip().lower()
+        gross_amount = invoice.get("gross_amount")
+        try:
+            amount = float(gross_amount) if gross_amount is not None else 0.0
+        except Exception:
+            amount = 0.0
+
+        allowed_roles_by_rule = None
+        supplier_overrides = approval_cfg.get("supplier_role_overrides") or []
+        if isinstance(supplier_overrides, list):
+            for override in supplier_overrides:
+                if not isinstance(override, dict):
+                    continue
+                if str(override.get("supplier_name") or "").strip().lower() == supplier_name:
+                    roles = override.get("allowed_roles")
+                    if isinstance(roles, list):
+                        allowed_roles_by_rule = {str(r) for r in roles}
+                        break
+
+        if allowed_roles_by_rule is None:
+            amount_limits = approval_cfg.get("amount_limits") or []
+            chosen_roles = None
+            if isinstance(amount_limits, list):
+                for row in amount_limits:
+                    if not isinstance(row, dict):
+                        continue
+                    max_amount = row.get("max_amount")
+                    if max_amount is None:
+                        chosen_roles = row.get("allowed_roles")
+                        break
+                    try:
+                        if amount <= float(max_amount):
+                            chosen_roles = row.get("allowed_roles")
+                            break
+                    except Exception:
+                        continue
+            if isinstance(chosen_roles, list) and chosen_roles:
+                allowed_roles_by_rule = {str(r) for r in chosen_roles}
+
+        if allowed_roles_by_rule:
+            if not user_roles.intersection(allowed_roles_by_rule):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Approval rule violation: required role one of {sorted(allowed_roles_by_rule)} for amount {amount}",
+                )
+
+        # Optional four-eyes principle:
+        # Approver must differ from the actor of the most recent action.
+        if bool(approval_cfg.get("four_eyes", False)):
+            prior_actions = list_invoice_actions(invoice_id, limit=1)
+            if prior_actions:
+                prior_actor = str(prior_actions[0].get("actor_user_id") or "")
+                if prior_actor and prior_actor == str(current_user.get("id") or ""):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Approval rule violation: four-eyes principle requires a different approver",
+                    )
 
     to_status = str(rule["to_status"])
     updated = update_invoice(invoice_id, {"status": to_status})

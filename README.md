@@ -36,6 +36,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `PUT /api/admin/config/providers/{provider_name}` (ADMIN)
 - `GET /api/admin/config/extraction-fields` (ADMIN)
 - `POST /api/admin/config/extraction-fields` (ADMIN)
+- `GET /api/admin/config/workflow-rules` (ADMIN)
+- `PUT /api/admin/config/workflow-rules` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
@@ -58,6 +60,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_config_connectors`
 - `insaights_config_provider_keys`
 - `insaights_config_extraction_fields`
+- `insaights_config_workflow_rules`
 - `insaights_documents`
 - `insaights_invoices`
 - `insaights_invoice_lines`
@@ -85,6 +88,7 @@ Hinweis:
 - Bestehende Extraktionsfelder koennen in der Tabelle direkt inline bearbeitet und zeilenweise gespeichert werden.
 - Die Tabelle zeigt pro Feld einen Status (`gespeichert` / `ungespeichert`), damit Aenderungen vor dem Speichern sichtbar sind.
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
+- Freigaben (`approve`) werden serverseitig gegen konfigurierbare Workflow-Regeln geprueft (Betragsgrenzen, Rollen, optional 4-Augen).
 
 ## Anwenderoberflaeche (Inbox)
 - Nicht-Admin-User sehen automatisch die AP-Inbox statt der Admin-Konsole.

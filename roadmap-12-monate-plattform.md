@@ -144,6 +144,7 @@ Datenqualitaet plattformweit heben und Skalierung absichern.
 - Rechnungsverarbeitung MVP ist fuer den MinIO-Pfad technisch Ende-zu-Ende umgesetzt.
 - Anwender-Inbox mit 3-Spaltenansicht (Liste, Rechnungsdaten, Dokumentvorschau) ist verfuegbar.
 - Workflow-Aktionen (`approve`, `reject`, `hold`) inkl. Aktionshistorie sind aktiv.
+- Serverseitige Freigaberegeln (`approve`) sind ueber Admin-Konfiguration angebunden (Betragsgrenzen, Rollen, optional 4-Augen).
 - LLM-basierte Feldextraktion ist ueber Admin-UI konfigurierbar.
 - Noch offen fuer Roadmap-Q1-Vollabdeckung:
   - Mail- und REST-Connector produktiv anbinden.
