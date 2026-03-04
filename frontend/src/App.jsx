@@ -26,6 +26,7 @@ import {
   me,
   pullMinio,
   register,
+  resetInvoicePipeline,
   updateProvider,
   upsertExtractionField,
   syncInvoicesGraphBulk,
@@ -217,6 +218,7 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphError, setGlobalGraphError] = useState("")
   const [globalGraphMaxNodes, setGlobalGraphMaxNodes] = useState(500)
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
+  const [resetGraph, setResetGraph] = useState(true)
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -1240,6 +1242,57 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
               {globalGraphError ? <p className="error">{globalGraphError}</p> : null}
               {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header"><h3>Global Reset (Rechnungs-Pipeline)</h3></div>
+            <div className="card-body">
+              <p className="muted">
+                Loescht alle geladenen und verarbeiteten Rechnungsdaten (Dokumente, Rechnungen, Positionen, Aktionen, Cases),
+                damit der komplette MinIO-Flow mit neuem Feldkatalog erneut laufen kann.
+              </p>
+              <div className="actions-row">
+                <label>
+                  Neo4j Graph mit resetten
+                  <select
+                    className="input"
+                    value={resetGraph ? "true" : "false"}
+                    onChange={(e) => setResetGraph(e.target.value === "true")}
+                  >
+                    <option value="true">ja</option>
+                    <option value="false">nein</option>
+                  </select>
+                </label>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={async () => {
+                    const ok = window.confirm("Wirklich ALLE Rechnungsdaten zuruecksetzen?")
+                    if (!ok) return
+                    try {
+                      setError("")
+                      setNotice("")
+                      const res = await resetInvoicePipeline(token, { resetGraph })
+                      await Promise.all([
+                        loadDocumentsList(),
+                        loadInvoicesList(),
+                        loadKpi(),
+                      ])
+                      setGlobalGraphData(null)
+                      setGlobalGraphError("")
+                      const d = res?.data_reset?.details || {}
+                      setNotice(
+                        `Reset abgeschlossen. Docs: ${d.documents_deleted || 0}, Invoices: ${d.invoices_deleted || 0}, Lines: ${d.invoice_lines_deleted || 0}, Actions: ${d.invoice_actions_deleted || 0}, Cases: ${d.invoice_cases_deleted || 0}`
+                      )
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Jetzt global resetten
+                </button>
+              </div>
             </div>
           </section>
 

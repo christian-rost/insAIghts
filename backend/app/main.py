@@ -22,7 +22,7 @@ from .document_storage import (
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
-from .graph import graph_get_global_subgraph, graph_get_invoice_subgraph, graph_sync_invoice
+from .graph import graph_get_global_subgraph, graph_get_invoice_subgraph, graph_reset_invoice_domain, graph_sync_invoice
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
@@ -39,6 +39,7 @@ from .invoice_storage import (
 from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
+from .reset_service import reset_invoice_pipeline_data
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 from .workflow_rules_storage import get_workflow_rules, update_workflow_rules
 from .kpi_service import get_kpi_overview
@@ -182,6 +183,10 @@ class InvoiceCaseResponse(BaseModel):
 class UpdateCaseRequest(BaseModel):
     status: str = Field(pattern="^(OPEN|IN_PROGRESS|RESOLVED|CLOSED)$")
     resolved_note: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ResetPipelineRequest(BaseModel):
+    reset_graph: bool = True
 
 
 ALLOWED_ACTION_TRANSITIONS = {
@@ -530,6 +535,34 @@ async def admin_update_connector(
 @app.get("/api/admin/kpi/overview")
 async def admin_kpi_overview(_: Dict = Depends(require_admin)) -> Dict:
     return get_kpi_overview(limit=5000)
+
+
+@app.post("/api/admin/reset/invoice-pipeline")
+async def admin_reset_invoice_pipeline(
+    payload: ResetPipelineRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    data_reset_result = reset_invoice_pipeline_data()
+    graph_reset_result: Dict = {"status": "skipped", "reason": "reset_graph=false"}
+    if payload.reset_graph:
+        graph_reset_result = graph_reset_invoice_domain()
+
+    log_admin_event(
+        event_type="admin.reset_invoice_pipeline",
+        actor_user_id=admin_user["id"],
+        target_type="pipeline",
+        target_id="invoice_pipeline",
+        metadata_json={
+            "data_reset": data_reset_result,
+            "graph_reset": graph_reset_result,
+            "reset_graph": payload.reset_graph,
+        },
+    )
+    return {
+        "status": "ok",
+        "data_reset": data_reset_result,
+        "graph_reset": graph_reset_result,
+    }
 
 
 @app.post("/api/admin/config/connectors/{connector_name}/test")

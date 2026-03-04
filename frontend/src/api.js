@@ -358,3 +358,12 @@ export async function getKpiOverview(token) {
   })
   return handleJson(response)
 }
+
+export async function resetInvoicePipeline(token, { resetGraph = true } = {}) {
+  const response = await fetch(`${API_BASE}/api/admin/reset/invoice-pipeline`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ reset_graph: resetGraph }),
+  })
+  return handleJson(response)
+}

@@ -220,3 +220,38 @@ create table if not exists insaights_invoice_cases (
 
 create index if not exists idx_insaights_invoice_cases_invoice on insaights_invoice_cases(invoice_id, created_at desc);
 create index if not exists idx_insaights_invoice_cases_status on insaights_invoice_cases(status, updated_at desc);
+
+create or replace function insaights_reset_invoice_pipeline()
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_invoice_actions integer := 0;
+  v_invoice_cases integer := 0;
+  v_invoice_lines integer := 0;
+  v_invoices integer := 0;
+  v_documents integer := 0;
+begin
+  select count(*) into v_invoice_actions from insaights_invoice_actions;
+  select count(*) into v_invoice_cases from insaights_invoice_cases;
+  select count(*) into v_invoice_lines from insaights_invoice_lines;
+  select count(*) into v_invoices from insaights_invoices;
+  select count(*) into v_documents from insaights_documents;
+
+  delete from insaights_invoice_actions;
+  delete from insaights_invoice_cases;
+  delete from insaights_invoice_lines;
+  delete from insaights_invoices;
+  delete from insaights_documents;
+
+  return jsonb_build_object(
+    'invoice_actions_deleted', v_invoice_actions,
+    'invoice_cases_deleted', v_invoice_cases,
+    'invoice_lines_deleted', v_invoice_lines,
+    'invoices_deleted', v_invoices,
+    'documents_deleted', v_documents,
+    'mode', 'rpc_function'
+  );
+end;
+$$;

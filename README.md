@@ -40,6 +40,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/admin/config/workflow-rules` (ADMIN)
 - `PUT /api/admin/config/workflow-rules` (ADMIN)
 - `GET /api/admin/kpi/overview` (ADMIN)
+- `POST /api/admin/reset/invoice-pipeline` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
@@ -96,6 +97,7 @@ Hinweis:
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 - Freigaben (`approve`) werden serverseitig gegen konfigurierbare Workflow-Regeln geprueft (Betragsgrenzen, Rollen, optional 4-Augen).
 - Workflow-Regeln werden in der Admin-UI formularbasiert gepflegt (kein JSON-Editor mehr): 4-Augen, VALIDATED-Pflicht, Betragsgrenzen, Lieferanten-Overrides.
+- Global-Reset ist in der Admin-UI verfuegbar: loescht Dokumente/Rechnungen/Positionen/Aktionen/Cases fuer komplettes Reprocessing (optional inkl. Neo4j-Reset).
 
 ## Anwenderoberflaeche (Inbox)
 - Nicht-Admin-User sehen automatisch die AP-Inbox statt der Admin-Konsole.

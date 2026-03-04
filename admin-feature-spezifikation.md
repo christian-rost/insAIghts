@@ -162,11 +162,15 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 ## 5.8 Graph
 - `GET /api/graph/global?max_nodes=&max_edges=` (ADMIN)
 
-## 5.9 Audit
+## 5.9 Pipeline-Reset
+- `POST /api/admin/reset/invoice-pipeline` (ADMIN)
+- Zweck: Vollstaendiger Reset der Rechnungs-Pipeline fuer Reprocessing nach Feld-/Prompt-Aenderungen.
+
+## 5.10 Audit
 - `GET /admin/audit/events`
 - `GET /admin/audit/events/{id}`
 
-## 5.10 Aktuell implementierter API-Stand (04.03.2026)
+## 5.11 Aktuell implementierter API-Stand (04.03.2026)
 - `GET /api/admin/users`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
@@ -181,6 +185,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `PUT /api/admin/config/workflow-rules`
 - `GET /api/admin/kpi/overview`
 - `GET /api/graph/global`
+- `POST /api/admin/reset/invoice-pipeline`
 
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag

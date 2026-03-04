@@ -284,6 +284,7 @@ Regeln:
 - `GET /admin/config/workflow-rules`
 - `PUT /admin/config/workflow-rules`
 - `GET /admin/kpi/overview`
+- `POST /admin/reset/invoice-pipeline`
 - `GET /admin/audit/events`
 
 Festlegung:
@@ -482,6 +483,7 @@ Festlegung:
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
   - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
   - KPI-Endpoint (`GET /api/admin/kpi/overview`) fuer operative Admin-Uebersicht
+  - Global-Reset Endpoint (`POST /api/admin/reset/invoice-pipeline`) fuer komplettes Reprocessing inkl. optionalem Neo4j-Reset
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
@@ -491,6 +493,7 @@ Festlegung:
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Admin-UI fuer Workflow-Regeln (formularbasiert) inkl. Runtime-Update ohne Redeploy
   - Admin-KPI-Panel (Dokumente/Rechnungen, Statusverteilungen, offene Cases, Freigaben 24h)
+  - Admin-Danger-Zone fuer globalen Pipeline-Reset (Dokumente/Rechnungen/Positionen/Aktionen/Cases)
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)

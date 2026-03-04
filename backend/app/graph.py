@@ -360,3 +360,30 @@ def graph_get_global_subgraph(max_nodes: int = 500, max_edges: int = 1200) -> Di
             "nodes": [],
             "edges": [],
         }
+
+
+def graph_reset_invoice_domain() -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "skipped",
+            "reason": "graph credentials or uri not configured",
+        }
+
+    query = """
+    MATCH (i:Invoice)
+    OPTIONAL MATCH (i)-[*0..2]-(n)
+    WITH collect(distinct i) + collect(distinct n) AS rawNodes
+    UNWIND rawNodes AS x
+    WITH collect(distinct x) AS nodes
+    UNWIND nodes AS node
+    DETACH DELETE node
+    RETURN count(node) AS deleted_nodes
+    """
+    try:
+        with driver.session() as session:
+            record = session.run(query).single()
+            deleted_nodes = int(record["deleted_nodes"]) if record and record.get("deleted_nodes") is not None else 0
+        return {"status": "ok", "deleted_nodes": deleted_nodes}
+    except Exception as exc:
+        return {"status": "error", "reason": str(exc)}
