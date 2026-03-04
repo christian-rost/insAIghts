@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   createUser,
   extractDocuments,
@@ -924,6 +924,148 @@ function AdminView({ token, currentUser, onLogout }) {
   )
 }
 
+function GraphCanvas({ graphData }) {
+  const width = 760
+  const height = 360
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [selectedNodeId, setSelectedNodeId] = useState("")
+  const dragStateRef = useRef(null)
+
+  const { nodes, edges } = useMemo(() => {
+    const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
+    const rawEdges = (graphData?.edges || []).map((e) => ({ ...e }))
+    const centerX = width / 2
+    const centerY = height / 2
+    const radius = Math.max(90, Math.min(width, height) * 0.34)
+
+    const positioned = rawNodes.map((n, idx) => {
+      const angle = (idx / Math.max(1, rawNodes.length)) * Math.PI * 2
+      return {
+        ...n,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      }
+    })
+
+    return { nodes: positioned, edges: rawEdges }
+  }, [graphData])
+
+  const nodeMap = useMemo(() => {
+    const m = new Map()
+    for (const n of nodes) m.set(String(n.id), n)
+    return m
+  }, [nodes])
+
+  const selectedNode = useMemo(
+    () => nodes.find((n) => String(n.id) === String(selectedNodeId)) || null,
+    [nodes, selectedNodeId],
+  )
+
+  function nodeLabel(node) {
+    const labels = node.labels || []
+    const p = node.properties || {}
+    if (labels.includes("Invoice")) return p.invoice_number || p.id || "Invoice"
+    if (labels.includes("Supplier")) return p.name || "Supplier"
+    if (labels.includes("InvoiceLine")) return p.description || `Line ${p.line_no || ""}`.trim()
+    if (labels.includes("InvoiceAction")) return p.action_type || "Action"
+    if (labels.includes("User")) return p.username || p.id || "User"
+    if (labels.includes("InvoiceStatus")) return p.name || "Status"
+    return labels[0] || "Node"
+  }
+
+  function nodeColor(node) {
+    const labels = node.labels || []
+    if (labels.includes("Invoice")) return "#ee7f00"
+    if (labels.includes("Supplier")) return "#335b8c"
+    if (labels.includes("InvoiceLine")) return "#6b7280"
+    if (labels.includes("InvoiceAction")) return "#1f7a4a"
+    if (labels.includes("User")) return "#6d28d9"
+    if (labels.includes("InvoiceStatus")) return "#0f766e"
+    return "#334155"
+  }
+
+  return (
+    <div className="graph-panel">
+      <div className="graph-toolbar">
+        <span className="muted-inline">Knoten: {nodes.length} | Kanten: {edges.length}</span>
+        <div className="actions-row">
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.min(2.4, z + 0.1))}>+</button>
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>-</button>
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Reset</button>
+        </div>
+      </div>
+      <svg
+        className="graph-svg"
+        viewBox={`0 0 ${width} ${height}`}
+        onWheel={(e) => {
+          e.preventDefault()
+          const d = e.deltaY > 0 ? -0.08 : 0.08
+          setZoom((z) => Math.max(0.5, Math.min(2.4, z + d)))
+        }}
+        onMouseDown={(e) => {
+          if (e.target.closest("circle")) return
+          dragStateRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
+        }}
+        onMouseMove={(e) => {
+          const s = dragStateRef.current
+          if (!s) return
+          const dx = e.clientX - s.x
+          const dy = e.clientY - s.y
+          setPan({ x: s.panX + dx, y: s.panY + dy })
+        }}
+        onMouseUp={() => { dragStateRef.current = null }}
+        onMouseLeave={() => { dragStateRef.current = null }}
+      >
+        <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+          {edges.map((edge) => {
+            const source = nodeMap.get(String(edge.source))
+            const target = nodeMap.get(String(edge.target))
+            if (!source || !target) return null
+            return (
+              <line
+                key={edge.id}
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                className="graph-edge"
+              />
+            )
+          })}
+          {nodes.map((node) => {
+            const selected = String(selectedNodeId) === String(node.id)
+            return (
+              <g key={node.id} onClick={() => setSelectedNodeId(String(node.id))} className="graph-node-group">
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r={selected ? 14 : 11}
+                  fill={nodeColor(node)}
+                  className={selected ? "graph-node selected" : "graph-node"}
+                />
+                <text x={node.x + 16} y={node.y + 4} className="graph-label">
+                  {nodeLabel(node).slice(0, 48)}
+                </text>
+              </g>
+            )
+          })}
+        </g>
+      </svg>
+      <div className="graph-node-detail">
+        {!selectedNode ? (
+          <span className="muted-inline">Knoten waehlen fuer Details.</span>
+        ) : (
+          <>
+            <div className="graph-node-title">{(selectedNode.labels || []).join(", ") || "Node"}</div>
+            <pre className="graph-node-json">{JSON.stringify(selectedNode.properties || {}, null, 2)}</pre>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function UserView({ token, currentUser, onLogout }) {
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState("")
@@ -1274,9 +1416,7 @@ function UserView({ token, currentUser, onLogout }) {
                 </div>
                 {graphError ? <p className="error">{graphError}</p> : null}
                 {graphData ? (
-                  <p className="muted-inline">
-                    Knoten: {(graphData.nodes || []).length} | Kanten: {(graphData.edges || []).length}
-                  </p>
+                  <GraphCanvas graphData={graphData} />
                 ) : (
                   <p className="muted-inline">Kein Graph geladen.</p>
                 )}

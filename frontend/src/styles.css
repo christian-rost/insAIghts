@@ -466,6 +466,81 @@ label {
   align-items: center;
 }
 
+.graph-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.graph-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.graph-svg {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: grab;
+}
+
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-edge {
+  stroke: #94a3b8;
+  stroke-width: 1.3;
+  opacity: 0.9;
+}
+
+.graph-node {
+  stroke: #ffffff;
+  stroke-width: 2.3;
+  cursor: pointer;
+}
+
+.graph-node.selected {
+  stroke: #111827;
+  stroke-width: 2.8;
+}
+
+.graph-label {
+  font-size: 11px;
+  fill: #334155;
+  pointer-events: none;
+}
+
+.graph-node-detail {
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.55rem 0.65rem;
+}
+
+.graph-node-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #243a5a;
+  margin-bottom: 0.25rem;
+}
+
+.graph-node-json {
+  margin: 0;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
@@ -503,6 +578,10 @@ label {
   .pdf-image {
     height: 52vh;
     max-height: 52vh;
+  }
+
+  .graph-svg {
+    min-height: 300px;
   }
 
   .inbox-item-number {
