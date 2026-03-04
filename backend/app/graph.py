@@ -257,64 +257,105 @@ def graph_get_invoice_subgraph(invoice_id: str, max_nodes: int = 200) -> Dict[st
             record = session.run(query, invoice_id=invoice_id, max_nodes=max_nodes).single()
             if not record:
                 return {"status": "not_found", "nodes": [], "edges": []}
-
-            nodes_out: List[Dict[str, Any]] = []
-            seen_nodes = set()
-            for n in record.get("nodes") or []:
-                if n is None:
-                    continue
-                node_id = str(n.element_id)
-                if node_id in seen_nodes:
-                    continue
-                seen_nodes.add(node_id)
-                labels = list(n.labels)
-                nodes_out.append(
-                    {
-                        "id": node_id,
-                        "labels": labels,
-                        "properties": _json_safe(dict(n.items())),
-                    }
-                )
-
-            edges_out: List[Dict[str, Any]] = []
-            seen_edges = set()
-            for e in record.get("edges") or []:
-                if e is None:
-                    continue
-                edge_id = str(e.element_id)
-                if edge_id in seen_edges:
-                    continue
-                seen_edges.add(edge_id)
-                source_id = (
-                    getattr(e, "start_node_element_id", None)
-                    or getattr(getattr(e, "start_node", None), "element_id", None)
-                    or getattr(e, "start_node_id", None)
-                )
-                target_id = (
-                    getattr(e, "end_node_element_id", None)
-                    or getattr(getattr(e, "end_node", None), "element_id", None)
-                    or getattr(e, "end_node_id", None)
-                )
-                edges_out.append(
-                    {
-                        "id": edge_id,
-                        "type": e.type,
-                        "source": str(source_id or ""),
-                        "target": str(target_id or ""),
-                        "properties": _json_safe(dict(e.items())),
-                    }
-                )
-
+            graph_data = _serialize_record_to_graph(record)
             return {
                 "status": "ok",
                 "invoice_id": invoice_id,
-                "nodes": nodes_out,
-                "edges": edges_out,
+                **graph_data,
             }
     except Exception as exc:
         return {
             "status": "error",
             "invoice_id": invoice_id,
+            "reason": str(exc),
+            "nodes": [],
+            "edges": [],
+        }
+
+
+def _serialize_record_to_graph(record: Any) -> Dict[str, List[Dict[str, Any]]]:
+    nodes_out: List[Dict[str, Any]] = []
+    seen_nodes = set()
+    for n in record.get("nodes") or []:
+        if n is None:
+            continue
+        node_id = str(n.element_id)
+        if node_id in seen_nodes:
+            continue
+        seen_nodes.add(node_id)
+        labels = list(n.labels)
+        nodes_out.append(
+            {
+                "id": node_id,
+                "labels": labels,
+                "properties": _json_safe(dict(n.items())),
+            }
+        )
+
+    edges_out: List[Dict[str, Any]] = []
+    seen_edges = set()
+    for e in record.get("edges") or []:
+        if e is None:
+            continue
+        edge_id = str(e.element_id)
+        if edge_id in seen_edges:
+            continue
+        seen_edges.add(edge_id)
+        source_id = (
+            getattr(e, "start_node_element_id", None)
+            or getattr(getattr(e, "start_node", None), "element_id", None)
+            or getattr(e, "start_node_id", None)
+        )
+        target_id = (
+            getattr(e, "end_node_element_id", None)
+            or getattr(getattr(e, "end_node", None), "element_id", None)
+            or getattr(e, "end_node_id", None)
+        )
+        edges_out.append(
+            {
+                "id": edge_id,
+                "type": e.type,
+                "source": str(source_id or ""),
+                "target": str(target_id or ""),
+                "properties": _json_safe(dict(e.items())),
+            }
+        )
+
+    return {"nodes": nodes_out, "edges": edges_out}
+
+
+def graph_get_global_subgraph(max_nodes: int = 500, max_edges: int = 1200) -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "unavailable",
+            "reason": "graph credentials or uri not configured",
+            "nodes": [],
+            "edges": [],
+        }
+
+    query = """
+    MATCH (n)
+    WITH n LIMIT $max_nodes
+    OPTIONAL MATCH (n)-[r]-(m)
+    WITH collect(distinct n) + collect(distinct m) AS rawNodes, collect(distinct r) AS rawEdges
+    UNWIND rawNodes AS rn
+    WITH collect(distinct rn)[0..$max_nodes] AS nodes, rawEdges
+    UNWIND rawEdges AS re
+    WITH nodes, collect(distinct re)[0..$max_edges] AS edges
+    RETURN nodes, edges
+    """
+
+    try:
+        with driver.session() as session:
+            record = session.run(query, max_nodes=max_nodes, max_edges=max_edges).single()
+            if not record:
+                return {"status": "ok", "nodes": [], "edges": []}
+            graph_data = _serialize_record_to_graph(record)
+            return {"status": "ok", **graph_data}
+    except Exception as exc:
+        return {
+            "status": "error",
             "reason": str(exc),
             "nodes": [],
             "edges": [],

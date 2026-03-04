@@ -271,6 +271,17 @@ export async function getInvoiceGraph(token, invoiceId) {
   return handleJson(response)
 }
 
+export async function getGlobalGraph(token, { maxNodes = 500, maxEdges = 1200 } = {}) {
+  const qs = new URLSearchParams({
+    max_nodes: String(maxNodes),
+    max_edges: String(maxEdges),
+  })
+  const response = await fetch(`${API_BASE}/api/graph/global?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
 export async function syncInvoiceGraph(token, invoiceId) {
   const response = await fetch(`${API_BASE}/api/graph/sync/invoices/${encodeURIComponent(invoiceId)}`, {
     method: "POST",

@@ -22,7 +22,7 @@ from .document_storage import (
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
-from .graph import graph_get_invoice_subgraph, graph_sync_invoice
+from .graph import graph_get_global_subgraph, graph_get_invoice_subgraph, graph_sync_invoice
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
@@ -785,6 +785,18 @@ async def graph_invoice_get(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     graph_data = graph_get_invoice_subgraph(invoice_id, max_nodes=300)
+    if graph_data.get("status") in {"unavailable", "error"}:
+        raise HTTPException(status_code=502, detail=graph_data.get("reason", "Graph unavailable"))
+    return graph_data
+
+
+@app.get("/api/graph/global")
+async def graph_global_get(
+    max_nodes: int = 500,
+    max_edges: int = 1200,
+    _: Dict = Depends(require_admin),
+) -> Dict:
+    graph_data = graph_get_global_subgraph(max_nodes=max_nodes, max_edges=max_edges)
     if graph_data.get("status") in {"unavailable", "error"}:
         raise HTTPException(status_code=502, detail=graph_data.get("reason", "Graph unavailable"))
     return graph_data

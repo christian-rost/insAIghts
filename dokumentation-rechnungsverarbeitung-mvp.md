@@ -477,6 +477,7 @@ Festlegung:
   - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold|request-clarification`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
   - Case-Endpunkte fuer Rueckfragen (`GET /api/invoices/{id}/cases`, `PATCH /api/cases/{id}`), inkl. automatischer Case-Anlage bei `request-clarification`
   - Graph-Endpunkte fuer Rechnungssubgraph (`GET /api/graph/invoices/{id}`) und Sync (`POST /api/graph/sync/invoices/{id}`, `POST /api/graph/sync/invoices`)
+  - Globaler Graph-Endpunkt fuer Admin (`GET /api/graph/global?max_nodes=&max_edges=`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
   - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
@@ -495,6 +496,7 @@ Festlegung:
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
+  - Admin-Ansicht kann zusaetzlich einen globalen Graph-Ausschnitt laden und visualisieren
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen

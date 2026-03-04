@@ -159,11 +159,14 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 ## 5.7 KPI
 - `GET /api/admin/kpi/overview`
 
-## 5.8 Audit
+## 5.8 Graph
+- `GET /api/graph/global?max_nodes=&max_edges=` (ADMIN)
+
+## 5.9 Audit
 - `GET /admin/audit/events`
 - `GET /admin/audit/events/{id}`
 
-## 5.9 Aktuell implementierter API-Stand (04.03.2026)
+## 5.10 Aktuell implementierter API-Stand (04.03.2026)
 - `GET /api/admin/users`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
@@ -177,6 +180,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/config/workflow-rules`
 - `PUT /api/admin/config/workflow-rules`
 - `GET /api/admin/kpi/overview`
+- `GET /api/graph/global`
 
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag

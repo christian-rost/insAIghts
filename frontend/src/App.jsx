@@ -4,6 +4,7 @@ import {
   extractDocuments,
   getInvoice,
   getInvoiceGraph,
+  getGlobalGraph,
   getInvoiceDocumentBlob,
   getKpiOverview,
   invoiceApprove,
@@ -212,6 +213,10 @@ function AdminView({ token, currentUser, onLogout }) {
     max_validate: 50,
   })
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
+  const [globalGraphData, setGlobalGraphData] = useState(null)
+  const [globalGraphError, setGlobalGraphError] = useState("")
+  const [globalGraphMaxNodes, setGlobalGraphMaxNodes] = useState(500)
+  const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -1188,7 +1193,53 @@ function AdminView({ token, currentUser, onLogout }) {
                 >
                   Sync alle Rechnungen
                 </button>
+                <label>
+                  Max Nodes
+                  <input
+                    className="input"
+                    type="number"
+                    min="10"
+                    max="5000"
+                    value={globalGraphMaxNodes}
+                    onChange={(e) => setGlobalGraphMaxNodes(Number(e.target.value || 10))}
+                  />
+                </label>
+                <label>
+                  Max Edges
+                  <input
+                    className="input"
+                    type="number"
+                    min="10"
+                    max="10000"
+                    value={globalGraphMaxEdges}
+                    onChange={(e) => setGlobalGraphMaxEdges(Number(e.target.value || 10))}
+                  />
+                </label>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setError("")
+                      setNotice("")
+                      const res = await getGlobalGraph(token, {
+                        maxNodes: globalGraphMaxNodes || 500,
+                        maxEdges: globalGraphMaxEdges || 1200,
+                      })
+                      setGlobalGraphData(res)
+                      setGlobalGraphError("")
+                      setNotice(`Global Graph geladen: ${res.nodes?.length || 0} Knoten, ${res.edges?.length || 0} Kanten`)
+                    } catch (err) {
+                      setGlobalGraphData(null)
+                      setGlobalGraphError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Global Graph laden
+                </button>
               </div>
+              {globalGraphError ? <p className="error">{globalGraphError}</p> : null}
+              {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
             </div>
           </section>
 

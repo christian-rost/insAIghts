@@ -22,6 +22,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `GET /api/health`
 - `GET /api/health/graph`
 - `GET /api/graph/invoices/{invoice_id}`
+- `GET /api/graph/global` (ADMIN)
 - `POST /api/graph/sync/invoices/{invoice_id}` (ADMIN)
 - `POST /api/graph/sync/invoices` (ADMIN)
 - `POST /api/auth/register`
@@ -110,6 +111,7 @@ Hinweis:
   - Case-Tabelle pro Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
 - Layout wurde an die Referenzansicht "View Invoices" angepasst (3-Spalten-Ansicht: links Liste, Mitte Rechnungsdaten, rechts Dokumentvorschau).
 - Graph-Schicht ist nutzbar: Invoice-Subgraph kann pro Rechnung geladen werden; Admin kann Bulk-Sync nach Neo4j ausfuehren.
+- Admin kann zusaetzlich einen globalen Graph-Ausschnitt laden (`/api/graph/global`, limitiert ueber max_nodes/max_edges).
 - In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails); Knoten-Auswahl hebt passende Positionen/Aktionen hervor.
 
 ## Coolify
