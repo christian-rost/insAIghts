@@ -9,6 +9,24 @@ from .config import GRAPH_DB_PASSWORD, GRAPH_DB_URI, GRAPH_DB_USER
 _driver = None
 
 
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    # Neo4j temporal/spatial values and other custom objects.
+    try:
+        if hasattr(value, "iso_format"):
+            return value.iso_format()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    return str(value)
+
+
 def get_graph_driver():
     global _driver
     if _driver is not None:
@@ -254,7 +272,7 @@ def graph_get_invoice_subgraph(invoice_id: str, max_nodes: int = 200) -> Dict[st
                     {
                         "id": node_id,
                         "labels": labels,
-                        "properties": dict(n.items()),
+                        "properties": _json_safe(dict(n.items())),
                     }
                 )
 
@@ -267,13 +285,23 @@ def graph_get_invoice_subgraph(invoice_id: str, max_nodes: int = 200) -> Dict[st
                 if edge_id in seen_edges:
                     continue
                 seen_edges.add(edge_id)
+                source_id = (
+                    getattr(e, "start_node_element_id", None)
+                    or getattr(getattr(e, "start_node", None), "element_id", None)
+                    or getattr(e, "start_node_id", None)
+                )
+                target_id = (
+                    getattr(e, "end_node_element_id", None)
+                    or getattr(getattr(e, "end_node", None), "element_id", None)
+                    or getattr(e, "end_node_id", None)
+                )
                 edges_out.append(
                     {
                         "id": edge_id,
                         "type": e.type,
-                        "source": str(e.start_node.element_id),
-                        "target": str(e.end_node.element_id),
-                        "properties": dict(e.items()),
+                        "source": str(source_id or ""),
+                        "target": str(target_id or ""),
+                        "properties": _json_safe(dict(e.items())),
                     }
                 )
 
