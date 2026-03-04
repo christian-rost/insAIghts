@@ -100,6 +100,59 @@ function toWorkflowRulesPayload(rules) {
   }
 }
 
+function buildExtractedHeaderRows(invoice) {
+  const extraction = invoice?.extraction_json || {}
+  const configured = Array.isArray(extraction?.configured_fields) ? extraction.configured_fields : []
+  const llmOutput = extraction?.llm_output || {}
+  const header = llmOutput && typeof llmOutput.header === "object" && llmOutput.header !== null
+    ? llmOutput.header
+    : (llmOutput && typeof llmOutput === "object" ? llmOutput : {})
+
+  const coreValueMap = {
+    supplier_name: invoice?.supplier_name,
+    invoice_number: invoice?.invoice_number,
+    invoice_date: invoice?.invoice_date,
+    due_date: invoice?.due_date,
+    currency: invoice?.currency,
+    gross_amount: invoice?.gross_amount,
+    net_amount: invoice?.net_amount,
+    tax_amount: invoice?.tax_amount,
+  }
+
+  const rows = configured
+    .filter((f) => f?.scope === "header" && f?.is_enabled !== false)
+    .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0))
+    .map((f) => {
+      const fieldName = String(f?.field_name || "")
+      const hasLlmValue = Object.prototype.hasOwnProperty.call(header, fieldName)
+      const llmValue = hasLlmValue ? header[fieldName] : undefined
+      const value = hasLlmValue ? llmValue : coreValueMap[fieldName]
+      return {
+        field_name: fieldName,
+        description: f?.description || "",
+        data_type: f?.data_type || "string",
+        is_required: !!f?.is_required,
+        has_value: value !== null && value !== undefined && String(value) !== "",
+        provided_by_llm: hasLlmValue,
+        value,
+      }
+    })
+  const known = new Set(rows.map((r) => r.field_name))
+  for (const [fieldName, value] of Object.entries(header || {})) {
+    if (!fieldName || known.has(fieldName)) continue
+    rows.push({
+      field_name: fieldName,
+      description: "nicht im Feld-Snapshot konfiguriert",
+      data_type: "string",
+      is_required: false,
+      has_value: value !== null && value !== undefined && String(value) !== "",
+      provided_by_llm: true,
+      value,
+    })
+  }
+  return rows
+}
+
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
   const [username, setUsername] = useState("")
@@ -1741,6 +1794,11 @@ function UserView({ token, currentUser, onLogout }) {
     }
   }, [documentUrl])
 
+  const extractedHeaderRows = useMemo(
+    () => (selectedInvoice ? buildExtractedHeaderRows(selectedInvoice) : []),
+    [selectedInvoice],
+  )
+
   return (
     <main className="app-layout inbox-layout">
       <header className="header">
@@ -1859,6 +1917,34 @@ function UserView({ token, currentUser, onLogout }) {
                   <div className="invoice-label">NAME</div>
                   <div className="invoice-value">{selectedInvoice.supplier_name || "-"}</div>
                 </div>
+
+                <div className="invoice-divider" />
+                <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
+                {extractedHeaderRows.length === 0 ? (
+                  <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
+                ) : (
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>FELD</th>
+                        <th>WERT</th>
+                        <th>LLM</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extractedHeaderRows.map((row) => (
+                        <tr key={row.field_name}>
+                          <td>
+                            <div className="mono">{row.field_name}</div>
+                            {row.description ? <div className="muted-inline">{row.description}</div> : null}
+                          </td>
+                          <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
+                          <td>{row.provided_by_llm ? "ja" : "nein"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
 
                 <div className="invoice-divider" />
                 <div className="invoice-actions">

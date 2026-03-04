@@ -497,6 +497,7 @@ Festlegung:
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
+  - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Admin-Ansicht kann zusaetzlich einen globalen Graph-Ausschnitt laden und visualisieren
