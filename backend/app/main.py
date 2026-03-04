@@ -20,6 +20,7 @@ from .document_storage import (
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
+from .graph import graph_get_invoice_subgraph, graph_sync_invoice
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
@@ -28,6 +29,7 @@ from .invoice_storage import (
     get_invoice_by_id,
     get_invoice_by_document,
     list_invoice_lines,
+    list_invoices,
     list_invoices_filtered,
     list_invoices_by_status,
     update_invoice,
@@ -221,6 +223,15 @@ async def health() -> Dict[str, str]:
 @app.get("/api/health/graph")
 async def health_graph() -> Dict:
     return graph_healthcheck()
+
+
+def _sync_invoice_graph_best_effort(invoice_id: str) -> Dict:
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        return {"status": "not_found", "invoice_id": invoice_id}
+    line_items = list_invoice_lines(invoice_id)
+    actions = list_invoice_actions(invoice_id, limit=500)
+    return graph_sync_invoice(invoice, line_items, actions)
 
 
 @app.post("/api/auth/login", response_model=LoginResponse)
@@ -615,6 +626,7 @@ async def processing_invoices_map(
             invoice = create_invoice({"document_id": doc_id, **mapped_row})
             lines = create_invoice_lines(str(invoice.get("id")), line_items)
             update_document(doc_id, {"status": "MAPPED"})
+            _sync_invoice_graph_best_effort(str(invoice.get("id")))
             mapped += 1
             details.append(
                 {
@@ -689,6 +701,73 @@ async def invoice_actions_get(
         raise HTTPException(status_code=404, detail="Invoice not found")
     actions = list_invoice_actions(invoice_id, limit=200)
     return {"count": len(actions), "items": actions}
+
+
+@app.get("/api/graph/invoices/{invoice_id}")
+async def graph_invoice_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> Dict:
+    # Ensure invoice exists in relational source of truth first.
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    graph_data = graph_get_invoice_subgraph(invoice_id, max_nodes=300)
+    if graph_data.get("status") in {"unavailable", "error"}:
+        raise HTTPException(status_code=502, detail=graph_data.get("reason", "Graph unavailable"))
+    return graph_data
+
+
+@app.post("/api/graph/sync/invoices/{invoice_id}")
+async def graph_sync_invoice_one(
+    invoice_id: str,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    result = _sync_invoice_graph_best_effort(invoice_id)
+    log_admin_event(
+        event_type="graph.sync_invoice",
+        actor_user_id=admin_user["id"],
+        target_type="invoice",
+        target_id=invoice_id,
+        metadata_json=result,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=502, detail=result.get("reason", "Graph sync failed"))
+    return result
+
+
+@app.post("/api/graph/sync/invoices")
+async def graph_sync_invoices_bulk(
+    limit: int = 200,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    rows = list_invoices(limit=limit)
+    synced = 0
+    failed = 0
+    details = []
+    for row in rows:
+        invoice_id = str(row.get("id") or "")
+        if not invoice_id:
+            continue
+        result = _sync_invoice_graph_best_effort(invoice_id)
+        if result.get("status") == "ok":
+            synced += 1
+        else:
+            failed += 1
+        if len(details) < 50:
+            details.append({"invoice_id": invoice_id, "status": result.get("status"), "reason": result.get("reason")})
+
+    summary = {"status": "ok", "selected": len(rows), "synced": synced, "failed": failed, "details": details}
+    log_admin_event(
+        event_type="graph.sync_invoices_bulk",
+        actor_user_id=admin_user["id"],
+        target_type="invoices",
+        metadata_json={"selected": len(rows), "synced": synced, "failed": failed},
+    )
+    return summary
 
 
 def _content_type_for_file_type(file_type: str) -> str:
@@ -787,6 +866,7 @@ def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceA
             "comment_present": bool(payload.comment),
         },
     )
+    _sync_invoice_graph_best_effort(invoice_id)
     return {
         "status": "ok",
         "invoice_id": invoice_id,
@@ -858,6 +938,7 @@ async def processing_invoices_validate(
             doc_id = updated.get("document_id")
             if doc_id:
                 update_document(str(doc_id), {"status": result["status"]})
+            _sync_invoice_graph_best_effort(inv_id)
             details.append(
                 {
                     "invoice_id": inv_id,

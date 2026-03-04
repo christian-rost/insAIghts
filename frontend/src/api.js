@@ -239,6 +239,29 @@ export async function invoiceHold(token, invoiceId, comment = "") {
   return handleJson(response)
 }
 
+export async function getInvoiceGraph(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/graph/invoices/${encodeURIComponent(invoiceId)}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function syncInvoiceGraph(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/graph/sync/invoices/${encodeURIComponent(invoiceId)}`, {
+    method: "POST",
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function syncInvoicesGraphBulk(token, limit = 200) {
+  const response = await fetch(`${API_BASE}/api/graph/sync/invoices?limit=${encodeURIComponent(limit)}`, {
+    method: "POST",
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
 export async function validateInvoices(token, maxInvoices = 50) {
   const response = await fetch(`${API_BASE}/api/processing/invoices/validate`, {
     method: "POST",

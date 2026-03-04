@@ -21,6 +21,9 @@ Startpunkt fuer die insAIghts-Plattform mit:
 
 - `GET /api/health`
 - `GET /api/health/graph`
+- `GET /api/graph/invoices/{invoice_id}`
+- `POST /api/graph/sync/invoices/{invoice_id}` (ADMIN)
+- `POST /api/graph/sync/invoices` (ADMIN)
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
@@ -94,6 +97,7 @@ Hinweis:
   - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
   - Aktions-Timeline je Rechnung
 - Layout wurde an die Referenzansicht "View Invoices" angepasst (3-Spalten-Ansicht: links Liste, Mitte Rechnungsdaten, rechts Dokumentvorschau).
+- Graph-Schicht ist nutzbar: Invoice-Subgraph kann pro Rechnung geladen werden; Admin kann Bulk-Sync nach Neo4j ausfuehren.
 
 ## Coolify
 

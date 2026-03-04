@@ -472,6 +472,7 @@ Festlegung:
   - Rechnungsdetail Endpunkte (`GET /api/invoices/{id}`, `GET /api/invoices/{id}/lines`) fuer Anwenderansicht
   - Dokument-Preview Endpoint (`GET /api/invoices/{id}/document`) fuer PDF/Bild-Vorschau in der Inbox
   - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
+  - Graph-Endpunkte fuer Rechnungssubgraph (`GET /api/graph/invoices/{id}`) und Sync (`POST /api/graph/sync/invoices/{id}`, `POST /api/graph/sync/invoices`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
 - Frontend bereits umgesetzt:
@@ -483,9 +484,12 @@ Festlegung:
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
+  - Graph-Nutzbarkeit in der Inbox: Graph-Reload und Anzeige von Knoten-/Kantenanzahl pro Rechnung
+  - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
+  - Rechnungssubgraph wird aus relationalen Daten (Invoice, Supplier, Line-Items, Actions, User, Status) aufgebaut.
 - Datenbank-Namespace:
   - Eigene Tabellen fuer insAIghts (`insaights_*`) zur Vermeidung von Kollisionen mit anderen Anwendungen.
   - Rechnungsverarbeitung persistiert in `insaights_invoices` und `insaights_invoice_lines` (keine Fremdtabellen anderer Apps).
@@ -510,5 +514,5 @@ Festlegung:
 - Offene Schwerpunkte fuer naechste Iteration:
   - Mail- und REST-Ingestion umsetzen.
   - Freigaberegeln serverseitig aus Admin-Konfiguration erzwingen.
-  - Graph-/Ontologie-Schicht fachlich nutzbar machen (nicht nur Healthcheck).
+  - Graph-/Ontologie-Schicht auf weitere Objektklassen erweitern (PO, GoodsReceipt, Case) und Graph-Visualisierung vertiefen.
   - DSGVO-Betriebsprozesse (Retention/DSR) technisch operationalisieren.

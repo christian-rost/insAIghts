@@ -3,6 +3,7 @@ import {
   createUser,
   extractDocuments,
   getInvoice,
+  getInvoiceGraph,
   getInvoiceDocumentBlob,
   invoiceApprove,
   invoiceHold,
@@ -23,6 +24,7 @@ import {
   register,
   updateProvider,
   upsertExtractionField,
+  syncInvoicesGraphBulk,
   validateInvoices,
   testConnector,
   updateConnector,
@@ -141,6 +143,7 @@ function AdminView({ token, currentUser, onLogout }) {
     max_map: 20,
     max_validate: 50,
   })
+  const [graphSyncLimit, setGraphSyncLimit] = useState(200)
   const [fieldForm, setFieldForm] = useState({
     entity_name: "invoice",
     scope: "header",
@@ -786,6 +789,41 @@ function AdminView({ token, currentUser, onLogout }) {
           </section>
 
           <section className="card">
+            <div className="card-header"><h3>Graph Sync (Neo4j)</h3></div>
+            <div className="card-body">
+              <div className="actions-row">
+                <label>
+                  Max Invoices
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="5000"
+                    value={graphSyncLimit}
+                    onChange={(e) => setGraphSyncLimit(Number(e.target.value || 1))}
+                  />
+                </label>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setError("")
+                      setNotice("")
+                      const res = await syncInvoicesGraphBulk(token, graphSyncLimit || 200)
+                      setNotice(`Graph sync: ${res.synced} synchronisiert, ${res.failed} Fehler`)
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Sync alle Rechnungen
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="card">
             <div className="card-header row">
               <h3>Dokumente (MinIO Ingestion)</h3>
               <button className="btn btn-outline" onClick={loadDocumentsList}>Neu laden</button>
@@ -896,6 +934,8 @@ function UserView({ token, currentUser, onLogout }) {
   const [documentType, setDocumentType] = useState("")
   const [documentName, setDocumentName] = useState("")
   const [documentError, setDocumentError] = useState("")
+  const [graphData, setGraphData] = useState(null)
+  const [graphError, setGraphError] = useState("")
   const [actionComment, setActionComment] = useState("")
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
@@ -924,6 +964,8 @@ function UserView({ token, currentUser, onLogout }) {
         setSelectedInvoice(null)
         setSelectedLines([])
         setSelectedActions([])
+        setGraphData(null)
+        setGraphError("")
       }
     } catch (e) {
       setError(String(e.message || e))
@@ -959,10 +1001,20 @@ function UserView({ token, currentUser, onLogout }) {
           setDocumentName("")
           setDocumentError(String(docErr.message || docErr))
         }
+        try {
+          const graph = await getInvoiceGraph(token, invoiceId)
+          setGraphData(graph)
+          setGraphError("")
+        } catch (gErr) {
+          setGraphData(null)
+          setGraphError(String(gErr.message || gErr))
+        }
       } else {
         setDocumentUrl("")
         setDocumentType("")
         setDocumentName("")
+        setGraphData(null)
+        setGraphError("")
       }
       setSelectedId(invoiceId)
       setSelectedInvoice(invoiceItem)
@@ -1199,6 +1251,35 @@ function UserView({ token, currentUser, onLogout }) {
                     )}
                   </tbody>
                 </table>
+
+                <div className="invoice-divider" />
+                <div className="row">
+                  <div className="invoice-label">GRAPH</div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setGraphError("")
+                        const graph = await getInvoiceGraph(token, selectedId)
+                        setGraphData(graph)
+                      } catch (gErr) {
+                        setGraphData(null)
+                        setGraphError(String(gErr.message || gErr))
+                      }
+                    }}
+                  >
+                    Graph neu laden
+                  </button>
+                </div>
+                {graphError ? <p className="error">{graphError}</p> : null}
+                {graphData ? (
+                  <p className="muted-inline">
+                    Knoten: {(graphData.nodes || []).length} | Kanten: {(graphData.edges || []).length}
+                  </p>
+                ) : (
+                  <p className="muted-inline">Kein Graph geladen.</p>
+                )}
               </>
             )}
           </div>
