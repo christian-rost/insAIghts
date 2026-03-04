@@ -5,11 +5,14 @@ import {
   getInvoice,
   getInvoiceGraph,
   getInvoiceDocumentBlob,
+  getKpiOverview,
   invoiceApprove,
   invoiceHold,
+  invoiceRequestClarification,
   invoiceReject,
   listExtractionFields,
   listInvoiceActions,
+  listInvoiceCases,
   listInvoiceLines,
   listInvoices,
   listConnectors,
@@ -25,12 +28,75 @@ import {
   updateProvider,
   upsertExtractionField,
   syncInvoicesGraphBulk,
+  updateCase,
   validateInvoices,
   getWorkflowRules,
   testConnector,
   updateWorkflowRules,
   updateConnector,
 } from "./api"
+
+const APPROVAL_ROLE_OPTIONS = ["AP_CLERK", "APPROVER", "ADMIN"]
+
+function defaultWorkflowRules() {
+  return {
+    approval: {
+      four_eyes: false,
+      require_validated_status: false,
+      amount_limits: [
+        { max_amount: "1000", allowed_roles: ["AP_CLERK", "APPROVER", "ADMIN"] },
+        { max_amount: "10000", allowed_roles: ["APPROVER", "ADMIN"] },
+        { max_amount: "", allowed_roles: ["ADMIN"] },
+      ],
+      supplier_role_overrides: [],
+    },
+  }
+}
+
+function normalizeWorkflowRules(raw) {
+  const base = defaultWorkflowRules()
+  const approval = raw?.approval || {}
+  const limits = Array.isArray(approval.amount_limits) ? approval.amount_limits : base.approval.amount_limits
+  const overrides = Array.isArray(approval.supplier_role_overrides) ? approval.supplier_role_overrides : []
+  return {
+    approval: {
+      four_eyes: !!approval.four_eyes,
+      require_validated_status: !!approval.require_validated_status,
+      amount_limits: limits.map((l, idx) => ({
+        max_amount: l?.max_amount === null || l?.max_amount === undefined ? "" : String(l.max_amount),
+        allowed_roles: Array.isArray(l?.allowed_roles) && l.allowed_roles.length ? l.allowed_roles : base.approval.amount_limits[Math.min(idx, base.approval.amount_limits.length - 1)].allowed_roles,
+      })),
+      supplier_role_overrides: overrides.map((o) => ({
+        supplier_name: String(o?.supplier_name || ""),
+        allowed_roles: Array.isArray(o?.allowed_roles) ? o.allowed_roles : [],
+      })),
+    },
+  }
+}
+
+function toWorkflowRulesPayload(rules) {
+  const approval = rules?.approval || {}
+  return {
+    approval: {
+      four_eyes: !!approval.four_eyes,
+      require_validated_status: !!approval.require_validated_status,
+      amount_limits: (approval.amount_limits || []).map((r) => ({
+        max_amount: String(r.max_amount || "").trim() === "" ? null : Number(r.max_amount),
+        allowed_roles: (r.allowed_roles || []).filter(Boolean).length
+          ? (r.allowed_roles || []).filter(Boolean)
+          : ["ADMIN"],
+      })),
+      supplier_role_overrides: (approval.supplier_role_overrides || [])
+        .filter((r) => String(r.supplier_name || "").trim() !== "")
+        .map((r) => ({
+          supplier_name: String(r.supplier_name || "").trim(),
+          allowed_roles: (r.allowed_roles || []).filter(Boolean).length
+            ? (r.allowed_roles || []).filter(Boolean)
+            : ["ADMIN"],
+        })),
+    },
+  }
+}
 
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
@@ -146,7 +212,8 @@ function AdminView({ token, currentUser, onLogout }) {
     max_validate: 50,
   })
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
-  const [workflowRulesText, setWorkflowRulesText] = useState("")
+  const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
+  const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
     entity_name: "invoice",
     scope: "header",
@@ -245,7 +312,16 @@ function AdminView({ token, currentUser, onLogout }) {
   async function loadWorkflowRules() {
     try {
       const row = await getWorkflowRules(token)
-      setWorkflowRulesText(JSON.stringify(row.rules_json || {}, null, 2))
+      setWorkflowRules(normalizeWorkflowRules(row.rules_json || {}))
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadKpi() {
+    try {
+      const next = await getKpiOverview(token)
+      setKpi(next)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -259,6 +335,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadInvoicesList()
     loadExtractionFields()
     loadWorkflowRules()
+    loadKpi()
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
@@ -597,6 +674,45 @@ function AdminView({ token, currentUser, onLogout }) {
 
           <section className="card">
             <div className="card-header row">
+              <h3>KPI Uebersicht</h3>
+              <button className="btn btn-outline" onClick={loadKpi}>Neu laden</button>
+            </div>
+            <div className="card-body">
+              {!kpi ? (
+                <p className="muted">Keine KPI-Daten geladen.</p>
+              ) : (
+                <>
+                  <div className="kpi-grid">
+                    <div className="kpi-tile"><span>Dokumente</span><strong>{kpi?.totals?.documents ?? 0}</strong></div>
+                    <div className="kpi-tile"><span>Rechnungen</span><strong>{kpi?.totals?.invoices ?? 0}</strong></div>
+                    <div className="kpi-tile"><span>Offene Cases</span><strong>{kpi?.totals?.open_cases ?? 0}</strong></div>
+                    <div className="kpi-tile"><span>Freigaben 24h</span><strong>{kpi?.throughput?.approved_last_24h ?? 0}</strong></div>
+                  </div>
+                  <div className="kpi-subgrid">
+                    <div>
+                      <div className="invoice-label">RECHNUNGSSTATUS</div>
+                      <ul className="simple-list">
+                        {Object.entries(kpi?.invoices_by_status || {}).map(([key, value]) => (
+                          <li key={key}><span>{key}</span><strong>{value}</strong></li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="invoice-label">CASE STATUS</div>
+                      <ul className="simple-list">
+                        {Object.entries(kpi?.cases_by_status || {}).map(([key, value]) => (
+                          <li key={key}><span>{key}</span><strong>{value}</strong></li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header row">
               <h3>Workflow-Regeln (Approval)</h3>
               <button className="btn btn-outline" onClick={loadWorkflowRules}>Neu laden</button>
             </div>
@@ -605,12 +721,214 @@ function AdminView({ token, currentUser, onLogout }) {
                 Regeln steuern serverseitig die Freigabepruefung bei <span className="mono">approve</span>
                 (Betragsgrenzen, Rollen, optional 4-Augen).
               </p>
-              <textarea
-                className="input"
-                style={{ minHeight: "220px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
-                value={workflowRulesText}
-                onChange={(e) => setWorkflowRulesText(e.target.value)}
-              />
+              <div className="grid">
+                <label>
+                  4-Augen-Prinzip
+                  <select
+                    className="input"
+                    value={workflowRules.approval.four_eyes ? "true" : "false"}
+                    onChange={(e) =>
+                      setWorkflowRules((w) => ({
+                        ...w,
+                        approval: { ...w.approval, four_eyes: e.target.value === "true" },
+                      }))
+                    }
+                  >
+                    <option value="false">nein</option>
+                    <option value="true">ja</option>
+                  </select>
+                </label>
+                <label>
+                  Nur VALIDATED erlauben
+                  <select
+                    className="input"
+                    value={workflowRules.approval.require_validated_status ? "true" : "false"}
+                    onChange={(e) =>
+                      setWorkflowRules((w) => ({
+                        ...w,
+                        approval: { ...w.approval, require_validated_status: e.target.value === "true" },
+                      }))
+                    }
+                  >
+                    <option value="false">nein</option>
+                    <option value="true">ja</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">BETRAGSGRENZEN</div>
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  onClick={() =>
+                    setWorkflowRules((w) => ({
+                      ...w,
+                      approval: {
+                        ...w.approval,
+                        amount_limits: [...(w.approval.amount_limits || []), { max_amount: "", allowed_roles: ["ADMIN"] }],
+                      },
+                    }))
+                  }
+                >
+                  Zeile hinzufuegen
+                </button>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Max Amount (leer = unbegrenzt)</th>
+                    <th>Rollen</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(workflowRules.approval.amount_limits || []).map((row, idx) => (
+                    <tr key={`limit-${idx}`}>
+                      <td>
+                        <input
+                          className="input"
+                          value={row.max_amount}
+                          onChange={(e) =>
+                            setWorkflowRules((w) => {
+                              const next = [...(w.approval.amount_limits || [])]
+                              next[idx] = { ...next[idx], max_amount: e.target.value }
+                              return { ...w, approval: { ...w.approval, amount_limits: next } }
+                            })
+                          }
+                          placeholder="z.B. 1000"
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          multiple
+                          value={row.allowed_roles || []}
+                          onChange={(e) =>
+                            setWorkflowRules((w) => {
+                              const next = [...(w.approval.amount_limits || [])]
+                              next[idx] = {
+                                ...next[idx],
+                                allowed_roles: Array.from(e.target.selectedOptions).map((o) => o.value),
+                              }
+                              return { ...w, approval: { ...w.approval, amount_limits: next } }
+                            })
+                          }
+                        >
+                          {APPROVAL_ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          type="button"
+                          onClick={() =>
+                            setWorkflowRules((w) => ({
+                              ...w,
+                              approval: {
+                                ...w.approval,
+                                amount_limits: (w.approval.amount_limits || []).filter((_, i) => i !== idx),
+                              },
+                            }))
+                          }
+                        >
+                          Entfernen
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">LIEFERANTEN-OVERRIDES</div>
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  onClick={() =>
+                    setWorkflowRules((w) => ({
+                      ...w,
+                      approval: {
+                        ...w.approval,
+                        supplier_role_overrides: [...(w.approval.supplier_role_overrides || []), { supplier_name: "", allowed_roles: ["ADMIN"] }],
+                      },
+                    }))
+                  }
+                >
+                  Zeile hinzufuegen
+                </button>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Lieferant</th>
+                    <th>Rollen</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(workflowRules.approval.supplier_role_overrides || []).map((row, idx) => (
+                    <tr key={`override-${idx}`}>
+                      <td>
+                        <input
+                          className="input"
+                          value={row.supplier_name || ""}
+                          onChange={(e) =>
+                            setWorkflowRules((w) => {
+                              const next = [...(w.approval.supplier_role_overrides || [])]
+                              next[idx] = { ...next[idx], supplier_name: e.target.value }
+                              return { ...w, approval: { ...w.approval, supplier_role_overrides: next } }
+                            })
+                          }
+                          placeholder="z.B. Telekom Deutschland GmbH"
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          multiple
+                          value={row.allowed_roles || []}
+                          onChange={(e) =>
+                            setWorkflowRules((w) => {
+                              const next = [...(w.approval.supplier_role_overrides || [])]
+                              next[idx] = {
+                                ...next[idx],
+                                allowed_roles: Array.from(e.target.selectedOptions).map((o) => o.value),
+                              }
+                              return { ...w, approval: { ...w.approval, supplier_role_overrides: next } }
+                            })
+                          }
+                        >
+                          {APPROVAL_ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          type="button"
+                          onClick={() =>
+                            setWorkflowRules((w) => ({
+                              ...w,
+                              approval: {
+                                ...w.approval,
+                                supplier_role_overrides: (w.approval.supplier_role_overrides || []).filter((_, i) => i !== idx),
+                              },
+                            }))
+                          }
+                        >
+                          Entfernen
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               <div className="actions-row" style={{ marginTop: "0.7rem" }}>
                 <button
                   className="btn btn-primary"
@@ -619,8 +937,7 @@ function AdminView({ token, currentUser, onLogout }) {
                     try {
                       setError("")
                       setNotice("")
-                      const parsed = JSON.parse(workflowRulesText || "{}")
-                      await updateWorkflowRules(token, parsed)
+                      await updateWorkflowRules(token, toWorkflowRulesPayload(workflowRules))
                       await loadWorkflowRules()
                       setNotice("Workflow-Regeln gespeichert")
                     } catch (err) {
@@ -976,7 +1293,7 @@ function AdminView({ token, currentUser, onLogout }) {
   )
 }
 
-function GraphCanvas({ graphData }) {
+function GraphCanvas({ graphData, onNodeSelect }) {
   const width = 760
   const height = 360
   const [zoom, setZoom] = useState(1)
@@ -1013,6 +1330,11 @@ function GraphCanvas({ graphData }) {
     () => nodes.find((n) => String(n.id) === String(selectedNodeId)) || null,
     [nodes, selectedNodeId],
   )
+
+  useEffect(() => {
+    setSelectedNodeId("")
+    if (onNodeSelect) onNodeSelect(null)
+  }, [graphData])
 
   function nodeLabel(node) {
     const labels = node.labels || []
@@ -1088,7 +1410,14 @@ function GraphCanvas({ graphData }) {
           {nodes.map((node) => {
             const selected = String(selectedNodeId) === String(node.id)
             return (
-              <g key={node.id} onClick={() => setSelectedNodeId(String(node.id))} className="graph-node-group">
+              <g
+                key={node.id}
+                onClick={() => {
+                  setSelectedNodeId(String(node.id))
+                  if (onNodeSelect) onNodeSelect(node)
+                }}
+                className="graph-node-group"
+              >
                 <circle
                   cx={node.x}
                   cy={node.y}
@@ -1124,12 +1453,15 @@ function UserView({ token, currentUser, onLogout }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [selectedLines, setSelectedLines] = useState([])
   const [selectedActions, setSelectedActions] = useState([])
+  const [selectedCases, setSelectedCases] = useState([])
+  const [caseNotes, setCaseNotes] = useState({})
   const [documentUrl, setDocumentUrl] = useState("")
   const [documentType, setDocumentType] = useState("")
   const [documentName, setDocumentName] = useState("")
   const [documentError, setDocumentError] = useState("")
   const [graphData, setGraphData] = useState(null)
   const [graphError, setGraphError] = useState("")
+  const [graphSelection, setGraphSelection] = useState(null)
   const [actionComment, setActionComment] = useState("")
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
@@ -1158,8 +1490,10 @@ function UserView({ token, currentUser, onLogout }) {
         setSelectedInvoice(null)
         setSelectedLines([])
         setSelectedActions([])
+        setSelectedCases([])
         setGraphData(null)
         setGraphError("")
+        setGraphSelection(null)
       }
     } catch (e) {
       setError(String(e.message || e))
@@ -1177,6 +1511,13 @@ function UserView({ token, currentUser, onLogout }) {
         listInvoiceLines(token, invoiceId),
       ])
       const actionsRes = await listInvoiceActions(token, invoiceId)
+      let casesRes = []
+      try {
+        casesRes = await listInvoiceCases(token, invoiceId)
+      } catch (caseErr) {
+        // Case table might not be migrated yet; keep invoice detail usable.
+        casesRes = []
+      }
       const invoiceItem = invoiceRes.item || null
 
       if (documentUrl) {
@@ -1214,6 +1555,8 @@ function UserView({ token, currentUser, onLogout }) {
       setSelectedInvoice(invoiceItem)
       setSelectedLines(linesRes.items || [])
       setSelectedActions(actionsRes.items || [])
+      setSelectedCases(casesRes || [])
+      setGraphSelection(null)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -1230,6 +1573,8 @@ function UserView({ token, currentUser, onLogout }) {
         await invoiceReject(token, selectedId, actionComment)
       } else if (actionName === "hold") {
         await invoiceHold(token, selectedId, actionComment)
+      } else if (actionName === "request_clarification") {
+        await invoiceRequestClarification(token, selectedId, actionComment)
       }
       setActionComment("")
       await loadInbox(selectedId)
@@ -1237,6 +1582,47 @@ function UserView({ token, currentUser, onLogout }) {
     } catch (e) {
       setError(String(e.message || e))
     }
+  }
+
+  async function runCaseUpdate(caseId, status) {
+    try {
+      setError("")
+      setNotice("")
+      const note = caseNotes[caseId] || ""
+      await updateCase(token, caseId, {
+        status,
+        resolved_note: note,
+      })
+      await loadInvoiceDetail(selectedId)
+      setNotice(`Case auf ${status} gesetzt`)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  function onGraphNodeSelect(node) {
+    if (!node) {
+      setGraphSelection(null)
+      return
+    }
+    const labels = node.labels || []
+    const properties = node.properties || {}
+    if (labels.includes("InvoiceLine")) {
+      const lineNo = Number(properties.line_no || 0)
+      setGraphSelection({ type: "line", lineNo })
+      return
+    }
+    if (labels.includes("InvoiceAction")) {
+      const actionType = String(properties.action_type || "")
+      setGraphSelection({ type: "action", actionType })
+      return
+    }
+    if (labels.includes("Supplier")) {
+      const supplierName = String(properties.name || "")
+      setGraphSelection({ type: "supplier", supplierName })
+      return
+    }
+    setGraphSelection({ type: "other", raw: properties })
   }
 
   useEffect(() => {
@@ -1279,6 +1665,7 @@ function UserView({ token, currentUser, onLogout }) {
               <option value="APPROVED">APPROVED</option>
               <option value="REJECTED">REJECTED</option>
               <option value="ON_HOLD">ON_HOLD</option>
+              <option value="CLARIFICATION_REQUESTED">CLARIFICATION_REQUESTED</option>
             </select>
             <input
               className="input"
@@ -1386,6 +1773,9 @@ function UserView({ token, currentUser, onLogout }) {
                   <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
                     Hold
                   </button>
+                  <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>
+                    Clarify
+                  </button>
                 </div>
 
                 <div className="invoice-divider" />
@@ -1405,7 +1795,14 @@ function UserView({ token, currentUser, onLogout }) {
                       <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
                     ) : (
                       selectedLines.map((line) => (
-                        <tr key={line.id}>
+                        <tr
+                          key={line.id}
+                          className={
+                            graphSelection?.type === "line" && Number(line.line_no || 0) === Number(graphSelection.lineNo || -1)
+                              ? "row-highlight"
+                              : ""
+                          }
+                        >
                           <td>{line.line_no ?? "-"}</td>
                           <td>{line.description || "-"}</td>
                           <td>{line.quantity ?? "-"}</td>
@@ -1434,12 +1831,61 @@ function UserView({ token, currentUser, onLogout }) {
                       <tr><td colSpan={5}>Keine Aktionen vorhanden.</td></tr>
                     ) : (
                       selectedActions.map((a) => (
-                        <tr key={a.id}>
+                        <tr
+                          key={a.id}
+                          className={
+                            graphSelection?.type === "action" && String(a.action_type || "") === String(graphSelection.actionType || "")
+                              ? "row-highlight"
+                              : ""
+                          }
+                        >
                           <td>{a.created_at || "-"}</td>
                           <td>{a.action_type || "-"}</td>
                           <td>{a.from_status || "-"}</td>
                           <td>{a.to_status || "-"}</td>
                           <td>{a.actor_username || "-"}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+
+                <div className="invoice-divider" />
+                <div className="invoice-label">CASES / RUECKFRAGEN</div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>TITEL</th>
+                      <th>STATUS</th>
+                      <th>VON</th>
+                      <th>NOTE</th>
+                      <th>AKTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedCases.length === 0 ? (
+                      <tr><td colSpan={5}>Keine Cases vorhanden.</td></tr>
+                    ) : (
+                      selectedCases.map((c) => (
+                        <tr key={c.id}>
+                          <td>{c.title || "-"}</td>
+                          <td>{c.status || "-"}</td>
+                          <td>{c.created_by_username || "-"}</td>
+                          <td>
+                            <input
+                              className="input"
+                              value={caseNotes[c.id] ?? c.resolved_note ?? ""}
+                              onChange={(e) => setCaseNotes((all) => ({ ...all, [c.id]: e.target.value }))}
+                              placeholder="Kommentar"
+                            />
+                          </td>
+                          <td>
+                            <div className="actions-row">
+                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "IN_PROGRESS")}>In Progress</button>
+                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "RESOLVED")}>Resolve</button>
+                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "CLOSED")}>Close</button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -1468,10 +1914,13 @@ function UserView({ token, currentUser, onLogout }) {
                 </div>
                 {graphError ? <p className="error">{graphError}</p> : null}
                 {graphData ? (
-                  <GraphCanvas graphData={graphData} />
+                  <GraphCanvas graphData={graphData} onNodeSelect={onGraphNodeSelect} />
                 ) : (
                   <p className="muted-inline">Kein Graph geladen.</p>
                 )}
+                {graphSelection?.type === "supplier" ? (
+                  <p className="muted-inline">Graph-Auswahl Lieferant: {graphSelection.supplierName || "-"}</p>
+                ) : null}
               </>
             )}
           </div>

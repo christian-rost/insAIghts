@@ -261,6 +261,10 @@ label {
   font-weight: 600;
 }
 
+.row-highlight td {
+  background: #fff6e8;
+}
+
 .muted {
   color: var(--color-text-light);
   margin-bottom: 0.8rem;
@@ -432,8 +436,62 @@ label {
 
 .invoice-actions {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 0.6rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.8rem;
+}
+
+.kpi-tile {
+  border: 1px solid var(--color-gray);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  background: #fafafa;
+}
+
+.kpi-tile span {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.kpi-tile strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.2rem;
+  color: var(--color-dark);
+}
+
+.kpi-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.simple-list {
+  list-style: none;
+  border: 1px solid var(--color-gray);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.simple-list li {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-gray);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.86rem;
+}
+
+.simple-list li:last-child {
+  border-bottom: none;
 }
 
 .pdf-viewer {
@@ -571,6 +629,14 @@ label {
   }
 
   .invoice-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .kpi-subgrid {
     grid-template-columns: 1fr;
   }
 

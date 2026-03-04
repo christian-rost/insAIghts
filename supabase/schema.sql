@@ -173,7 +173,7 @@ create index if not exists idx_insaights_invoice_lines_invoice on insaights_invo
 create table if not exists insaights_invoice_actions (
   id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references insaights_invoices(id) on delete cascade,
-  action_type text not null check (action_type in ('approve', 'reject', 'hold')),
+  action_type text not null check (action_type in ('approve', 'reject', 'hold', 'request_clarification')),
   comment text,
   from_status text,
   to_status text not null,
@@ -183,3 +183,40 @@ create table if not exists insaights_invoice_actions (
 );
 
 create index if not exists idx_insaights_invoice_actions_invoice on insaights_invoice_actions(invoice_id, created_at desc);
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'insaights_invoice_actions_action_type_check'
+      and conrelid = 'insaights_invoice_actions'::regclass
+  ) then
+    alter table insaights_invoice_actions drop constraint insaights_invoice_actions_action_type_check;
+  end if;
+exception when undefined_table then
+  null;
+end $$;
+
+alter table if exists insaights_invoice_actions
+  add constraint insaights_invoice_actions_action_type_check
+  check (action_type in ('approve', 'reject', 'hold', 'request_clarification'));
+
+create table if not exists insaights_invoice_cases (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references insaights_invoices(id) on delete cascade,
+  title text not null,
+  description text,
+  status text not null default 'OPEN' check (status in ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED')),
+  created_by_user_id uuid,
+  created_by_username text,
+  resolved_note text,
+  resolved_by_user_id uuid,
+  resolved_by_username text,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_invoice_cases_invoice on insaights_invoice_cases(invoice_id, created_at desc);
+create index if not exists idx_insaights_invoice_cases_status on insaights_invoice_cases(status, updated_at desc);

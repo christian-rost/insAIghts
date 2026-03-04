@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Response
@@ -7,6 +8,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .auth import authenticate_user, create_access_token, get_current_user, require_admin
 from .audit_storage import log_admin_event
+from .case_storage import create_case, get_case_by_id, list_cases, update_case
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, CORS_ORIGINS
 from .config_storage import get_connector, list_connectors, update_connector
 from .document_processing import download_minio_object, extract_text_for_document
@@ -39,6 +41,7 @@ from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio
 from .provider_storage import get_provider, list_providers, update_provider
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 from .workflow_rules_storage import get_workflow_rules, update_workflow_rules
+from .kpi_service import get_kpi_overview
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -160,6 +163,27 @@ class WorkflowRulesUpdateRequest(BaseModel):
     rules_json: Dict
 
 
+class InvoiceCaseResponse(BaseModel):
+    id: str
+    invoice_id: str
+    title: str
+    description: Optional[str] = None
+    status: str
+    created_by_user_id: Optional[str] = None
+    created_by_username: Optional[str] = None
+    resolved_note: Optional[str] = None
+    resolved_by_user_id: Optional[str] = None
+    resolved_by_username: Optional[str] = None
+    resolved_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class UpdateCaseRequest(BaseModel):
+    status: str = Field(pattern="^(OPEN|IN_PROGRESS|RESOLVED|CLOSED)$")
+    resolved_note: Optional[str] = Field(default=None, max_length=2000)
+
+
 ALLOWED_ACTION_TRANSITIONS = {
     "approve": {
         "allowed_from": {"VALIDATED", "PENDING_APPROVAL", "NEEDS_REVIEW"},
@@ -174,6 +198,11 @@ ALLOWED_ACTION_TRANSITIONS = {
     "hold": {
         "allowed_from": {"NEEDS_REVIEW", "VALIDATED", "PENDING_APPROVAL"},
         "to_status": "ON_HOLD",
+        "roles_any_of": {"AP_CLERK", "APPROVER", "ADMIN"},
+    },
+    "request_clarification": {
+        "allowed_from": {"NEEDS_REVIEW", "VALIDATED", "PENDING_APPROVAL", "ON_HOLD"},
+        "to_status": "CLARIFICATION_REQUESTED",
         "roles_any_of": {"AP_CLERK", "APPROVER", "ADMIN"},
     },
 }
@@ -496,6 +525,11 @@ async def admin_update_connector(
         diff_after={"connector": after},
     )
     return ConnectorConfigResponse(**after)
+
+
+@app.get("/api/admin/kpi/overview")
+async def admin_kpi_overview(_: Dict = Depends(require_admin)) -> Dict:
+    return get_kpi_overview(limit=5000)
 
 
 @app.post("/api/admin/config/connectors/{connector_name}/test")
@@ -965,6 +999,16 @@ def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceA
         actor_user_id=current_user["id"],
         actor_username=current_user.get("username"),
     )
+    case_row = None
+    if action_type == "request_clarification":
+        case_row = create_case(
+            invoice_id=invoice_id,
+            title="Rueckfrage zur Rechnung",
+            description=payload.comment,
+            status="OPEN",
+            created_by_user_id=current_user.get("id"),
+            created_by_username=current_user.get("username"),
+        )
     log_admin_event(
         event_type=f"invoices.{action_type}",
         actor_user_id=current_user["id"],
@@ -983,6 +1027,7 @@ def _execute_invoice_action(action_type: str, invoice_id: str, payload: InvoiceA
         "from_status": from_status,
         "to_status": to_status,
         "action": action_row,
+        "case": case_row,
     }
 
 
@@ -1011,6 +1056,74 @@ async def invoice_hold(
     current_user: Dict = Depends(get_current_user),
 ) -> Dict:
     return _execute_invoice_action("hold", invoice_id, payload, current_user)
+
+
+@app.post("/api/invoices/{invoice_id}/request-clarification")
+async def invoice_request_clarification(
+    invoice_id: str,
+    payload: InvoiceActionRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    return _execute_invoice_action("request_clarification", invoice_id, payload, current_user)
+
+
+@app.get("/api/invoices/{invoice_id}/cases", response_model=List[InvoiceCaseResponse])
+async def invoice_cases_get(
+    invoice_id: str,
+    _: Dict = Depends(get_current_user),
+) -> List[InvoiceCaseResponse]:
+    item = get_invoice_by_id(invoice_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    rows = list_cases(invoice_id=invoice_id, limit=200)
+    return [InvoiceCaseResponse(**r) for r in rows]
+
+
+@app.patch("/api/cases/{case_id}", response_model=InvoiceCaseResponse)
+async def invoice_case_update(
+    case_id: str,
+    payload: UpdateCaseRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> InvoiceCaseResponse:
+    case_row = get_case_by_id(case_id)
+    if not case_row:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    updates: Dict[str, Optional[str]] = {
+        "status": payload.status,
+    }
+    if payload.status in {"RESOLVED", "CLOSED"}:
+        updates["resolved_note"] = payload.resolved_note
+        updates["resolved_by_user_id"] = current_user.get("id")
+        updates["resolved_by_username"] = current_user.get("username")
+        updates["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    else:
+        updates["resolved_note"] = None
+        updates["resolved_by_user_id"] = None
+        updates["resolved_by_username"] = None
+        updates["resolved_at"] = None
+
+    updated_case = update_case(case_id, updates)
+    if not updated_case:
+        raise HTTPException(status_code=500, detail="Case update failed")
+
+    invoice_id = str(case_row.get("invoice_id") or "")
+    if invoice_id:
+        invoice = get_invoice_by_id(invoice_id)
+        if invoice and payload.status in {"RESOLVED", "CLOSED"} and str(invoice.get("status") or "") == "CLARIFICATION_REQUESTED":
+            updated_invoice = update_invoice(invoice_id, {"status": "NEEDS_REVIEW"})
+            if updated_invoice and updated_invoice.get("document_id"):
+                update_document(str(updated_invoice.get("document_id")), {"status": "NEEDS_REVIEW"})
+            _sync_invoice_graph_best_effort(invoice_id)
+
+    log_admin_event(
+        event_type="invoices.case_updated",
+        actor_user_id=current_user["id"],
+        target_type="invoice_case",
+        target_id=case_id,
+        metadata_json={"status": payload.status, "invoice_id": invoice_id},
+    )
+    return InvoiceCaseResponse(**updated_case)
 
 
 @app.post("/api/processing/invoices/validate")

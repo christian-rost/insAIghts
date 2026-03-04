@@ -244,6 +244,7 @@ Hinweis zum Implementierungsstatus:
 - POSTED
 - PAID
 - ON_HOLD
+- CLARIFICATION_REQUESTED
 
 Regeln:
 - Statusuebergaenge sind nur ueber erlaubte Transitionen moeglich.
@@ -260,8 +261,9 @@ Regeln:
 - `POST /invoices/{id}/approve`
 - `POST /invoices/{id}/reject`
 - `POST /invoices/{id}/hold`
-- `GET /cases`
-- `POST /cases/{id}/assign`
+- `POST /invoices/{id}/request-clarification`
+- `GET /invoices/{id}/cases`
+- `PATCH /cases/{id}`
 - `GET /graph/{objectType}/{id}`
 - `GET /audit/{objectType}/{id}`
 
@@ -281,6 +283,7 @@ Regeln:
 - `PUT /admin/config/connectors/{connector}`
 - `GET /admin/config/workflow-rules`
 - `PUT /admin/config/workflow-rules`
+- `GET /admin/kpi/overview`
 - `GET /admin/audit/events`
 
 Festlegung:
@@ -471,11 +474,13 @@ Festlegung:
   - Rechnungsliste Endpoint (`GET /api/invoices`)
   - Rechnungsdetail Endpunkte (`GET /api/invoices/{id}`, `GET /api/invoices/{id}/lines`) fuer Anwenderansicht
   - Dokument-Preview Endpoint (`GET /api/invoices/{id}/document`) fuer PDF/Bild-Vorschau in der Inbox
-  - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
+  - Workflow-Endpunkte fuer Anwenderaktionen (`POST /api/invoices/{id}/approve|reject|hold|request-clarification`) inkl. Aktionshistorie (`GET /api/invoices/{id}/actions`)
+  - Case-Endpunkte fuer Rueckfragen (`GET /api/invoices/{id}/cases`, `PATCH /api/cases/{id}`), inkl. automatischer Case-Anlage bei `request-clarification`
   - Graph-Endpunkte fuer Rechnungssubgraph (`GET /api/graph/invoices/{id}`) und Sync (`POST /api/graph/sync/invoices/{id}`, `POST /api/graph/sync/invoices`)
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
   - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
+  - KPI-Endpoint (`GET /api/admin/kpi/overview`) fuer operative Admin-Uebersicht
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
@@ -483,10 +488,12 @@ Festlegung:
   - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
-  - Admin-UI fuer Workflow-Regeln (JSON-basiert) inkl. Runtime-Update ohne Redeploy
+  - Admin-UI fuer Workflow-Regeln (formularbasiert) inkl. Runtime-Update ohne Redeploy
+  - Admin-KPI-Panel (Dokumente/Rechnungen, Statusverteilungen, offene Cases, Freigaben 24h)
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
-  - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
-  - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung
+  - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
+  - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
+  - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)
 - Graph-Engine:
@@ -498,6 +505,7 @@ Festlegung:
   - `insaights_invoice_lines` wird im Mapping-Schritt mit durch das Sprachmodell extrahierten Positionen befuellt.
   - Feldkatalog fuer Extraktion wird in `insaights_config_extraction_fields` gepflegt und zur Prompt-Erstellung genutzt.
   - Workflow-Aktionshistorie wird in `insaights_invoice_actions` gespeichert.
+  - Case-Management wird in `insaights_invoice_cases` gespeichert.
   - Freigaberegeln werden in `insaights_config_workflow_rules` gepflegt und in `approve` serverseitig erzwungen.
 
 ## 15. Dokumentations-Governance (verbindlich)

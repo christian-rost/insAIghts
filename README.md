@@ -38,6 +38,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/admin/config/extraction-fields` (ADMIN)
 - `GET /api/admin/config/workflow-rules` (ADMIN)
 - `PUT /api/admin/config/workflow-rules` (ADMIN)
+- `GET /api/admin/kpi/overview` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
 - `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
 - `POST /api/ingestion/minio/pull` (ADMIN)
@@ -53,6 +54,9 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/invoices/{invoice_id}/approve`
 - `POST /api/invoices/{invoice_id}/reject`
 - `POST /api/invoices/{invoice_id}/hold`
+- `POST /api/invoices/{invoice_id}/request-clarification`
+- `GET /api/invoices/{invoice_id}/cases`
+- `PATCH /api/cases/{case_id}`
 
 ## Supabase Tabellen
 - `insaights_users`
@@ -65,6 +69,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_invoices`
 - `insaights_invoice_lines`
 - `insaights_invoice_actions`
+- `insaights_invoice_cases`
 
 Hinweis:
 - Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
@@ -89,6 +94,7 @@ Hinweis:
 - Die Tabelle zeigt pro Feld einen Status (`gespeichert` / `ungespeichert`), damit Aenderungen vor dem Speichern sichtbar sind.
 - Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
 - Freigaben (`approve`) werden serverseitig gegen konfigurierbare Workflow-Regeln geprueft (Betragsgrenzen, Rollen, optional 4-Augen).
+- Workflow-Regeln werden in der Admin-UI formularbasiert gepflegt (kein JSON-Editor mehr): 4-Augen, VALIDATED-Pflicht, Betragsgrenzen, Lieferanten-Overrides.
 
 ## Anwenderoberflaeche (Inbox)
 - Nicht-Admin-User sehen automatisch die AP-Inbox statt der Admin-Konsole.
@@ -99,10 +105,12 @@ Hinweis:
   - Dokumentvorschau (PDF/Bild) in rechter Spalte
   - Positionen (Line-Items) aus `insaights_invoice_lines`
   - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
+  - Rueckfrage-Aktion `request_clarification` mit automatischer Case-Anlage
   - Aktions-Timeline je Rechnung
+  - Case-Tabelle pro Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
 - Layout wurde an die Referenzansicht "View Invoices" angepasst (3-Spalten-Ansicht: links Liste, Mitte Rechnungsdaten, rechts Dokumentvorschau).
 - Graph-Schicht ist nutzbar: Invoice-Subgraph kann pro Rechnung geladen werden; Admin kann Bulk-Sync nach Neo4j ausfuehren.
-- In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails).
+- In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails); Knoten-Auswahl hebt passende Positionen/Aktionen hervor.
 
 ## Coolify
 

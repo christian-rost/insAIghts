@@ -61,3 +61,22 @@ def list_invoice_actions(invoice_id: str, limit: int = 200) -> List[Dict[str, An
 
     rows = sorted(_mem_actions.get(invoice_id, []), key=lambda x: x.get("created_at", ""), reverse=True)
     return rows[:limit]
+
+
+def list_all_invoice_actions(limit: int = 5000) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = (
+            db.table(INVOICE_ACTIONS_TABLE)
+            .select("*")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
+    merged: List[Dict[str, Any]] = []
+    for actions in _mem_actions.values():
+        merged.extend(actions)
+    merged.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return merged[:limit]

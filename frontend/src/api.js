@@ -239,6 +239,31 @@ export async function invoiceHold(token, invoiceId, comment = "") {
   return handleJson(response)
 }
 
+export async function invoiceRequestClarification(token, invoiceId, comment = "") {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/request-clarification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ comment }),
+  })
+  return handleJson(response)
+}
+
+export async function listInvoiceCases(token, invoiceId) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/cases`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateCase(token, caseId, payload) {
+  const response = await fetch(`${API_BASE}/api/cases/${encodeURIComponent(caseId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(payload),
+  })
+  return handleJson(response)
+}
+
 export async function getInvoiceGraph(token, invoiceId) {
   const response = await fetch(`${API_BASE}/api/graph/invoices/${encodeURIComponent(invoiceId)}`, {
     headers: { ...authHeaders(token) },
@@ -312,6 +337,13 @@ export async function updateWorkflowRules(token, rulesJson) {
       ...authHeaders(token),
     },
     body: JSON.stringify({ rules_json: rulesJson }),
+  })
+  return handleJson(response)
+}
+
+export async function getKpiOverview(token) {
+  const response = await fetch(`${API_BASE}/api/admin/kpi/overview`, {
+    headers: { ...authHeaders(token) },
   })
   return handleJson(response)
 }

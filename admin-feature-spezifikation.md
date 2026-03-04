@@ -81,6 +81,20 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - Freigabelimits verwalten.
 - Regeln nach Betrag/Kostenstelle/Lieferant steuern.
 - SLA-Werte und Eskalationsstufen pflegen.
+- Formularbasierte Pflege im Admin-UI (kein JSON-Freitext):
+  - `four_eyes`
+  - `require_validated_status`
+  - `amount_limits[]` mit `max_amount` und `allowed_roles[]`
+  - `supplier_role_overrides[]` mit `supplier_name` und `allowed_roles[]`
+
+## 4.5 Bereich "KPI"
+### Funktionen
+- Operative Uebersicht mit Laufzeitdaten:
+  - Gesamtanzahl Dokumente/Rechnungen
+  - Rechnungsstatus-Verteilung
+  - Case-Status-Verteilung
+  - Freigaben letzte 24h
+  - Offene Cases
 
 ### Beispiel-Felder
 - `rule_id`
@@ -90,7 +104,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `action_json`
 - `is_active`
 
-## 4.5 Bereich "Audit"
+## 4.6 Bereich "Audit"
 ### Funktionen
 - Ereignisliste mit Filter (Akteur, Event-Typ, Objekt, Zeitraum).
 - Detailansicht pro Event (vorher/nachher Delta).
@@ -142,11 +156,14 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
   - `GET /api/admin/config/workflow-rules`
   - `PUT /api/admin/config/workflow-rules`
 
-## 5.7 Audit
+## 5.7 KPI
+- `GET /api/admin/kpi/overview`
+
+## 5.8 Audit
 - `GET /admin/audit/events`
 - `GET /admin/audit/events/{id}`
 
-## 5.8 Aktuell implementierter API-Stand (04.03.2026)
+## 5.9 Aktuell implementierter API-Stand (04.03.2026)
 - `GET /api/admin/users`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
@@ -157,6 +174,9 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `POST /api/admin/config/connectors/{connector}/test`
 - `GET /api/admin/config/extraction-fields`
 - `POST /api/admin/config/extraction-fields`
+- `GET /api/admin/config/workflow-rules`
+- `PUT /api/admin/config/workflow-rules`
+- `GET /api/admin/kpi/overview`
 
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag
