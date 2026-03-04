@@ -143,17 +143,25 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /admin/audit/events`
 - `GET /admin/audit/events/{id}`
 
+## 5.8 Aktuell implementierter API-Stand (04.03.2026)
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/{id}`
+- `GET /api/admin/config/providers`
+- `PUT /api/admin/config/providers/{provider}`
+- `GET /api/admin/config/connectors`
+- `PUT /api/admin/config/connectors/{connector}`
+- `POST /api/admin/config/connectors/{connector}/test`
+- `GET /api/admin/config/extraction-fields`
+- `POST /api/admin/config/extraction-fields`
+
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag
-- `app_users`
-- `app_roles`
-- `app_user_roles`
-- `app_config_provider_keys` (verschluesselt)
-- `app_config_connectors`
-- `app_config_workflow_rules`
-- `app_admin_audit_log`
-- `app_data_retention_policies`
-- `app_dsr_requests` (Data Subject Requests)
+- `insaights_users`
+- `insaights_config_provider_keys` (aktuell gespeichert, Verschluesselung als naechster Hardening-Schritt)
+- `insaights_config_connectors`
+- `insaights_config_extraction_fields`
+- `insaights_admin_audit_log`
 
 ### Besonderheiten
 - `app_config_provider_keys.key_ciphertext` (encrypted at rest).

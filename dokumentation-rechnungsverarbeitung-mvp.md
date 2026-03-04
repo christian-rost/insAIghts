@@ -20,6 +20,10 @@ MVP-Ziel ist ein produktiv nutzbarer End-to-End-Prozess von Rechnungseingang bis
 - Auditierbarkeit und Data Lineage von Tag 1.
 - User-Verwaltung und Admin-Oberflaeche fuer Betriebs- und Plattformkonfiguration.
 
+Hinweis zum Implementierungsstatus:
+- Fachliches Zielbild umfasst Mail, REST und MinIO.
+- Aktuell implementiert ist bewusst zuerst der MinIO-Quellpfad; Mail/REST folgen in den naechsten Ausbaustufen.
+
 ### Out of Scope (MVP)
 - Kompletter No-Code-App-Builder.
 - Fortgeschrittene ML-Modelle fuer Forecasting.
@@ -186,6 +190,17 @@ MVP-Ziel ist ein produktiv nutzbarer End-to-End-Prozess von Rechnungseingang bis
 - `audit_log`
 - `lineage_events`
 - `object_edges`
+
+### 7.3 Tabellen (aktuell implementiert, `insaights_*`)
+- `insaights_users`
+- `insaights_admin_audit_log`
+- `insaights_config_connectors`
+- `insaights_config_provider_keys`
+- `insaights_config_extraction_fields`
+- `insaights_documents`
+- `insaights_invoices`
+- `insaights_invoice_lines`
+- `insaights_invoice_actions`
 
 ### 7.2 Wichtige Felder (Auszug)
 - `invoices`:
@@ -468,7 +483,7 @@ Festlegung:
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`) mit Kommentar und Timeline
-  - Inbox-Design an Referenz "View Invoices" angeglichen (zweispaltige Listen-/Detaildarstellung)
+  - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)
 - Graph-Engine:
   - Neo4j als Service in Coolify-Compose vorgesehen
 - Datenbank-Namespace:
@@ -487,3 +502,13 @@ Festlegung:
   - `sprintplan-q1-rechnungsverarbeitung.md`
   - `admin-feature-spezifikation.md`
 - Jede Sprint-Abnahme prueft explizit den Doku-Stand als DoD-Kriterium.
+
+## 18. Verifizierter Status (Stand: 04.03.2026)
+- E2E-MinIO-Flow laeuft: Pull -> OCR/Extract -> Mapping -> Validation -> User-Workflow.
+- User-Inbox inkl. PDF/Bild-Vorschau und Actions-Timeline ist produktiv im Dev-Stand vorhanden.
+- LLM-Feldextraktion ist ueber Admin-UI konfigurierbar (Feldname + Beschreibung + Typ + Pflicht + Aktiv + Reihenfolge).
+- Offene Schwerpunkte fuer naechste Iteration:
+  - Mail- und REST-Ingestion umsetzen.
+  - Freigaberegeln serverseitig aus Admin-Konfiguration erzwingen.
+  - Graph-/Ontologie-Schicht fachlich nutzbar machen (nicht nur Healthcheck).
+  - DSGVO-Betriebsprozesse (Retention/DSR) technisch operationalisieren.

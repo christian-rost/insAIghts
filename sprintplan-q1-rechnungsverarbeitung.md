@@ -186,3 +186,14 @@ Qualitaet absichern und produktionsreifen Pilotbetrieb starten.
 
 ## 12. Ergebnis am Ende von Q1
 Eine produktionsnahe Rechnungsverarbeitungs-Anwendung mit stabiler Ingestion, nachvollziehbarer Datenverarbeitung, operativem Freigabeworkflow, Supabase-Write-back und belastbarer Governance-Basis fuer die Folge-Use-Cases in Q2.
+
+## 13. Fortschrittsabgleich (Stand: 04.03.2026)
+- Bereits umgesetzt:
+  - MinIO-Ingestion inkl. OCR/LLM-Mapping/Validation.
+  - Admin Control Plane fuer User, Provider, Connector, Extraktionsfelder.
+  - Anwender-Inbox inkl. Detail, Positionen, PDF/Bild-Vorschau, Workflow-Aktionen.
+  - Audit- und Aktionshistorie fuer operative Statuswechsel.
+- Noch offen fuer vollstaendige Q1-Zielerreichung:
+  - Mail- und REST-Connectoren in Produktivqualitaet.
+  - KPI-Dashboard V1.
+  - Admin-konfigurierbare Freigaberegeln serverseitig erzwingen.

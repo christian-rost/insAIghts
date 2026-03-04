@@ -58,6 +58,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_documents`
 - `insaights_invoices`
 - `insaights_invoice_lines`
+- `insaights_invoice_actions`
 
 Hinweis:
 - Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
@@ -66,6 +67,7 @@ Hinweis:
 
 ## MinIO Ingestion V1
 - Quelle aktuell: nur MinIO.
+- Mail- und REST-Connectoren sind im Zielbild enthalten, aber noch nicht implementiert.
 - MinIO-Connector muss in Admin-Config aktiviert sein (`enabled=true`).
 - Erwartete `config_json`-Felder fuer Connector `minio`:
   - `endpoint` (nur Host[:Port], ohne Pfad; `https://...` ist erlaubt, Pfad aber nicht)
@@ -91,7 +93,7 @@ Hinweis:
   - Positionen (Line-Items) aus `insaights_invoice_lines`
   - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
   - Aktions-Timeline je Rechnung
-- Layout wurde an die Referenzansicht "View Invoices" angepasst (2-Spalten-Ansicht mit fokussierter Rechnungsdetailkarte).
+- Layout wurde an die Referenzansicht "View Invoices" angepasst (3-Spalten-Ansicht: links Liste, Mitte Rechnungsdaten, rechts Dokumentvorschau).
 
 ## Coolify
 

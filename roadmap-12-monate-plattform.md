@@ -139,3 +139,13 @@ Datenqualitaet plattformweit heben und Skalierung absichern.
 - Ontologie-Governance Board benennen.
 - Ziel-SLOs fuer Performance und Verfuegbarkeit festlegen.
 - Umgebungsstrategie von rein Dev auf Staging/Prod erweitern.
+
+## 10. Statusabgleich (Stand: 04.03.2026)
+- Rechnungsverarbeitung MVP ist fuer den MinIO-Pfad technisch Ende-zu-Ende umgesetzt.
+- Anwender-Inbox mit 3-Spaltenansicht (Liste, Rechnungsdaten, Dokumentvorschau) ist verfuegbar.
+- Workflow-Aktionen (`approve`, `reject`, `hold`) inkl. Aktionshistorie sind aktiv.
+- LLM-basierte Feldextraktion ist ueber Admin-UI konfigurierbar.
+- Noch offen fuer Roadmap-Q1-Vollabdeckung:
+  - Mail- und REST-Connector produktiv anbinden.
+  - Freigaberegeln aus Admin-UI serverseitig erzwingen.
+  - KPI-Dashboard V1 abschliessen.
