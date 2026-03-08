@@ -1672,7 +1672,9 @@ function GraphCanvas({ graphData, onNodeSelect }) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedNodeId, setSelectedNodeId] = useState("")
   const [layerMode, setLayerMode] = useState("data")
+  const [nodeOverrides, setNodeOverrides] = useState({})
   const dragStateRef = useRef(null)
+  const nodeDragRef = useRef(null)
 
   const { nodes, edges } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
@@ -1723,15 +1725,20 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     return { nodes: positioned, edges: filteredEdges }
   }, [graphData, layerMode])
 
+  const renderedNodes = useMemo(
+    () => nodes.map((n) => ({ ...n, ...(nodeOverrides[String(n.id)] || {}) })),
+    [nodes, nodeOverrides],
+  )
+
   const nodeMap = useMemo(() => {
     const m = new Map()
-    for (const n of nodes) m.set(String(n.id), n)
+    for (const n of renderedNodes) m.set(String(n.id), n)
     return m
-  }, [nodes])
+  }, [renderedNodes])
 
   const selectedNode = useMemo(
-    () => nodes.find((n) => String(n.id) === String(selectedNodeId)) || null,
-    [nodes, selectedNodeId],
+    () => renderedNodes.find((n) => String(n.id) === String(selectedNodeId)) || null,
+    [renderedNodes, selectedNodeId],
   )
 
   const adjacency = useMemo(() => {
@@ -1752,16 +1759,17 @@ function GraphCanvas({ graphData, onNodeSelect }) {
 
   useEffect(() => {
     setSelectedNodeId("")
+    setNodeOverrides({})
     if (onNodeSelect) onNodeSelect(null)
-  }, [graphData])
+  }, [graphData, layerMode])
 
   useEffect(() => {
     if (!selectedNodeId) return
-    if (!nodes.find((n) => String(n.id) === String(selectedNodeId))) {
+    if (!renderedNodes.find((n) => String(n.id) === String(selectedNodeId))) {
       setSelectedNodeId("")
       if (onNodeSelect) onNodeSelect(null)
     }
-  }, [nodes, selectedNodeId, onNodeSelect])
+  }, [renderedNodes, selectedNodeId, onNodeSelect])
 
   function nodeLabel(node) {
     const labels = node.labels || []
@@ -1827,20 +1835,44 @@ function GraphCanvas({ graphData, onNodeSelect }) {
           setZoom((z) => Math.max(0.5, Math.min(2.4, z + d)))
         }}
         onMouseDown={(e) => {
-          if (e.target.closest("circle")) return
+          if (e.target.closest(".graph-node-group")) return
           setSelectedNodeId("")
           if (onNodeSelect) onNodeSelect(null)
           dragStateRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
         }}
         onMouseMove={(e) => {
+          const nodeDrag = nodeDragRef.current
+          if (nodeDrag) {
+            const dx = (e.clientX - nodeDrag.lastClientX) / Math.max(zoom, 0.001)
+            const dy = (e.clientY - nodeDrag.lastClientY) / Math.max(zoom, 0.001)
+            nodeDrag.lastClientX = e.clientX
+            nodeDrag.lastClientY = e.clientY
+            const current = nodeMap.get(nodeDrag.nodeId)
+            if (current) {
+              setNodeOverrides((all) => ({
+                ...all,
+                [nodeDrag.nodeId]: {
+                  x: (all[nodeDrag.nodeId]?.x ?? current.x) + dx,
+                  y: (all[nodeDrag.nodeId]?.y ?? current.y) + dy,
+                },
+              }))
+            }
+            return
+          }
           const s = dragStateRef.current
           if (!s) return
           const dx = e.clientX - s.x
           const dy = e.clientY - s.y
           setPan({ x: s.panX + dx, y: s.panY + dy })
         }}
-        onMouseUp={() => { dragStateRef.current = null }}
-        onMouseLeave={() => { dragStateRef.current = null }}
+        onMouseUp={() => {
+          dragStateRef.current = null
+          nodeDragRef.current = null
+        }}
+        onMouseLeave={() => {
+          dragStateRef.current = null
+          nodeDragRef.current = null
+        }}
       >
         <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
           {edges.map((edge) => {
@@ -1859,15 +1891,21 @@ function GraphCanvas({ graphData, onNodeSelect }) {
               />
             )
           })}
-          {nodes.map((node) => {
+          {renderedNodes.map((node) => {
             const selected = String(selectedNodeId) === String(node.id)
             const direct = isNodeDirectlyConnected(node.id)
             return (
               <g
                 key={node.id}
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.stopPropagation()
                   setSelectedNodeId(String(node.id))
                   if (onNodeSelect) onNodeSelect(node)
+                  nodeDragRef.current = {
+                    nodeId: String(node.id),
+                    lastClientX: e.clientX,
+                    lastClientY: e.clientY,
+                  }
                 }}
                 className="graph-node-group"
               >
