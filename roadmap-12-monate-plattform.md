@@ -150,4 +150,4 @@ Datenqualitaet plattformweit heben und Skalierung absichern.
 - KPI-Dashboard V1 (Trend, Touchless-Rate, Lieferanten-Ausnahmequote) ist umgesetzt.
 - One-Click Pipeline Run, selektives Reprocessing und Loeschantrag-Workflow sind produktiv im Dev-Stand.
 - Noch offen fuer Roadmap-Q1-Vollabdeckung:
-  - Mail- und REST-Connector produktiv anbinden.
+  - Mail- und REST-Connector produktiv anbinden (aktuell bewusst zurueckgestellt; Prioritaet nach Q1-Stabilisierung).

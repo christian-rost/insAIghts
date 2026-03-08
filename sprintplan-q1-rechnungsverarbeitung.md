@@ -199,4 +199,4 @@ Eine produktionsnahe Rechnungsverarbeitungs-Anwendung mit stabiler Ingestion, na
   - Admin-Audit-Tab inkl. Filter und `GET /api/admin/audit/events`.
   - One-Click Pipeline Run, selektives Reprocessing, Loeschantrag-Workflow.
 - Noch offen fuer vollstaendige Q1-Zielerreichung:
-  - Mail- und REST-Connectoren in Produktivqualitaet.
+  - Mail- und REST-Connectoren in Produktivqualitaet (aktuell bewusst zurueckgestellt zugunsten MinIO-Fokus und Stabilisierung).

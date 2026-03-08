@@ -144,3 +144,4 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Optional: `PROVIDER_KEY_ENCRYPTION_KEY` fuer verschluesselte Provider-Keys at-rest.
 - MinIO ist aktuell die einzige aktiv genutzte Ingestion-Quelle.
 - Architektur ist auf weitere Connectoren (Mail/REST) vorbereitet.
+- Mail- und REST-Connector sind aktuell explizit zurueckgestellt (Backlog nach Q1-Stabilisierung).

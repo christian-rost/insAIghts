@@ -578,6 +578,6 @@ Festlegung:
 - One-Click Pipeline Run, selektives Reprocessing und Loeschantrag-Workflow sind im Admin/Inbox-Flow verfuegbar.
 - Provider-Key-Verschluesselung at-rest kann per Env (`PROVIDER_KEY_ENCRYPTION_KEY`) aktiviert werden.
 - Offene Schwerpunkte fuer naechste Iteration:
-  - Mail- und REST-Ingestion umsetzen.
+  - Mail- und REST-Ingestion umsetzen (aktuell zurueckgestellt; Fokus bleibt vorerst auf MinIO-Betrieb).
   - Graph-/Ontologie-Schicht auf weitere Objektklassen erweitern (PO, GoodsReceipt, Case) und Graph-Visualisierung vertiefen.
   - DSGVO-Betriebsprozesse (Retention/DSR) technisch operationalisieren.
