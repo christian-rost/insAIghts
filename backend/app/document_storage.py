@@ -113,3 +113,12 @@ def update_document(document_id: str, updates: Dict[str, Any]) -> Optional[Dict[
     row.update(updates)
     _mem_documents[document_id] = row
     return row
+
+
+def delete_document(document_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = db.table(DOCUMENTS_TABLE).delete().eq("id", document_id).execute()
+        rows = result.data or []
+        return rows[0] if rows else None
+    return _mem_documents.pop(document_id, None)

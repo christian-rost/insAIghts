@@ -31,7 +31,9 @@ import {
   mapInvoices,
   logout,
   me,
-  pullMinio,
+  deleteDocument,
+  previewMinioObjects,
+  pullMinioSelected,
   register,
   resetInvoicePipeline,
   updateProvider,
@@ -285,6 +287,10 @@ function AdminView({ token, currentUser, onLogout }) {
     max_map: 20,
     max_validate: 50,
   })
+  const [minioPreviewOpen, setMinioPreviewOpen] = useState(false)
+  const [minioPreviewItems, setMinioPreviewItems] = useState([])
+  const [minioPreviewSelection, setMinioPreviewSelection] = useState({})
+  const [minioPreviewLoading, setMinioPreviewLoading] = useState(false)
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
   const [globalGraphData, setGlobalGraphData] = useState(null)
   const [globalGraphError, setGlobalGraphError] = useState("")
@@ -466,6 +472,29 @@ function AdminView({ token, currentUser, onLogout }) {
       setKpi(next)
     } catch (e) {
       setError(String(e.message || e))
+    }
+  }
+
+  async function openMinioPreviewDialog() {
+    try {
+      setError("")
+      setNotice("")
+      setMinioPreviewLoading(true)
+      const res = await previewMinioObjects(token, minio.max_objects || 200)
+      const items = res.items || []
+      setMinioPreviewItems(items)
+      const initialSelection = {}
+      for (const item of items) {
+        const key = String(item.object_name || "")
+        if (!key) continue
+        initialSelection[key] = !item.is_duplicate
+      }
+      setMinioPreviewSelection(initialSelection)
+      setMinioPreviewOpen(true)
+    } catch (e) {
+      setError(String(e.message || e))
+    } finally {
+      setMinioPreviewLoading(false)
     }
   }
 
@@ -1314,19 +1343,10 @@ function AdminView({ token, currentUser, onLogout }) {
                   <button
                     className="btn btn-outline"
                     type="button"
-                    onClick={async () => {
-                      try {
-                        setError("")
-                        setNotice("")
-                        const res = await pullMinio(token, minio.max_objects || 200)
-                        setNotice(`MinIO Pull: ${res.created} neu, ${res.skipped} uebersprungen`)
-                        await loadDocumentsList()
-                      } catch (err) {
-                        setError(String(err.message || err))
-                      }
-                    }}
+                    disabled={minioPreviewLoading}
+                    onClick={openMinioPreviewDialog}
                   >
-                    Pull ausfuehren
+                    Dateien auswaehlen & Pull
                   </button>
                   <button
                     className="btn btn-outline"
@@ -2135,6 +2155,7 @@ function AdminView({ token, currentUser, onLogout }) {
                     <th>Typ</th>
                     <th>Status</th>
                     <th>Quelle</th>
+                    <th>Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2144,6 +2165,27 @@ function AdminView({ token, currentUser, onLogout }) {
                       <td>{d.file_type}</td>
                       <td>{d.status}</td>
                       <td className="mono">{d.source_uri}</td>
+                      <td>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          type="button"
+                          onClick={async () => {
+                            const ok = window.confirm(`Dokument wirklich entfernen?\\n${d.filename}`)
+                            if (!ok) return
+                            try {
+                              setError("")
+                              setNotice("")
+                              await deleteDocument(token, d.id)
+                              await Promise.all([loadDocumentsList(), loadInvoicesList(), loadKpi()])
+                              setNotice(`Dokument entfernt: ${d.filename}`)
+                            } catch (err) {
+                              setError(String(err.message || err))
+                            }
+                          }}
+                        >
+                          Entfernen
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -2218,6 +2260,117 @@ function AdminView({ token, currentUser, onLogout }) {
             </table>
             </div>
           </section>
+          ) : null}
+
+          {minioPreviewOpen ? (
+            <section className="card">
+              <div className="card-header row">
+                <h3>MinIO Import-Auswahl</h3>
+                <button className="btn btn-outline btn-sm" type="button" onClick={() => setMinioPreviewOpen(false)}>
+                  Schliessen
+                </button>
+              </div>
+              <div className="card-body">
+                <div className="actions-row" style={{ marginBottom: "0.6rem" }}>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={() => {
+                      const next = {}
+                      for (const item of minioPreviewItems) next[String(item.object_name || "")] = !item.is_duplicate
+                      setMinioPreviewSelection(next)
+                    }}
+                  >
+                    Alle neuen markieren
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={() => {
+                      const next = {}
+                      for (const item of minioPreviewItems) next[String(item.object_name || "")] = true
+                      setMinioPreviewSelection(next)
+                    }}
+                  >
+                    Alle markieren
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={() => {
+                      const next = {}
+                      for (const item of minioPreviewItems) next[String(item.object_name || "")] = false
+                      setMinioPreviewSelection(next)
+                    }}
+                  >
+                    Alle abwaehlen
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const selected = minioPreviewItems
+                          .map((item) => String(item.object_name || ""))
+                          .filter((name) => !!name && !!minioPreviewSelection[name])
+                        if (!selected.length) {
+                          throw new Error("Bitte mindestens eine Datei auswaehlen.")
+                        }
+                        setError("")
+                        setNotice("")
+                        const res = await pullMinioSelected(token, {
+                          maxObjects: minio.max_objects || 200,
+                          objectNames: selected,
+                        })
+                        await loadDocumentsList()
+                        setMinioPreviewOpen(false)
+                        setNotice(
+                          `MinIO Pull: ${res.created} neu, ${res.skipped} uebersprungen (${res.skipped_duplicate || 0} Duplikate)`
+                        )
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Auswahl importieren
+                  </button>
+                </div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Datei</th>
+                      <th>Groesse</th>
+                      <th>Duplikat</th>
+                      <th>Grund</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {minioPreviewItems.map((item) => {
+                      const key = String(item.object_name || "")
+                      const checked = !!minioPreviewSelection[key]
+                      return (
+                        <tr key={key}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setMinioPreviewSelection((all) => ({ ...all, [key]: e.target.checked }))
+                              }
+                            />
+                          </td>
+                          <td className="mono">{item.object_name}</td>
+                          <td>{item.size ?? 0}</td>
+                          <td>{item.is_duplicate ? "ja" : "nein"}</td>
+                          <td>{item.duplicate_reason || "-"}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           ) : null}
         </>
       )}

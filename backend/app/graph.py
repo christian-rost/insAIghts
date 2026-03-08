@@ -330,6 +330,34 @@ def _prune_orphan_semantic_nodes(tx) -> None:
         DETACH DELETE r
         """
     )
+    tx.run(
+        """
+        MATCH (s:Supplier)
+        WHERE NOT ()-[:BELONGS_TO]->(s)
+        DETACH DELETE s
+        """
+    )
+    tx.run(
+        """
+        MATCH (c:Currency)
+        WHERE NOT ()-[:IN_CURRENCY]->(c)
+        DETACH DELETE c
+        """
+    )
+    tx.run(
+        """
+        MATCH (st:InvoiceStatus)
+        WHERE NOT ()-[:HAS_STATUS|FROM_STATUS|TO_STATUS]->(st)
+        DETACH DELETE st
+        """
+    )
+    tx.run(
+        """
+        MATCH (u:User)
+        WHERE NOT (u)-[:PERFORMED]->()
+        DETACH DELETE u
+        """
+    )
 
 
 def graph_sync_invoice(
@@ -1002,3 +1030,35 @@ def graph_reset_invoice_domain() -> Dict[str, Any]:
         return {"status": "ok", "deleted_nodes": deleted_nodes}
     except Exception as exc:
         return {"status": "error", "reason": str(exc)}
+
+
+def graph_remove_invoice(invoice_id: str) -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "skipped",
+            "reason": "graph credentials or uri not configured",
+            "invoice_id": invoice_id,
+        }
+    if not str(invoice_id or "").strip():
+        return {"status": "error", "reason": "invoice_id is required"}
+
+    delete_query = """
+    MATCH (i:Invoice {id: $invoice_id})
+    OPTIONAL MATCH (i)-[:HAS_LINE]->(l:InvoiceLine)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH i, collect(distinct l) AS lines, collect(distinct a) AS actions
+    UNWIND (lines + actions + [i]) AS n
+    WITH collect(distinct n) AS nodes
+    UNWIND nodes AS node
+    DETACH DELETE node
+    RETURN count(node) AS deleted_nodes
+    """
+    try:
+        with driver.session() as session:
+            record = session.run(delete_query, invoice_id=str(invoice_id)).single()
+            deleted_nodes = int(record["deleted_nodes"]) if record and record.get("deleted_nodes") is not None else 0
+            session.execute_write(_prune_orphan_semantic_nodes)
+        return {"status": "ok", "invoice_id": str(invoice_id), "deleted_nodes": deleted_nodes}
+    except Exception as exc:
+        return {"status": "error", "invoice_id": str(invoice_id), "reason": str(exc)}

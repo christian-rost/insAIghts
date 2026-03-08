@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,8 +14,8 @@ from .config_storage import get_connector, list_connectors, update_connector
 from .document_processing import download_minio_object, extract_text_for_document
 from .document_storage import (
     create_document,
+    delete_document,
     get_document_by_id,
-    get_document_by_source_uri,
     list_documents,
     list_documents_by_status,
     update_document,
@@ -28,6 +28,7 @@ from .graph import (
     graph_get_insights,
     graph_get_trend_insights,
     graph_get_invoice_subgraph,
+    graph_remove_invoice,
     graph_reset_invoice_domain,
     graph_sync_invoice,
 )
@@ -37,8 +38,10 @@ from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
     create_invoice,
     create_invoice_lines,
+    delete_invoice,
     get_invoice_by_id,
     get_invoice_by_document,
+    list_invoices_by_document_id,
     list_invoice_lines,
     list_invoices,
     list_invoices_filtered,
@@ -131,6 +134,7 @@ class ConnectorUpdateRequest(BaseModel):
 
 class MinioPullRequest(BaseModel):
     max_objects: int = Field(default=200, ge=1, le=5000)
+    object_names: Optional[List[str]] = None
 
 
 class ExtractDocumentsRequest(BaseModel):
@@ -233,6 +237,26 @@ class UpdateCaseRequest(BaseModel):
 
 class ResetPipelineRequest(BaseModel):
     reset_graph: bool = True
+
+
+class MinioPreviewRequest(BaseModel):
+    max_objects: int = Field(default=200, ge=1, le=5000)
+
+
+def _build_minio_duplicate_indexes() -> Dict[str, Any]:
+    docs = list_documents(limit=20000)
+    by_source_uri = {}
+    by_fingerprint = {}
+    for doc in docs:
+        source_uri = str(doc.get("source_uri") or "").strip()
+        if source_uri:
+            by_source_uri[source_uri] = doc
+        meta = doc.get("raw_metadata_json") if isinstance(doc.get("raw_metadata_json"), dict) else {}
+        etag = str(meta.get("etag") or "").strip().lower()
+        size = int(doc.get("file_size_bytes") or meta.get("size") or 0)
+        if etag and size > 0:
+            by_fingerprint[f"{etag}:{size}"] = doc
+    return {"by_source_uri": by_source_uri, "by_fingerprint": by_fingerprint}
 
 
 ALLOWED_ACTION_TRANSITIONS = {
@@ -847,6 +871,75 @@ async def admin_test_connector(
     return {"status": "ok", "connector": connector_name, "mode": "simulated"}
 
 
+@app.post("/api/ingestion/minio/preview")
+async def ingestion_minio_preview(
+    payload: MinioPreviewRequest,
+    _: Dict = Depends(require_admin),
+) -> Dict:
+    connector = get_connector("minio")
+    if not connector:
+        raise HTTPException(status_code=404, detail="MinIO connector config not found")
+    if not connector.get("enabled", False):
+        raise HTTPException(status_code=400, detail="MinIO connector is disabled")
+    try:
+        cfg = parse_minio_config(connector.get("config_json") or {})
+        objects = list_minio_objects(cfg, max_objects=payload.max_objects)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"MinIO read failed: {exc}")
+
+    indexes = _build_minio_duplicate_indexes()
+    by_source_uri = indexes["by_source_uri"]
+    by_fingerprint = indexes["by_fingerprint"]
+
+    rows = []
+    duplicate_count = 0
+    for obj in objects:
+        uri = source_uri(cfg.bucket, obj["object_name"])
+        size = int(obj.get("size") or 0)
+        etag = str(obj.get("etag") or "").strip().lower()
+        fingerprint = f"{etag}:{size}" if etag and size > 0 else ""
+
+        duplicate_reason = None
+        duplicate_of_document_id = None
+        duplicate_of_source_uri = None
+
+        existing = by_source_uri.get(uri)
+        if existing:
+            duplicate_reason = "source_uri"
+            duplicate_of_document_id = existing.get("id")
+            duplicate_of_source_uri = existing.get("source_uri")
+        elif fingerprint and fingerprint in by_fingerprint:
+            existing = by_fingerprint.get(fingerprint) or {}
+            duplicate_reason = "etag_size"
+            duplicate_of_document_id = existing.get("id")
+            duplicate_of_source_uri = existing.get("source_uri")
+
+        is_duplicate = duplicate_reason is not None
+        if is_duplicate:
+            duplicate_count += 1
+
+        rows.append(
+            {
+                **obj,
+                "source_uri": uri,
+                "is_duplicate": is_duplicate,
+                "duplicate_reason": duplicate_reason,
+                "duplicate_of_document_id": duplicate_of_document_id,
+                "duplicate_of_source_uri": duplicate_of_source_uri,
+            }
+        )
+
+    return {
+        "status": "ok",
+        "bucket": cfg.bucket,
+        "count": len(rows),
+        "duplicates": duplicate_count,
+        "items": rows,
+    }
+
+
 @app.post("/api/ingestion/minio/pull")
 async def ingestion_minio_pull(
     payload: MinioPullRequest,
@@ -866,13 +959,33 @@ async def ingestion_minio_pull(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"MinIO read failed: {exc}")
 
+    requested_names = {str(name or "").strip() for name in (payload.object_names or []) if str(name or "").strip()}
+    if requested_names:
+        objects = [obj for obj in objects if str(obj.get("object_name") or "") in requested_names]
+
+    indexes = _build_minio_duplicate_indexes()
+    by_source_uri = indexes["by_source_uri"]
+    by_fingerprint = indexes["by_fingerprint"]
+
     created = 0
     skipped = 0
+    skipped_existing_uri = 0
+    skipped_duplicate = 0
     sample_documents = []
     for obj in objects:
         uri = source_uri(cfg.bucket, obj["object_name"])
-        if get_document_by_source_uri(uri):
+        size = int(obj.get("size") or 0)
+        etag = str(obj.get("etag") or "").strip().lower()
+        fingerprint = f"{etag}:{size}" if etag and size > 0 else ""
+
+        existing = by_source_uri.get(uri)
+        if existing:
             skipped += 1
+            skipped_existing_uri += 1
+            continue
+        if fingerprint and fingerprint in by_fingerprint:
+            skipped += 1
+            skipped_duplicate += 1
             continue
         doc = create_document(
             source_system="minio",
@@ -884,6 +997,9 @@ async def ingestion_minio_pull(
             raw_metadata_json=obj,
         )
         created += 1
+        by_source_uri[uri] = doc
+        if fingerprint:
+            by_fingerprint[fingerprint] = doc
         if len(sample_documents) < 10:
             sample_documents.append(
                 {
@@ -902,7 +1018,10 @@ async def ingestion_minio_pull(
             "total_seen": len(objects),
             "created": created,
             "skipped": skipped,
+            "skipped_existing_uri": skipped_existing_uri,
+            "skipped_duplicate": skipped_duplicate,
             "max_objects": payload.max_objects,
+            "selected_count": len(requested_names) if requested_names else None,
         },
     )
     return {
@@ -910,6 +1029,8 @@ async def ingestion_minio_pull(
         "total_seen": len(objects),
         "created": created,
         "skipped": skipped,
+        "skipped_existing_uri": skipped_existing_uri,
+        "skipped_duplicate": skipped_duplicate,
         "sample_documents": sample_documents,
     }
 
@@ -921,6 +1042,51 @@ async def documents_list(
 ) -> Dict:
     items = list_documents(limit=limit)
     return {"count": len(items), "items": items}
+
+
+@app.delete("/api/admin/documents/{document_id}")
+async def admin_delete_document(
+    document_id: str,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    document = get_document_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    invoices = list_invoices_by_document_id(document_id, limit=200)
+    deleted_invoices = []
+    graph_results = []
+    for inv in invoices:
+        inv_id = str(inv.get("id") or "")
+        if not inv_id:
+            continue
+        deleted = delete_invoice(inv_id)
+        if deleted:
+            deleted_invoices.append(inv_id)
+        graph_results.append(graph_remove_invoice(inv_id))
+
+    deleted_doc = delete_document(document_id)
+    if not deleted_doc:
+        raise HTTPException(status_code=500, detail="Document delete failed")
+
+    log_admin_event(
+        event_type="admin.document_deleted",
+        actor_user_id=admin_user["id"],
+        target_type="document",
+        target_id=document_id,
+        metadata_json={
+            "filename": document.get("filename"),
+            "source_uri": document.get("source_uri"),
+            "deleted_invoices": deleted_invoices,
+            "graph_results": graph_results,
+        },
+    )
+    return {
+        "status": "ok",
+        "document_id": document_id,
+        "deleted_invoices": deleted_invoices,
+        "graph_results": graph_results,
+    }
 
 
 @app.post("/api/processing/documents/extract")

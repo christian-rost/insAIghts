@@ -72,8 +72,10 @@ Case-Status:
 - PDF fehlt:
   - Dokumentpfad oder MinIO Object nicht vorhanden
 
+Hinweis Berechtigungen:
+- Dokument-Loeschung ist aktuell eine Admin-Funktion und nicht fuer normale Anwender freigegeben.
+
 ## 10. Datenschutz und Sicherheit
 - Verarbeitung nach Secure-by-Design und DSGVO-Grundsaetzen.
 - Aktionen werden revisionssicher protokolliert.
 - Nur notwendige Daten sind in der UI sichtbar.
-

@@ -69,12 +69,14 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
   - `GET /api/admin/kpi/overview`
   - `POST /api/admin/reset/invoice-pipeline`
 - Pipeline:
+  - `POST /api/ingestion/minio/preview`
   - `POST /api/ingestion/minio/pull`
   - `POST /api/processing/documents/extract`
   - `POST /api/processing/invoices/map`
   - `POST /api/processing/invoices/validate`
 - Operative Nutzung:
   - `GET /api/documents`
+  - `DELETE /api/admin/documents/{document_id}` (ADMIN)
   - `GET /api/invoices`
   - `GET /api/invoices/{invoice_id}`
   - `GET /api/invoices/{invoice_id}/lines`

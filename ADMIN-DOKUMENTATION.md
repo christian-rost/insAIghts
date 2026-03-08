@@ -57,6 +57,9 @@ Nicht in Env pflegen:
 - Connector konfigurieren
 - Verbindung testen
 - Pull, OCR/Extract, Mapping, Validation ausfuehren
+- Vor dem Pull: Dateivorschau mit Multi-Select (einzeln/mehrere/alle)
+- Duplikate werden in der Vorschau markiert und beim Import uebersprungen
+- Einzelne Dokumente koennen als Admin entfernt werden (DB + Graph wird aktualisiert)
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen

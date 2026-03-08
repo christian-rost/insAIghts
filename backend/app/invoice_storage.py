@@ -174,3 +174,33 @@ def list_invoices_filtered(
             ]
     rows = sorted(rows, key=lambda x: x.get("created_at", ""), reverse=True)
     return rows[:limit]
+
+
+def list_invoices_by_document_id(document_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = (
+            db.table(INVOICES_TABLE)
+            .select("*")
+            .eq("document_id", document_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+    rows = [r for r in _mem_invoices.values() if str(r.get("document_id") or "") == str(document_id)]
+    rows = sorted(rows, key=lambda x: x.get("created_at", ""), reverse=True)
+    return rows[:limit]
+
+
+def delete_invoice(invoice_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = db.table(INVOICES_TABLE).delete().eq("id", invoice_id).execute()
+        rows = result.data or []
+        return rows[0] if rows else None
+
+    deleted = _mem_invoices.pop(invoice_id, None)
+    if deleted:
+        _mem_invoice_lines.pop(invoice_id, None)
+    return deleted

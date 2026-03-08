@@ -128,8 +128,40 @@ export async function pullMinio(token, maxObjects = 200) {
   return handleJson(response)
 }
 
+export async function previewMinioObjects(token, maxObjects = 200) {
+  const response = await fetch(`${API_BASE}/api/ingestion/minio/preview`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_objects: maxObjects }),
+  })
+  return handleJson(response)
+}
+
+export async function pullMinioSelected(token, { maxObjects = 200, objectNames = [] } = {}) {
+  const response = await fetch(`${API_BASE}/api/ingestion/minio/pull`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ max_objects: maxObjects, object_names: objectNames }),
+  })
+  return handleJson(response)
+}
+
 export async function listDocuments(token, limit = 50) {
   const response = await fetch(`${API_BASE}/api/documents?limit=${encodeURIComponent(limit)}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function deleteDocument(token, documentId) {
+  const response = await fetch(`${API_BASE}/api/admin/documents/${encodeURIComponent(documentId)}`, {
+    method: "DELETE",
     headers: { ...authHeaders(token) },
   })
   return handleJson(response)

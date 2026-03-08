@@ -146,6 +146,8 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/config/connectors`
 - `PUT /api/admin/config/connectors/{connector_name}`
 - `POST /api/admin/config/connectors/{connector_name}/test`
+- `POST /api/ingestion/minio/preview`
+- `POST /api/ingestion/minio/pull` (mit optionaler Dateiauswahl)
 
 ## 5.6 Workflow-Regeln
 - `GET /admin/config/workflow-rules`
@@ -202,6 +204,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/graph/insights/drilldown`
 - `GET /api/admin/graph/insights/explain`
 - `POST /api/admin/reset/invoice-pipeline`
+- `DELETE /api/admin/documents/{document_id}`
 
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag
