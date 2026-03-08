@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Response
@@ -251,6 +252,7 @@ class MinioPreviewRequest(BaseModel):
 
 
 class PipelineRunRequest(BaseModel):
+    client_run_id: Optional[str] = None
     max_objects: int = Field(default=200, ge=1, le=5000)
     object_names: Optional[List[str]] = None
     max_extract: int = Field(default=200, ge=1, le=5000)
@@ -906,28 +908,66 @@ async def admin_pipeline_run(
     payload: PipelineRunRequest,
     admin_user: Dict = Depends(require_admin),
 ) -> Dict:
-    pull_res = await ingestion_minio_pull(
-        MinioPullRequest(max_objects=payload.max_objects, object_names=payload.object_names),
-        admin_user,
-    )
-    extract_res = await processing_documents_extract(
-        ExtractDocumentsRequest(max_documents=payload.max_extract),
-        admin_user,
-    )
-    map_res = await processing_invoices_map(
-        MapInvoicesRequest(max_documents=payload.max_map),
-        admin_user,
-    )
-    validate_res = await processing_invoices_validate(
-        ValidateInvoicesRequest(max_invoices=payload.max_validate),
-        admin_user,
-    )
-    graph_res = await graph_sync_invoices_bulk(
-        limit=payload.sync_limit,
-        admin_user=admin_user,
-    )
+    run_id = str(payload.client_run_id or "").strip() or str(uuid.uuid4())
+
+    def log_progress(step: str, step_label: str, state: str, result: Optional[Dict[str, Any]] = None) -> None:
+        log_admin_event(
+            event_type="admin.pipeline_run.progress",
+            actor_user_id=admin_user["id"],
+            target_type="pipeline",
+            target_id="one_click",
+            metadata_json={
+                "run_id": run_id,
+                "step": step,
+                "step_label": step_label,
+                "state": state,
+                "result": result or {},
+            },
+        )
+
+    log_progress("start", "Pipeline", "running")
+
+    try:
+        log_progress("pull", "Pull (MinIO)", "running")
+        pull_res = await ingestion_minio_pull(
+            MinioPullRequest(max_objects=payload.max_objects, object_names=payload.object_names),
+            admin_user,
+        )
+        log_progress("pull", "Pull (MinIO)", "done", pull_res)
+
+        log_progress("extract", "Extract (OCR/Parsing)", "running")
+        extract_res = await processing_documents_extract(
+            ExtractDocumentsRequest(max_documents=payload.max_extract),
+            admin_user,
+        )
+        log_progress("extract", "Extract (OCR/Parsing)", "done", extract_res)
+
+        log_progress("map", "Map (Invoice)", "running")
+        map_res = await processing_invoices_map(
+            MapInvoicesRequest(max_documents=payload.max_map),
+            admin_user,
+        )
+        log_progress("map", "Map (Invoice)", "done", map_res)
+
+        log_progress("validate", "Validate", "running")
+        validate_res = await processing_invoices_validate(
+            ValidateInvoicesRequest(max_invoices=payload.max_validate),
+            admin_user,
+        )
+        log_progress("validate", "Validate", "done", validate_res)
+
+        log_progress("graph_sync", "Graph Sync", "running")
+        graph_res = await graph_sync_invoices_bulk(
+            limit=payload.sync_limit,
+            admin_user=admin_user,
+        )
+        log_progress("graph_sync", "Graph Sync", "done", graph_res)
+    except Exception as exc:
+        log_progress("error", "Pipeline", "failed", {"error": str(exc)})
+        raise
 
     summary = {
+        "run_id": run_id,
         "pull_created": pull_res.get("created", 0),
         "pull_skipped": pull_res.get("skipped", 0),
         "extract_ok": extract_res.get("extracted", 0),
@@ -947,8 +987,10 @@ async def admin_pipeline_run(
         target_id="one_click",
         metadata_json=summary,
     )
+    log_progress("finish", "Pipeline", "done", summary)
     return {
         "status": "ok",
+        "run_id": run_id,
         "summary": summary,
         "steps": {
             "pull": pull_res,

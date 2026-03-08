@@ -38,6 +38,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - KPI-Dashboard V1 (Trend 14 Tage, Touchless-Rate, Ausnahmequoten)
 - Globaler Reset fuer Reprocessing
 - One-Click Pipeline Run (Pull -> Extract -> Map -> Validate -> Graph)
+- One-Click Pipeline Run mit Live-Statusanzeige pro Schritt
 - Reprocessing markierter Dokumente ohne Global-Reset
 - Loeschantrag-Workflow (User anfragen, Admin freigeben/ablehnen)
 - Audit-Logging fuer operative und Admin-relevante Events

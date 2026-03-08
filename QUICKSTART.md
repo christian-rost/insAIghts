@@ -58,6 +58,7 @@ Hinweis:
 ## 6. Pipeline testen
 Variante A (empfohlen):
 1. Im Tab `MinIO Pipeline` auf `One-Click Pipeline Run`.
+2. Den Live-Status unterhalb der Pipeline-Aktionen beobachten (Schritt fuer Schritt).
 
 Variante B (manuell):
 1. `Pull ausfuehren`

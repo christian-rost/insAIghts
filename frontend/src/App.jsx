@@ -308,8 +308,10 @@ function AdminView({ token, currentUser, onLogout }) {
   const [minioPreviewLoading, setMinioPreviewLoading] = useState(false)
   const [selectedDocumentIds, setSelectedDocumentIds] = useState({})
   const [pipelineRunning, setPipelineRunning] = useState(false)
+  const [pipelineProgressText, setPipelineProgressText] = useState("")
   const [deleteRequests, setDeleteRequests] = useState([])
   const [deleteRequestStatusFilter, setDeleteRequestStatusFilter] = useState("PENDING")
+  const pipelineProgressIntervalRef = useRef(null)
   const [auditEvents, setAuditEvents] = useState([])
   const [auditLimit, setAuditLimit] = useState(200)
   const [auditEventTypeFilter, setAuditEventTypeFilter] = useState("")
@@ -411,6 +413,36 @@ function AdminView({ token, currentUser, onLogout }) {
       setDeleteRequests(res.items || [])
     } catch (e) {
       setError(String(e.message || e))
+    }
+  }
+
+  async function refreshPipelineProgress(runId) {
+    const res = await listAdminAuditEvents(token, 300)
+    const rows = (res.items || []).filter(
+      (row) =>
+        String(row?.event_type || "") === "admin.pipeline_run.progress" &&
+        String(row?.metadata_json?.run_id || "") === String(runId),
+    )
+    if (!rows.length) return
+    const latest = rows[0]
+    const meta = latest.metadata_json || {}
+    const label = String(meta.step_label || meta.step || "Pipeline")
+    const state = String(meta.state || "").toLowerCase()
+    const result = meta.result || {}
+    const metrics = [
+      result.created != null ? `neu: ${result.created}` : "",
+      result.extracted != null ? `extract: ${result.extracted}` : "",
+      result.mapped != null ? `map: ${result.mapped}` : "",
+      result.validated != null ? `validate: ${result.validated}` : "",
+      result.synced != null ? `graph: ${result.synced}` : "",
+    ].filter(Boolean)
+    const suffix = metrics.length ? ` (${metrics.join(", ")})` : ""
+    if (state === "running") {
+      setPipelineProgressText(`Status: ${label} laeuft...${suffix}`)
+    } else if (state === "done") {
+      setPipelineProgressText(`Status: ${label} abgeschlossen${suffix}`)
+    } else if (state === "failed") {
+      setPipelineProgressText(`Status: ${label} fehlgeschlagen${suffix}`)
     }
   }
 
@@ -642,6 +674,15 @@ function AdminView({ token, currentUser, onLogout }) {
   useEffect(() => {
     loadDeleteRequests()
   }, [deleteRequestStatusFilter])
+
+  useEffect(() => {
+    return () => {
+      if (pipelineProgressIntervalRef.current) {
+        clearInterval(pipelineProgressIntervalRef.current)
+        pipelineProgressIntervalRef.current = null
+      }
+    }
+  }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
   const filteredAuditEvents = useMemo(() => {
@@ -1610,25 +1651,51 @@ function AdminView({ token, currentUser, onLogout }) {
                     type="button"
                     disabled={pipelineRunning}
                     onClick={async () => {
+                      let pollBusy = false
                       try {
                         setPipelineRunning(true)
                         setError("")
                         setNotice("")
+                        const runId = globalThis.crypto?.randomUUID?.() || `run-${Date.now()}`
+                        setPipelineProgressText("Status: Pipeline gestartet...")
+                        if (pipelineProgressIntervalRef.current) {
+                          clearInterval(pipelineProgressIntervalRef.current)
+                          pipelineProgressIntervalRef.current = null
+                        }
+                        pipelineProgressIntervalRef.current = setInterval(async () => {
+                          if (pollBusy) return
+                          pollBusy = true
+                          try {
+                            await refreshPipelineProgress(runId)
+                          } catch {
+                            // keep run resilient even if progress polling fails temporarily
+                          } finally {
+                            pollBusy = false
+                          }
+                        }, 1500)
                         const res = await runPipeline(token, {
+                          client_run_id: runId,
                           max_objects: minio.max_objects || 200,
                           max_extract: minio.max_extract || 20,
                           max_map: minio.max_map || 20,
                           max_validate: minio.max_validate || 50,
                           sync_limit: graphSyncLimit || 200,
                         })
+                        await refreshPipelineProgress(runId)
                         await Promise.all([loadDocumentsList(), loadInvoicesList(), loadKpi(), loadDeleteRequests()])
                         const s = res.summary || {}
                         setNotice(
                           `One-Click Run: Pull ${s.pull_created || 0}/${(s.pull_created || 0) + (s.pull_skipped || 0)}, Extract ${s.extract_ok || 0}, Map ${s.map_ok || 0}, Validate ${s.validate_ok || 0}, Graph ${s.graph_synced || 0}`
                         )
+                        setPipelineProgressText("Status: Pipeline abgeschlossen.")
                       } catch (err) {
                         setError(String(err.message || err))
+                        setPipelineProgressText(`Status: Fehler - ${String(err.message || err)}`)
                       } finally {
+                        if (pipelineProgressIntervalRef.current) {
+                          clearInterval(pipelineProgressIntervalRef.current)
+                          pipelineProgressIntervalRef.current = null
+                        }
                         setPipelineRunning(false)
                       }
                     }}
@@ -1659,6 +1726,7 @@ function AdminView({ token, currentUser, onLogout }) {
                   >
                     Dateien auswaehlen & Pull
                   </button>
+                  {pipelineProgressText ? <span className="muted-inline">{pipelineProgressText}</span> : null}
                   <button
                     className="btn btn-outline"
                     type="button"

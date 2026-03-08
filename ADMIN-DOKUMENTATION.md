@@ -62,6 +62,7 @@ Nicht in Env pflegen:
 - Verbindung testen
 - Pull, OCR/Extract, Mapping, Validation ausfuehren
 - One-Click Pipeline Run (komplette Kette in einem Lauf)
+- Waehrend One-Click Run: Live-Status pro Schritt (Pull, Extract, Map, Validate, Graph Sync) sichtbar
 - Vor dem Pull: Dateivorschau mit Multi-Select (einzeln/mehrere/alle)
 - Duplikate werden in der Vorschau markiert und beim Import uebersprungen
 - Einzelne Dokumente koennen als Admin entfernt werden (DB + Graph wird aktualisiert)
