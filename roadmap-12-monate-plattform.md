@@ -140,11 +140,14 @@ Datenqualitaet plattformweit heben und Skalierung absichern.
 - Ziel-SLOs fuer Performance und Verfuegbarkeit festlegen.
 - Umgebungsstrategie von rein Dev auf Staging/Prod erweitern.
 
-## 10. Statusabgleich (Stand: 04.03.2026)
+## 10. Statusabgleich (Stand: 08.03.2026)
 - Rechnungsverarbeitung MVP ist fuer den MinIO-Pfad technisch Ende-zu-Ende umgesetzt.
 - Anwender-Inbox mit 3-Spaltenansicht (Liste, Rechnungsdaten, Dokumentvorschau) ist verfuegbar.
 - Workflow-Aktionen (`approve`, `reject`, `hold`) inkl. Aktionshistorie sind aktiv.
 - Serverseitige Freigaberegeln (`approve`) sind ueber Admin-Konfiguration angebunden (Betragsgrenzen, Rollen, optional 4-Augen).
 - LLM-basierte Feldextraktion ist ueber Admin-UI konfigurierbar.
+- Admin-Audit-Tab inkl. Filter und revisionssicherer Event-Einsicht ist aktiv.
+- KPI-Dashboard V1 (Trend, Touchless-Rate, Lieferanten-Ausnahmequote) ist umgesetzt.
+- One-Click Pipeline Run, selektives Reprocessing und Loeschantrag-Workflow sind produktiv im Dev-Stand.
 - Noch offen fuer Roadmap-Q1-Vollabdeckung:
   - Mail- und REST-Connector produktiv anbinden.

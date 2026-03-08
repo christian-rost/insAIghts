@@ -529,9 +529,11 @@ Festlegung:
   - Admin-Dashboard tab-basiert (statt langer vertikaler Seite); Meldungen/Fehler werden oben unter dem Header angezeigt
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
+  - Aktionsbereich in der Inbox als 2-Zeilen-Layout (Kommentarzeile + Buttonzeile) optimiert
   - Anwenderaktion `Loeschung anfordern` (role-separated, keine Direkt-Loeschung fuer Nicht-Admin)
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
   - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
+  - Header-Extraktionsfelder in der Inbox sind auf- und zuklappbar
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Graph-Darstellung ist in Layer getrennt umschaltbar: Datenebene / Anwendungsebene / Alles
   - Felder der Graph-Datenebene sind ueber Admin konfigurierbar und steuern, welche gemeinsamen Feldwerte Rechnungen verknuepfen
@@ -567,6 +569,8 @@ Festlegung:
 ## 18. Verifizierter Status (Stand: 08.03.2026)
 - E2E-MinIO-Flow laeuft: Pull -> OCR/Extract -> Mapping -> Validation -> User-Workflow.
 - User-Inbox inkl. PDF/Bild-Vorschau und Actions-Timeline ist produktiv im Dev-Stand vorhanden.
+- Header-Extraktionsfelder sind in der Inbox ein-/ausklappbar.
+- Aktionsbereich ist nutzerfreundlich in Kommentarzeile + Buttonzeile aufgeteilt.
 - LLM-Feldextraktion ist ueber Admin-UI konfigurierbar (Feldname + Beschreibung + Typ + Pflicht + Aktiv + Reihenfolge).
 - Graph-Datenebene ist ueber Admin konfigurierbar; Bulk-Sync und Global-Graph sind verfuegbar.
 - Alias-Management ist generisch pro Attribut (`entity_type`) verfuegbar, inkl. manueller Pflege in der Admin-UI.

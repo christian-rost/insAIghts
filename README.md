@@ -30,6 +30,8 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Konfigurierbare Extraktionsfelder (header/line_item)
 - Mapping + Validation + Workflow-Aktionen
 - Inbox fuer Nicht-Admin-User
+- Inbox-Detail mit einklappbaren Header-Extrakten
+- Inbox-Aktionsbereich mit 2-zeiligem Layout (Kommentarzeile + Buttonzeile)
 - Graph-Funktion in Inbox + Admin
 - Generische Alias-Verwaltung pro Attribut (`entity_type`)
 - Graph-Auswertungen im Admin-Tab (Risiko, Empfaenger, Produkte, Status, Anomalien)

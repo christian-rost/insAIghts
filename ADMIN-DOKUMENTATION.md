@@ -68,6 +68,12 @@ Nicht in Env pflegen:
 - Markierte Dokumente koennen gezielt reprocessed werden (ohne globalen Reset)
 - Loeschantraege koennen im Pipeline-Tab gefiltert, freigegeben oder abgelehnt werden
 
+### 4.9 Inbox UX (Anwenderoberflaeche)
+- Header-Extraktionsfelder sind auf-/zuklappbar.
+- Aktionsbereich ist 2-zeilig aufgebaut:
+  - Zeile 1: Kommentarfeld
+  - Zeile 2: Workflow-Buttons
+
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen
 - Bulk-Sync aller Rechnungen

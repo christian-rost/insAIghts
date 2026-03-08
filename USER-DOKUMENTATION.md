@@ -27,7 +27,7 @@ Zusaetzlich:
 Im Detailbereich siehst du:
 - Kopfdaten (Rechnungsnummer, Datum, Gesamtpreis, Status)
 - Lieferant
-- Extrahierte Felder (konfigurierbar)
+- Extrahierte Felder (konfigurierbar, auf-/zuklappbar)
 - Positionen (`Leistungen`)
 - Aktionshistorie
 - Graph-Ausschnitt
@@ -40,6 +40,9 @@ Fuer eine Rechnung:
 - `Request Clarification`
 - `Loeschung anfordern` (kein Direkt-Loeschen)
 
+Der Aktionsbereich ist zweizeilig aufgebaut:
+- Zeile 1: Kommentarfeld
+- Zeile 2: Aktionsbuttons
 Jede Aktion kann optional mit Kommentar erfolgen.
 
 ## 6. Workflow-Logik
