@@ -1,71 +1,93 @@
 # insAIghts
 
-Startpunkt fuer die insAIghts-Plattform mit:
-- FastAPI Backend (Username-Login, Admin-Bootstrap, User-Management APIs)
-- React + Vite Frontend (Login + Admin-Basisoberflaeche)
-- Neo4j (Graph-Engine) fuer Ontologie/Beziehungen
+Stand: 08.03.2026
 
-## Lokal starten
+insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit:
+- FastAPI Backend
+- React/Vite Frontend
+- Supabase (relationale Daten + Konfiguration + Audit)
+- Neo4j (Graph-Schicht)
 
-1. `.env.example` nach `.env` kopieren und Werte setzen.
-2. Backend starten:
-   - `cd backend`
-   - `pip install -r requirements.txt`
-   - `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
-3. Frontend starten:
-   - `cd frontend`
-   - `npm install`
-   - `npm run dev`
+## Doku-Index
+- Produkt-/Architektur-Doku: `dokumentation-rechnungsverarbeitung-mvp.md`
+- Admin-Feature-Spezifikation: `admin-feature-spezifikation.md`
+- User-Dokumentation: `USER-DOKUMENTATION.md`
+- Admin-Dokumentation: `ADMIN-DOKUMENTATION.md`
+- Quickstart: `QUICKSTART.md`
+- Neo4j in Coolify: `installation-neo4j-coolify.md`
+- Roadmap: `roadmap-12-monate-plattform.md`
+- Sprintplan: `sprintplan-q1-rechnungsverarbeitung.md`
+- Anforderungen: `anforderungen.md`
 
-## Wichtige Endpunkte
+## Aktueller Funktionsumfang
+- Auth mit `username/password` (+ Self-Registration)
+- Admin-Dashboard mit Tabs
+- User-Management
+- Provider-Management (Mistral Key ueber UI)
+- MinIO als aktuell einzige produktive Quelle
+- OCR/Parsing + Extraktion ueber Mistral
+- Konfigurierbare Extraktionsfelder (header/line_item)
+- Mapping + Validation + Workflow-Aktionen
+- Inbox fuer Nicht-Admin-User
+- Graph-Funktion in Inbox + Admin
+- Generische Alias-Verwaltung pro Attribut (`entity_type`)
+- Globaler Reset fuer Reprocessing
+- Audit-Logging fuer operative und Admin-relevante Events
 
-- `GET /api/health`
-- `GET /api/health/graph`
-- `GET /api/graph/invoices/{invoice_id}`
-- `GET /api/graph/global` (ADMIN)
-- `POST /api/graph/sync/invoices/{invoice_id}` (ADMIN)
-- `POST /api/graph/sync/invoices` (ADMIN)
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/admin/users` (ADMIN)
-- `POST /api/admin/users` (ADMIN)
-- `PATCH /api/admin/users/{user_id}` (ADMIN)
-- `GET /api/admin/config/connectors` (ADMIN)
-- `GET /api/admin/config/providers` (ADMIN)
-- `PUT /api/admin/config/providers/{provider_name}` (ADMIN)
-- `GET /api/admin/config/extraction-fields` (ADMIN)
-- `POST /api/admin/config/extraction-fields` (ADMIN)
-- `GET /api/admin/config/workflow-rules` (ADMIN)
-- `PUT /api/admin/config/workflow-rules` (ADMIN)
-- `GET /api/admin/config/graph` (ADMIN)
-- `PUT /api/admin/config/graph` (ADMIN)
-- `GET /api/admin/graph/aliases` (ADMIN, query: `entity_type`)
-- `POST /api/admin/graph/aliases` (ADMIN)
-- `PUT /api/admin/graph/aliases/{alias_id}` (ADMIN)
-- `GET /api/admin/kpi/overview` (ADMIN)
-- `POST /api/admin/reset/invoice-pipeline` (ADMIN)
-- `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
-- `POST /api/admin/config/connectors/{connector_name}/test` (ADMIN)
-- `POST /api/ingestion/minio/pull` (ADMIN)
-- `POST /api/processing/documents/extract` (ADMIN)
-- `POST /api/processing/invoices/map` (ADMIN)
-- `POST /api/processing/invoices/validate` (ADMIN)
-- `GET /api/documents`
-- `GET /api/invoices`
-- `GET /api/invoices/{invoice_id}`
-- `GET /api/invoices/{invoice_id}/lines`
-- `GET /api/invoices/{invoice_id}/actions`
-- `GET /api/invoices/{invoice_id}/document`
-- `POST /api/invoices/{invoice_id}/approve`
-- `POST /api/invoices/{invoice_id}/reject`
-- `POST /api/invoices/{invoice_id}/hold`
-- `POST /api/invoices/{invoice_id}/request-clarification`
-- `GET /api/invoices/{invoice_id}/cases`
-- `PATCH /api/cases/{case_id}`
+## Implementierte API-Endpunkte (Auszug)
+- Health:
+  - `GET /api/health`
+  - `GET /api/health/graph`
+- Auth:
+  - `POST /api/auth/login`
+  - `POST /api/auth/register`
+  - `POST /api/auth/logout`
+  - `GET /api/auth/me`
+- Admin:
+  - `GET /api/admin/users`
+  - `POST /api/admin/users`
+  - `PATCH /api/admin/users/{user_id}`
+  - `GET /api/admin/config/providers`
+  - `PUT /api/admin/config/providers/{provider_name}`
+  - `GET /api/admin/config/connectors`
+  - `PUT /api/admin/config/connectors/{connector_name}`
+  - `POST /api/admin/config/connectors/{connector_name}/test`
+  - `GET /api/admin/config/extraction-fields`
+  - `POST /api/admin/config/extraction-fields`
+  - `GET /api/admin/config/workflow-rules`
+  - `PUT /api/admin/config/workflow-rules`
+  - `GET /api/admin/config/graph`
+  - `PUT /api/admin/config/graph`
+  - `GET /api/admin/graph/aliases?entity_type=...`
+  - `POST /api/admin/graph/aliases`
+  - `PUT /api/admin/graph/aliases/{alias_id}`
+  - `GET /api/admin/kpi/overview`
+  - `POST /api/admin/reset/invoice-pipeline`
+- Pipeline:
+  - `POST /api/ingestion/minio/pull`
+  - `POST /api/processing/documents/extract`
+  - `POST /api/processing/invoices/map`
+  - `POST /api/processing/invoices/validate`
+- Operative Nutzung:
+  - `GET /api/documents`
+  - `GET /api/invoices`
+  - `GET /api/invoices/{invoice_id}`
+  - `GET /api/invoices/{invoice_id}/lines`
+  - `GET /api/invoices/{invoice_id}/actions`
+  - `GET /api/invoices/{invoice_id}/document`
+  - `POST /api/invoices/{invoice_id}/approve`
+  - `POST /api/invoices/{invoice_id}/reject`
+  - `POST /api/invoices/{invoice_id}/hold`
+  - `POST /api/invoices/{invoice_id}/request-clarification`
+  - `GET /api/invoices/{invoice_id}/cases`
+  - `PATCH /api/cases/{case_id}`
+- Graph:
+  - `GET /api/graph/invoices/{invoice_id}`
+  - `GET /api/graph/global`
+  - `POST /api/graph/sync/invoices/{invoice_id}`
+  - `POST /api/graph/sync/invoices`
 
-## Supabase Tabellen
+## Tabellen (Supabase)
 - `insaights_users`
 - `insaights_admin_audit_log`
 - `insaights_config_connectors`
@@ -80,85 +102,23 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_invoice_actions`
 - `insaights_invoice_cases`
 
-Hinweis:
-- Die Anwendung nutzt bewusst keine generischen `app_*` Tabellen mehr.
-- Falls in einem geteilten Supabase-Projekt bereits `app_users` angepasst wurde:
-  - `supabase/reset_app_users_to_legacy.sql` ausfuehren.
+## Lokal starten
+1. `.env.example` nach `.env` kopieren.
+2. Backend starten:
+   - `cd backend`
+   - `pip install -r requirements.txt`
+   - `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+3. Frontend starten:
+   - `cd frontend`
+   - `npm install`
+   - `npm run dev`
 
-## MinIO Ingestion V1
-- Quelle aktuell: nur MinIO.
-- Mail- und REST-Connectoren sind im Zielbild enthalten, aber noch nicht implementiert.
-- MinIO-Connector muss in Admin-Config aktiviert sein (`enabled=true`).
-- Erwartete `config_json`-Felder fuer Connector `minio`:
-  - `endpoint` (nur Host[:Port], ohne Pfad; `https://...` ist erlaubt, Pfad aber nicht)
-  - `access_key`
-  - `secret_key`
-  - `bucket`
-  - optional: `prefix`, `secure` (default `true`)
-- Die Admin-Oberflaeche enthaelt dafuer eine MinIO-Sektion (Speichern/Testen/Pull + Dokumentliste + OCR/Extract + Invoice Mapping + Invoice Validation).
-- Mistral API Key wird ausschliesslich ueber die Admin-Oberflaeche gepflegt (`Provider (Mistral)`), nicht ueber Coolify-Env.
-- Feldextraktion fuer Rechnungen erfolgt im Mapping-Schritt modellbasiert ueber Mistral (strukturierter JSON-Output), nicht ueber starre Regex.
-- Welche Felder extrahiert werden, ist in der Admin-Oberflaeche konfigurierbar (`field_name`, `description`, `data_type`, `required`, `enabled`, `scope=header|line_item`).
-- Bestehende Extraktionsfelder koennen in der Tabelle direkt inline bearbeitet und zeilenweise gespeichert werden.
-- Die Tabelle zeigt pro Feld einen Status (`gespeichert` / `ungespeichert`), damit Aenderungen vor dem Speichern sichtbar sind.
-- Erkannte Rechnungspositionen werden in `insaights_invoice_lines` gespeichert.
-- Freigaben (`approve`) werden serverseitig gegen konfigurierbare Workflow-Regeln geprueft (Betragsgrenzen, Rollen, optional 4-Augen).
-- Workflow-Regeln werden in der Admin-UI formularbasiert gepflegt (kein JSON-Editor mehr): 4-Augen, VALIDATED-Pflicht, Betragsgrenzen, Lieferanten-Overrides.
-- Global-Reset ist in der Admin-UI verfuegbar: loescht Dokumente/Rechnungen/Positionen/Aktionen/Cases fuer komplettes Reprocessing (optional inkl. Neo4j-Reset).
+## Coolify (Kurz)
+- Deployment via `docker-compose.coolify.yml`
+- Details in `QUICKSTART.md` und `installation-neo4j-coolify.md`
 
-## Anwenderoberflaeche (Inbox)
-- Nicht-Admin-User sehen automatisch die AP-Inbox statt der Admin-Konsole.
-- Inbox umfasst:
-  - Filter nach Status
-  - Suche nach Lieferant/Rechnungsnummer
-  - Rechnungsdetailansicht
-  - Dokumentvorschau (PDF/Bild) in rechter Spalte
-  - Positionen (Line-Items) aus `insaights_invoice_lines`
-  - Operative Workflow-Aktionen `approve/reject/hold` mit Kommentar
-  - Rueckfrage-Aktion `request_clarification` mit automatischer Case-Anlage
-  - Aktions-Timeline je Rechnung
-  - Case-Tabelle pro Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
-- Layout wurde an die Referenzansicht "View Invoices" angepasst (3-Spalten-Ansicht: links Liste, Mitte Rechnungsdaten, rechts Dokumentvorschau).
-- Graph-Schicht ist nutzbar: Invoice-Subgraph kann pro Rechnung geladen werden; Admin kann Bulk-Sync nach Neo4j ausfuehren.
-- Admin kann zusaetzlich einen globalen Graph-Ausschnitt laden (`/api/graph/global`, limitiert ueber max_nodes/max_edges).
-- In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails); Knoten-Auswahl hebt passende Positionen/Aktionen hervor.
-- Rechnungen werden im Graph auch ueber gemeinsame Dimensionen verbunden (`HAS_STATUS`, `IN_CURRENCY`, optional `FOR_RECIPIENT` aus Extraktionsfeldern wie `empfaenger`).
-- Admin-Dashboard ist tab-basiert aufgebaut; Status-/Fehlermeldungen werden oben direkt unter dem Header angezeigt.
-- In der Inbox zeigt die Rechnungsdetailansicht zusaetzlich "Extrahierte Felder (Header)" inkl. Feldwert und Indikator, ob der Wert direkt aus dem LLM-Output kam.
-- Die Graph-Visualisierung kann zwischen `Datenebene`, `Anwendungsebene` und `Alles` umgeschaltet werden.
-- Felder der Graph-Datenebene sind in Admin konfigurierbar (`/api/admin/config/graph`) und werden beim Sync fuer Verknuepfungen ueber gemeinsame Feldwerte verwendet.
-- Empfaenger-Entity-Resolution ist aktiv: Varianten wie `Rost, Christian` und `Christian Rost` werden kanonisiert; Originalwert bleibt in `extraction_json` erhalten.
-- Beim Graph-Sync werden invoice-semantische Kanten pro Rechnung neu aufgebaut (keine Alt-Kanten); Empfaenger-Feldvarianten werden auf gemeinsame Dimension `recipient` vereinheitlicht.
-- Im Graph kann ein selektierter Node seine direkten Nachbarn hervorheben; indirekte Knoten/Kanten werden abgedunkelt.
-- Im Graph koennen Nodes per Click+Hold innerhalb der Flaeche verschoben werden (interaktive Layout-Anpassung).
-- Admin-Graph-Tab enthaelt ein generisches Alias-Review fuer beliebige Attribute (`entity_type`, `raw/normalized/canonical`) mit manueller Korrektur.
-- Zusaetzlich koennen Attribute-Aliase manuell angelegt werden (raw -> canonical), auch bevor ein Wert in Rechnungen vorkommt.
+## Wichtige Hinweise
+- Mistral API Key wird in der Admin-UI gepflegt, nicht ueber Coolify Env.
+- MinIO ist aktuell die einzige aktiv genutzte Ingestion-Quelle.
+- Architektur ist auf weitere Connectoren (Mail/REST) vorbereitet.
 
-## Coolify
-
-Fuer Coolify kann `docker-compose.coolify.yml` verwendet werden.
-Die Neo4j-Installation ist in `installation-neo4j-coolify.md` dokumentiert.
-
-### Coolify Quickstart
-1. In Coolify `New Resource` -> `Docker Compose` waehlen.
-2. Repository `https://github.com/christian-rost/insAIghts` verbinden.
-3. `docker-compose.coolify.yml` als Compose-Datei verwenden.
-4. Folgende Variablen setzen:
-   - `JWT_SECRET`
-   - `CORS_ORIGINS` (Frontend-URL)
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY`
-   - `ADMIN_USERNAME`
-   - `ADMIN_PASSWORD`
-   - `VITE_API_BASE` (Backend-URL, z. B. `https://api.deinedomain.tld`)
-   - `GRAPH_DB_URI` (default `bolt://neo4j:7687`)
-   - `GRAPH_DB_USER` (default `neo4j`)
-   - `GRAPH_DB_PASSWORD`
-5. Deploy starten.
-6. Nach Deploy pruefen:
-   - `GET /api/health` am Backend
-   - Frontend-Login mit Bootstrap-Admin
-
-Hinweis:
-- In Coolify bei Compose-Services keine festen Host-Ports fuer Web-Services erzwingen.
-- Domains/Ingress in Coolify steuern den Zugriff; Compose nutzt intern `expose`.

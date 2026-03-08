@@ -1,5 +1,7 @@
 # Admin-Feature-Spezifikation (MVP)
 
+Stand: 08.03.2026
+
 ## 1. Ziel
 Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, Rechte und Runtime-Konfiguration. Ziel ist, fachliche und operative Parameter ueber die Admin-Oberflaeche zu steuern statt ueber Coolify-Environment-Variablen.
 
@@ -123,31 +125,27 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 
 ## 5.1 Auth
 - Login-Identitaet: `username`
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
 ## 5.2 Benutzer
-- `GET /admin/users`
-- `POST /admin/users`
-- `PATCH /admin/users/{id}`
-- `POST /admin/users/{id}/reset-password`
-- `POST /admin/users/{id}/deactivate`
-- `POST /admin/users/{id}/reactivate`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/{user_id}`
 
 ## 5.3 Rollen
-- `GET /admin/roles`
-- `PUT /admin/users/{id}/roles`
+- Rollen werden aktuell ueber Benutzer-Update (`PATCH /api/admin/users/{user_id}`) gepflegt.
 
 ## 5.4 Provider/Secrets
-- `GET /admin/config/providers`
-- `PUT /admin/config/providers/{provider}`
-- `POST /admin/config/providers/{provider}/test`
+- `GET /api/admin/config/providers`
+- `PUT /api/admin/config/providers/{provider_name}`
 
 ## 5.5 Connectoren
-- `GET /admin/config/connectors`
-- `PUT /admin/config/connectors/{connector}`
-- `POST /admin/config/connectors/{connector}/test`
+- `GET /api/admin/config/connectors`
+- `PUT /api/admin/config/connectors/{connector_name}`
+- `POST /api/admin/config/connectors/{connector_name}/test`
 
 ## 5.6 Workflow-Regeln
 - `GET /admin/config/workflow-rules`
@@ -172,10 +170,10 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - Zweck: Vollstaendiger Reset der Rechnungs-Pipeline fuer Reprocessing nach Feld-/Prompt-Aenderungen.
 
 ## 5.10 Audit
-- `GET /admin/audit/events`
-- `GET /admin/audit/events/{id}`
+- Audit wird aktuell primaer ueber persistente Events in `insaights_admin_audit_log` bereitgestellt.
+- Separate Audit-Read-Endpoints sind als Ausbaupunkt vorgesehen.
 
-## 5.11 Aktuell implementierter API-Stand (04.03.2026)
+## 5.11 Aktuell implementierter API-Stand (08.03.2026)
 - `GET /api/admin/users`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
@@ -211,6 +209,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `app_config_provider_keys.key_ciphertext` (encrypted at rest).
 - `app_admin_audit_log.diff_before` / `diff_after` fuer Nachvollziehbarkeit.
 - Soft-delete bevorzugt fuer Benutzer (`is_active=false`).
+- Alias-Management ist generisch auf `entity_type` ausgelegt (Tabelle bleibt aus Kompatibilitaetsgruenden `insaights_recipient_aliases`).
 
 ## 7. Coolify Env-Minimum
 ### Pflicht

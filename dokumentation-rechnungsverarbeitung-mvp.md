@@ -252,40 +252,55 @@ Regeln:
 - Kritische Transitionen erfordern Rollencheck und optional Purpose-Text.
 
 ## 9. API-Schnittstellen (MVP)
-- `POST /ingestion/mail/pull`
-- `POST /ingestion/rest/pull`
-- `POST /ingestion/minio/pull`
-- `GET /invoices`
-- `GET /invoices/{id}`
-- `POST /invoices/{id}/validate`
-- `POST /invoices/{id}/approve`
-- `POST /invoices/{id}/reject`
-- `POST /invoices/{id}/hold`
-- `POST /invoices/{id}/request-clarification`
-- `GET /invoices/{id}/cases`
-- `PATCH /cases/{id}`
-- `GET /graph/{objectType}/{id}`
-- `GET /audit/{objectType}/{id}`
+Aktuell implementierte Kernendpunkte:
+- `POST /api/ingestion/minio/pull`
+- `POST /api/processing/documents/extract`
+- `POST /api/processing/invoices/map`
+- `POST /api/processing/invoices/validate`
+- `GET /api/invoices`
+- `GET /api/invoices/{invoice_id}`
+- `GET /api/invoices/{invoice_id}/lines`
+- `GET /api/invoices/{invoice_id}/actions`
+- `GET /api/invoices/{invoice_id}/document`
+- `POST /api/invoices/{invoice_id}/approve`
+- `POST /api/invoices/{invoice_id}/reject`
+- `POST /api/invoices/{invoice_id}/hold`
+- `POST /api/invoices/{invoice_id}/request-clarification`
+- `GET /api/invoices/{invoice_id}/cases`
+- `PATCH /api/cases/{case_id}`
+- `GET /api/graph/invoices/{invoice_id}`
+- `GET /api/graph/global`
+- `POST /api/graph/sync/invoices/{invoice_id}`
+- `POST /api/graph/sync/invoices`
+
+Geplante naechste Ingestion-Endpunkte (noch nicht produktiv):
+- `POST /api/ingestion/mail/pull`
+- `POST /api/ingestion/rest/pull`
 
 ### 9.1 Admin- und User-Management APIs (MVP)
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
-- `GET /admin/users`
-- `POST /admin/users`
-- `PATCH /admin/users/{id}`
-- `POST /admin/users/{id}/reset-password`
-- `POST /admin/users/{id}/deactivate`
-- `POST /admin/users/{id}/reactivate`
-- `GET /admin/config/providers`
-- `PUT /admin/config/providers/{provider}`
-- `GET /admin/config/connectors`
-- `PUT /admin/config/connectors/{connector}`
-- `GET /admin/config/workflow-rules`
-- `PUT /admin/config/workflow-rules`
-- `GET /admin/kpi/overview`
-- `POST /admin/reset/invoice-pipeline`
-- `GET /admin/audit/events`
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/{user_id}`
+- `GET /api/admin/config/providers`
+- `PUT /api/admin/config/providers/{provider_name}`
+- `GET /api/admin/config/connectors`
+- `PUT /api/admin/config/connectors/{connector_name}`
+- `POST /api/admin/config/connectors/{connector_name}/test`
+- `GET /api/admin/config/extraction-fields`
+- `POST /api/admin/config/extraction-fields`
+- `GET /api/admin/config/workflow-rules`
+- `PUT /api/admin/config/workflow-rules`
+- `GET /api/admin/config/graph`
+- `PUT /api/admin/config/graph`
+- `GET /api/admin/graph/aliases?entity_type=...`
+- `POST /api/admin/graph/aliases`
+- `PUT /api/admin/graph/aliases/{alias_id}`
+- `GET /api/admin/kpi/overview`
+- `POST /api/admin/reset/invoice-pipeline`
 
 Festlegung:
 - Login-Identitaet ist `username` (nicht E-Mail).
@@ -531,10 +546,13 @@ Festlegung:
   - `admin-feature-spezifikation.md`
 - Jede Sprint-Abnahme prueft explizit den Doku-Stand als DoD-Kriterium.
 
-## 18. Verifizierter Status (Stand: 04.03.2026)
+## 18. Verifizierter Status (Stand: 08.03.2026)
 - E2E-MinIO-Flow laeuft: Pull -> OCR/Extract -> Mapping -> Validation -> User-Workflow.
 - User-Inbox inkl. PDF/Bild-Vorschau und Actions-Timeline ist produktiv im Dev-Stand vorhanden.
 - LLM-Feldextraktion ist ueber Admin-UI konfigurierbar (Feldname + Beschreibung + Typ + Pflicht + Aktiv + Reihenfolge).
+- Graph-Datenebene ist ueber Admin konfigurierbar; Bulk-Sync und Global-Graph sind verfuegbar.
+- Alias-Management ist generisch pro Attribut (`entity_type`) verfuegbar, inkl. manueller Pflege in der Admin-UI.
+- Graph-Interaktion umfasst Knotenselektion (direkte Nachbarn hervorheben, indirekte abdunkeln) und Click+Hold-Dragging.
 - Offene Schwerpunkte fuer naechste Iteration:
   - Mail- und REST-Ingestion umsetzen.
   - Graph-/Ontologie-Schicht auf weitere Objektklassen erweitern (PO, GoodsReceipt, Case) und Graph-Visualisierung vertiefen.
