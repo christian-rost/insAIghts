@@ -126,6 +126,8 @@ Hinweis:
 - Felder der Graph-Datenebene sind in Admin konfigurierbar (`/api/admin/config/graph`) und werden beim Sync fuer Verknuepfungen ueber gemeinsame Feldwerte verwendet.
 - Empfaenger-Entity-Resolution ist aktiv: Varianten wie `Rost, Christian` und `Christian Rost` werden kanonisiert; Originalwert bleibt in `extraction_json` erhalten.
 - Beim Graph-Sync werden invoice-semantische Kanten pro Rechnung neu aufgebaut (keine Alt-Kanten); Empfaenger-Feldvarianten werden auf gemeinsame Dimension `recipient` vereinheitlicht.
+- Im Graph kann ein selektierter Node seine direkten Nachbarn hervorheben; indirekte Knoten/Kanten werden abgedunkelt.
+- Admin-Graph-Tab enthaelt Alias-Review fuer Empfaenger (`raw/normalized/canonical`) mit manueller Korrektur.
 
 ## Coolify
 

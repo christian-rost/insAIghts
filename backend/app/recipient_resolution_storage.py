@@ -124,6 +124,46 @@ def _list_aliases(limit: int = 500) -> List[Dict[str, Any]]:
     return [_normalize_row(r) for r in rows[:limit]]
 
 
+def list_recipient_aliases(limit: int = 500, search: str = "") -> List[Dict[str, Any]]:
+    rows = _list_aliases(limit=max(limit, 2000))
+    needle = str(search or "").strip().lower()
+    if needle:
+        rows = [
+            r
+            for r in rows
+            if needle in str(r.get("raw_value") or "").lower()
+            or needle in str(r.get("normalized_value") or "").lower()
+            or needle in str(r.get("canonical_value") or "").lower()
+        ]
+    return rows[:limit]
+
+
+def update_recipient_alias(alias_id: str, canonical_value: str, match_method: str = "manual") -> Optional[Dict[str, Any]]:
+    canonical = _title_case_name(normalize_recipient_name(canonical_value)) or str(canonical_value or "").strip()
+    if not canonical:
+        return None
+
+    db = get_db()
+    payload = {
+        "canonical_value": canonical,
+        "match_method": match_method,
+        "confidence": 1.0,
+        "updated_at": _now_iso(),
+    }
+    if db:
+        result = db.table(RECIPIENT_ALIASES_TABLE).update(payload).eq("id", alias_id).execute()
+        rows = result.data or []
+        return _normalize_row(rows[0]) if rows else None
+
+    for key, row in _mem_aliases.items():
+        if str(row.get("id") or "") != alias_id:
+            continue
+        row.update(payload)
+        _mem_aliases[key] = row
+        return _normalize_row(row)
+    return None
+
+
 def resolve_recipient_name(raw_value: str) -> Tuple[str, Dict[str, Any]]:
     raw = str(raw_value or "").strip()
     if not raw:

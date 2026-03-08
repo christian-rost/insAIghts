@@ -504,6 +504,8 @@ Festlegung:
   - Graph-Darstellung ist in Layer getrennt umschaltbar: Datenebene / Anwendungsebene / Alles
   - Felder der Graph-Datenebene sind ueber Admin konfigurierbar und steuern, welche gemeinsamen Feldwerte Rechnungen verknuepfen
   - Empfaenger-Felder in der Datenebene laufen ueber Entity-Resolution (Normalisierung + Alias-Mapping + Fuzzy-Match), damit Namensvarianten auf einen kanonischen Node gemappt werden
+  - Alias-Review im Admin-Graph-Tab erlaubt manuelle Korrektur von canonical Empfaenger-Werten
+  - Graph-Interaktion: Klick auf Node hebt direkte Nachbarn hervor, indirekte Knoten/Kanten werden visuell abgedunkelt
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Admin-Ansicht kann zusaetzlich einen globalen Graph-Ausschnitt laden und visualisieren
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)

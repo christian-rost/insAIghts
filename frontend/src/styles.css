@@ -587,6 +587,16 @@ label {
   opacity: 0.9;
 }
 
+.graph-edge-direct {
+  stroke: #64748b;
+  stroke-width: 1.8;
+  opacity: 1;
+}
+
+.graph-edge-dim {
+  opacity: 0.2;
+}
+
 .graph-node {
   stroke: #ffffff;
   stroke-width: 2.3;
@@ -598,10 +608,18 @@ label {
   stroke-width: 2.8;
 }
 
+.graph-node-dim {
+  opacity: 0.28;
+}
+
 .graph-label {
   font-size: 11px;
   fill: #334155;
   pointer-events: none;
+}
+
+.graph-label-dim {
+  opacity: 0.25;
 }
 
 .graph-node-detail {

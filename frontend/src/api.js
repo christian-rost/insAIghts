@@ -371,6 +371,29 @@ export async function updateGraphConfig(token, dataLayerFields) {
   return handleJson(response)
 }
 
+export async function listRecipientAliases(token, { limit = 200, search = "" } = {}) {
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    search: search || "",
+  })
+  const response = await fetch(`${API_BASE}/api/admin/graph/recipient-aliases?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateRecipientAlias(token, aliasId, canonicalValue) {
+  const response = await fetch(`${API_BASE}/api/admin/graph/recipient-aliases/${encodeURIComponent(aliasId)}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ canonical_value: canonicalValue }),
+  })
+  return handleJson(response)
+}
+
 export async function getKpiOverview(token) {
   const response = await fetch(`${API_BASE}/api/admin/kpi/overview`, {
     headers: { ...authHeaders(token) },

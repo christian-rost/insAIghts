@@ -18,6 +18,7 @@ import {
   listInvoiceLines,
   listInvoices,
   listConnectors,
+  listRecipientAliases,
   listDocuments,
   listProviders,
   listUsers,
@@ -29,6 +30,7 @@ import {
   register,
   resetInvoicePipeline,
   updateProvider,
+  updateRecipientAlias,
   upsertExtractionField,
   syncInvoicesGraphBulk,
   updateCase,
@@ -287,6 +289,9 @@ function AdminView({ token, currentUser, onLogout }) {
   const [adminTab, setAdminTab] = useState("kpi")
   const [graphFieldOptions, setGraphFieldOptions] = useState(CORE_GRAPH_FIELD_OPTIONS)
   const [selectedGraphFields, setSelectedGraphFields] = useState(CORE_GRAPH_FIELD_OPTIONS)
+  const [recipientAliases, setRecipientAliases] = useState([])
+  const [recipientAliasDrafts, setRecipientAliasDrafts] = useState({})
+  const [recipientAliasSearch, setRecipientAliasSearch] = useState("")
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -400,6 +405,20 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  async function loadRecipientAliases(search = recipientAliasSearch) {
+    try {
+      const rows = await listRecipientAliases(token, { limit: 300, search })
+      setRecipientAliases(rows || [])
+      const drafts = {}
+      for (const row of rows || []) {
+        drafts[row.id] = row.canonical_value || ""
+      }
+      setRecipientAliasDrafts(drafts)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
   async function loadWorkflowRules() {
     try {
       const row = await getWorkflowRules(token)
@@ -426,6 +445,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadInvoicesList()
     loadExtractionFields()
     loadGraphConfig()
+    loadRecipientAliases("")
     loadWorkflowRules()
     loadKpi()
   }, [])
@@ -1333,6 +1353,82 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
 
               <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">EMPFAENGER ALIAS REVIEW</div>
+                <div className="actions-row">
+                  <input
+                    className="input"
+                    value={recipientAliasSearch}
+                    onChange={(e) => setRecipientAliasSearch(e.target.value)}
+                    placeholder="Suche Alias..."
+                  />
+                  <button className="btn btn-outline" type="button" onClick={() => loadRecipientAliases(recipientAliasSearch)}>
+                    Suchen
+                  </button>
+                  <button className="btn btn-outline" type="button" onClick={() => { setRecipientAliasSearch(""); loadRecipientAliases("") }}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>RAW</th>
+                    <th>NORMALIZED</th>
+                    <th>CANONICAL</th>
+                    <th>METHOD</th>
+                    <th>CONF</th>
+                    <th>AKTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recipientAliases.length === 0 ? (
+                    <tr><td colSpan={6}>Keine Alias-Daten gefunden.</td></tr>
+                  ) : (
+                    recipientAliases.map((row) => {
+                      const draft = recipientAliasDrafts[row.id] ?? row.canonical_value ?? ""
+                      const dirty = (draft || "").trim() !== (row.canonical_value || "").trim()
+                      return (
+                        <tr key={row.id}>
+                          <td>{row.raw_value || "-"}</td>
+                          <td className="mono">{row.normalized_value || "-"}</td>
+                          <td>
+                            <input
+                              className="input"
+                              value={draft}
+                              onChange={(e) => setRecipientAliasDrafts((all) => ({ ...all, [row.id]: e.target.value }))}
+                            />
+                          </td>
+                          <td>{row.match_method || "-"}</td>
+                          <td>{row.confidence ?? "-"}</td>
+                          <td>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              type="button"
+                              disabled={!dirty}
+                              onClick={async () => {
+                                try {
+                                  setError("")
+                                  setNotice("")
+                                  await updateRecipientAlias(token, row.id, draft)
+                                  await loadRecipientAliases(recipientAliasSearch)
+                                  setNotice(`Alias aktualisiert: ${row.raw_value}`)
+                                } catch (err) {
+                                  setError(String(err.message || err))
+                                }
+                              }}
+                            >
+                              Speichern
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+
+              <div className="invoice-divider" />
               <div className="actions-row">
                 <label>
                   Max Invoices
@@ -1638,6 +1734,22 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     [nodes, selectedNodeId],
   )
 
+  const adjacency = useMemo(() => {
+    const map = new Map()
+    for (const node of nodes) {
+      map.set(String(node.id), new Set())
+    }
+    for (const edge of edges) {
+      const s = String(edge.source || "")
+      const t = String(edge.target || "")
+      if (!map.has(s)) map.set(s, new Set())
+      if (!map.has(t)) map.set(t, new Set())
+      map.get(s).add(t)
+      map.get(t).add(s)
+    }
+    return map
+  }, [nodes, edges])
+
   useEffect(() => {
     setSelectedNodeId("")
     if (onNodeSelect) onNodeSelect(null)
@@ -1676,6 +1788,21 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     return "#334155"
   }
 
+  function isNodeDirectlyConnected(nodeId) {
+    if (!selectedNodeId) return true
+    const id = String(nodeId)
+    if (id === String(selectedNodeId)) return true
+    return adjacency.get(String(selectedNodeId))?.has(id) || false
+  }
+
+  function isEdgeDirectlyConnected(edge) {
+    if (!selectedNodeId) return true
+    const s = String(edge.source || "")
+    const t = String(edge.target || "")
+    const selected = String(selectedNodeId)
+    return s === selected || t === selected
+  }
+
   return (
     <div className="graph-panel">
       <div className="graph-toolbar">
@@ -1701,6 +1828,8 @@ function GraphCanvas({ graphData, onNodeSelect }) {
         }}
         onMouseDown={(e) => {
           if (e.target.closest("circle")) return
+          setSelectedNodeId("")
+          if (onNodeSelect) onNodeSelect(null)
           dragStateRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
         }}
         onMouseMove={(e) => {
@@ -1718,6 +1847,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
             const source = nodeMap.get(String(edge.source))
             const target = nodeMap.get(String(edge.target))
             if (!source || !target) return null
+            const direct = isEdgeDirectlyConnected(edge)
             return (
               <line
                 key={edge.id}
@@ -1725,12 +1855,13 @@ function GraphCanvas({ graphData, onNodeSelect }) {
                 y1={source.y}
                 x2={target.x}
                 y2={target.y}
-                className="graph-edge"
+                className={direct ? "graph-edge graph-edge-direct" : "graph-edge graph-edge-dim"}
               />
             )
           })}
           {nodes.map((node) => {
             const selected = String(selectedNodeId) === String(node.id)
+            const direct = isNodeDirectlyConnected(node.id)
             return (
               <g
                 key={node.id}
@@ -1745,9 +1876,9 @@ function GraphCanvas({ graphData, onNodeSelect }) {
                   cy={node.y}
                   r={selected ? 14 : 11}
                   fill={nodeColor(node)}
-                  className={selected ? "graph-node selected" : "graph-node"}
+                  className={selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}
                 />
-                <text x={node.x + 16} y={node.y + 4} className="graph-label">
+                <text x={node.x + 16} y={node.y + 4} className={direct ? "graph-label" : "graph-label graph-label-dim"}>
                   {nodeLabel(node).slice(0, 48)}
                 </text>
               </g>

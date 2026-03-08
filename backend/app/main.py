@@ -40,6 +40,7 @@ from .invoice_storage import (
 from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
+from .recipient_resolution_storage import list_recipient_aliases, update_recipient_alias
 from .reset_service import reset_invoice_pipeline_data
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 from .workflow_rules_storage import get_workflow_rules, update_workflow_rules
@@ -175,6 +176,23 @@ class GraphConfigResponse(BaseModel):
 
 class GraphConfigUpdateRequest(BaseModel):
     data_layer_fields: List[str] = Field(default_factory=list)
+
+
+class RecipientAliasResponse(BaseModel):
+    id: str
+    entity_type: str
+    raw_value: str
+    raw_value_key: str
+    normalized_value: str
+    canonical_value: str
+    match_method: str
+    confidence: float
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class RecipientAliasUpdateRequest(BaseModel):
+    canonical_value: str = Field(min_length=1, max_length=255)
 
 
 class InvoiceCaseResponse(BaseModel):
@@ -552,6 +570,39 @@ async def admin_update_graph_config(
         diff_after={"graph_config": after.get("config_json")},
     )
     return GraphConfigResponse(**after)
+
+
+@app.get("/api/admin/graph/recipient-aliases", response_model=List[RecipientAliasResponse])
+async def admin_list_recipient_aliases(
+    limit: int = 200,
+    search: str = "",
+    _: Dict = Depends(require_admin),
+) -> List[RecipientAliasResponse]:
+    rows = list_recipient_aliases(limit=limit, search=search)
+    return [RecipientAliasResponse(**r) for r in rows]
+
+
+@app.put("/api/admin/graph/recipient-aliases/{alias_id}", response_model=RecipientAliasResponse)
+async def admin_update_recipient_alias(
+    alias_id: str,
+    payload: RecipientAliasUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> RecipientAliasResponse:
+    before_rows = [r for r in list_recipient_aliases(limit=2000) if str(r.get("id") or "") == alias_id]
+    before = before_rows[0] if before_rows else None
+    updated = update_recipient_alias(alias_id, payload.canonical_value, match_method="manual")
+    if not updated:
+        raise HTTPException(status_code=404, detail="Recipient alias not found")
+    log_admin_event(
+        event_type="admin.recipient_alias_updated",
+        actor_user_id=admin_user["id"],
+        target_type="recipient_alias",
+        target_id=alias_id,
+        metadata_json={"canonical_value": updated.get("canonical_value")},
+        diff_before={"alias": before} if before else None,
+        diff_after={"alias": updated},
+    )
+    return RecipientAliasResponse(**updated)
 
 
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)
