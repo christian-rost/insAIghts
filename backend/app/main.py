@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 
 from .auth import authenticate_user, create_access_token, get_current_user, require_admin
-from .audit_storage import log_admin_event
+from .audit_storage import list_admin_events, log_admin_event
 from .case_storage import create_case, get_case_by_id, list_cases, update_case
 from .config import ADMIN_PASSWORD, ADMIN_USERNAME, CORS_ORIGINS
 from .config_storage import get_connector, list_connectors, update_connector
@@ -17,8 +17,15 @@ from .document_storage import (
     delete_document,
     get_document_by_id,
     list_documents,
+    list_documents_by_ids,
     list_documents_by_status,
     update_document,
+)
+from .document_delete_request_storage import (
+    create_delete_request,
+    get_delete_request_by_id,
+    list_delete_requests,
+    update_delete_request,
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
@@ -243,6 +250,31 @@ class MinioPreviewRequest(BaseModel):
     max_objects: int = Field(default=200, ge=1, le=5000)
 
 
+class PipelineRunRequest(BaseModel):
+    max_objects: int = Field(default=200, ge=1, le=5000)
+    object_names: Optional[List[str]] = None
+    max_extract: int = Field(default=200, ge=1, le=5000)
+    max_map: int = Field(default=200, ge=1, le=5000)
+    max_validate: int = Field(default=200, ge=1, le=5000)
+    sync_limit: int = Field(default=200, ge=1, le=5000)
+
+
+class ReprocessDocumentsRequest(BaseModel):
+    document_ids: List[str] = Field(default_factory=list)
+    run_extract: bool = True
+    run_map: bool = True
+    run_validate: bool = True
+    run_graph_sync: bool = True
+
+
+class DeleteRequestCreateRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=2000)
+
+
+class DeleteRequestReviewRequest(BaseModel):
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
 def _build_minio_duplicate_indexes() -> Dict[str, Any]:
     docs = list_documents(limit=20000)
     by_source_uri = {}
@@ -257,6 +289,16 @@ def _build_minio_duplicate_indexes() -> Dict[str, Any]:
         if etag and size > 0:
             by_fingerprint[f"{etag}:{size}"] = doc
     return {"by_source_uri": by_source_uri, "by_fingerprint": by_fingerprint}
+
+
+def _delete_invoice_bundle(invoice_id: str) -> Dict[str, Any]:
+    graph_result = graph_remove_invoice(invoice_id)
+    deleted = delete_invoice(invoice_id)
+    return {
+        "invoice_id": invoice_id,
+        "invoice_deleted": bool(deleted),
+        "graph_result": graph_result,
+    }
 
 
 ALLOWED_ACTION_TRANSITIONS = {
@@ -758,6 +800,12 @@ async def admin_kpi_overview(_: Dict = Depends(require_admin)) -> Dict:
     return get_kpi_overview(limit=5000)
 
 
+@app.get("/api/admin/audit/events")
+async def admin_audit_events(limit: int = 200, _: Dict = Depends(require_admin)) -> Dict:
+    rows = list_admin_events(limit=max(1, min(limit, 2000)))
+    return {"count": len(rows), "items": rows}
+
+
 @app.get("/api/admin/graph/insights")
 async def admin_graph_insights(limit: int = 10, _: Dict = Depends(require_admin)) -> Dict:
     return graph_get_insights(limit=limit)
@@ -850,6 +898,138 @@ async def admin_reset_invoice_pipeline(
         "status": "ok",
         "data_reset": data_reset_result,
         "graph_reset": graph_reset_result,
+    }
+
+
+@app.post("/api/admin/pipeline/run")
+async def admin_pipeline_run(
+    payload: PipelineRunRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    pull_res = await ingestion_minio_pull(
+        MinioPullRequest(max_objects=payload.max_objects, object_names=payload.object_names),
+        admin_user,
+    )
+    extract_res = await processing_documents_extract(
+        ExtractDocumentsRequest(max_documents=payload.max_extract),
+        admin_user,
+    )
+    map_res = await processing_invoices_map(
+        MapInvoicesRequest(max_documents=payload.max_map),
+        admin_user,
+    )
+    validate_res = await processing_invoices_validate(
+        ValidateInvoicesRequest(max_invoices=payload.max_validate),
+        admin_user,
+    )
+    graph_res = await graph_sync_invoices_bulk(
+        limit=payload.sync_limit,
+        admin_user=admin_user,
+    )
+
+    summary = {
+        "pull_created": pull_res.get("created", 0),
+        "pull_skipped": pull_res.get("skipped", 0),
+        "extract_ok": extract_res.get("extracted", 0),
+        "extract_failed": extract_res.get("failed", 0),
+        "map_ok": map_res.get("mapped", 0),
+        "map_failed": map_res.get("failed", 0),
+        "validate_ok": validate_res.get("validated", 0),
+        "validate_needs_review": validate_res.get("needs_review", 0),
+        "validate_failed": validate_res.get("failed", 0),
+        "graph_synced": graph_res.get("synced", 0),
+        "graph_failed": graph_res.get("failed", 0),
+    }
+    log_admin_event(
+        event_type="admin.pipeline_run",
+        actor_user_id=admin_user["id"],
+        target_type="pipeline",
+        target_id="one_click",
+        metadata_json=summary,
+    )
+    return {
+        "status": "ok",
+        "summary": summary,
+        "steps": {
+            "pull": pull_res,
+            "extract": extract_res,
+            "map": map_res,
+            "validate": validate_res,
+            "graph_sync": graph_res,
+        },
+    }
+
+
+@app.post("/api/admin/reprocess/documents")
+async def admin_reprocess_documents(
+    payload: ReprocessDocumentsRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    doc_ids = [str(x or "").strip() for x in (payload.document_ids or []) if str(x or "").strip()]
+    if not doc_ids:
+        raise HTTPException(status_code=400, detail="document_ids required")
+
+    docs = list_documents_by_ids(doc_ids, limit=len(doc_ids) + 20)
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found")
+
+    reset_details = []
+    for doc in docs:
+        doc_id = str(doc.get("id") or "")
+        invs = list_invoices_by_document_id(doc_id, limit=200)
+        for inv in invs:
+            inv_id = str(inv.get("id") or "")
+            if not inv_id:
+                continue
+            reset_details.append(_delete_invoice_bundle(inv_id))
+        update_document(doc_id, {"status": "INGESTED", "extracted_text": None})
+
+    extract_res: Dict[str, Any] = {"status": "skipped"}
+    map_res: Dict[str, Any] = {"status": "skipped"}
+    validate_res: Dict[str, Any] = {"status": "skipped"}
+    graph_res: Dict[str, Any] = {"status": "skipped"}
+    if payload.run_extract:
+        extract_res = await processing_documents_extract(
+            ExtractDocumentsRequest(max_documents=max(1, len(docs))),
+            admin_user,
+        )
+    if payload.run_map:
+        map_res = await processing_invoices_map(
+            MapInvoicesRequest(max_documents=max(1, len(docs))),
+            admin_user,
+        )
+    if payload.run_validate:
+        validate_res = await processing_invoices_validate(
+            ValidateInvoicesRequest(max_invoices=max(1, len(docs) * 3)),
+            admin_user,
+        )
+    if payload.run_graph_sync:
+        graph_res = await graph_sync_invoices_bulk(limit=max(50, len(docs) * 3), admin_user=admin_user)
+
+    log_admin_event(
+        event_type="admin.documents_reprocessed",
+        actor_user_id=admin_user["id"],
+        target_type="documents",
+        target_id="batch",
+        metadata_json={
+            "document_ids": doc_ids,
+            "reset_count": len(reset_details),
+            "extract": extract_res.get("status"),
+            "map": map_res.get("status"),
+            "validate": validate_res.get("status"),
+            "graph_sync": graph_res.get("status"),
+        },
+    )
+    return {
+        "status": "ok",
+        "documents": [str(d.get("id") or "") for d in docs],
+        "reset_details": reset_details,
+        "steps": {
+            "extract": extract_res,
+            "map": map_res,
+            "validate": validate_res,
+            "graph_sync": graph_res,
+        },
     }
 
 
@@ -1060,10 +1240,10 @@ async def admin_delete_document(
         inv_id = str(inv.get("id") or "")
         if not inv_id:
             continue
-        deleted = delete_invoice(inv_id)
-        if deleted:
+        bundle = _delete_invoice_bundle(inv_id)
+        if bundle.get("invoice_deleted"):
             deleted_invoices.append(inv_id)
-        graph_results.append(graph_remove_invoice(inv_id))
+        graph_results.append(bundle.get("graph_result"))
 
     deleted_doc = delete_document(document_id)
     if not deleted_doc:
@@ -1540,6 +1720,122 @@ async def invoice_request_clarification(
     current_user: Dict = Depends(get_current_user),
 ) -> Dict:
     return _execute_invoice_action("request_clarification", invoice_id, payload, current_user)
+
+
+@app.post("/api/invoices/{invoice_id}/delete-request")
+async def invoice_delete_request(
+    invoice_id: str,
+    payload: DeleteRequestCreateRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    invoice = get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    created = create_delete_request(
+        invoice_id=invoice_id,
+        document_id=str(invoice.get("document_id") or "") or None,
+        reason=payload.reason.strip(),
+        requested_by_user_id=str(current_user.get("id") or ""),
+        requested_by_username=str(current_user.get("username") or "") or None,
+    )
+    log_admin_event(
+        event_type="invoices.delete_request_created",
+        actor_user_id=current_user["id"],
+        target_type="invoice_delete_request",
+        target_id=str(created.get("id") or ""),
+        metadata_json={
+            "invoice_id": invoice_id,
+            "document_id": created.get("document_id"),
+        },
+        diff_after={"delete_request": created},
+    )
+    return {"status": "ok", "request": created}
+
+
+@app.get("/api/admin/delete-requests")
+async def admin_list_delete_requests(status: str = "", limit: int = 200, _: Dict = Depends(require_admin)) -> Dict:
+    rows = list_delete_requests(status=status.strip() or None, limit=max(1, min(limit, 2000)))
+    return {"count": len(rows), "items": rows}
+
+
+@app.post("/api/admin/delete-requests/{request_id}/approve")
+async def admin_approve_delete_request(
+    request_id: str,
+    payload: DeleteRequestReviewRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    req = get_delete_request_by_id(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Delete request not found")
+    if str(req.get("status") or "") != "PENDING":
+        raise HTTPException(status_code=409, detail="Delete request already processed")
+
+    invoice_id = str(req.get("invoice_id") or "")
+    document_id = str(req.get("document_id") or "")
+    invoice_result = _delete_invoice_bundle(invoice_id) if invoice_id else None
+    document_result = delete_document(document_id) if document_id else None
+
+    updated = update_delete_request(
+        request_id,
+        {
+            "status": "APPROVED",
+            "review_note": payload.note,
+            "reviewed_by_user_id": admin_user.get("id"),
+            "reviewed_by_username": admin_user.get("username"),
+        },
+    )
+    log_admin_event(
+        event_type="admin.delete_request_approved",
+        actor_user_id=admin_user["id"],
+        target_type="invoice_delete_request",
+        target_id=request_id,
+        metadata_json={
+            "invoice_id": invoice_id,
+            "document_id": document_id,
+            "invoice_result": invoice_result,
+            "document_deleted": bool(document_result),
+        },
+        diff_before={"delete_request": req},
+        diff_after={"delete_request": updated},
+    )
+    return {
+        "status": "ok",
+        "request": updated,
+        "invoice_result": invoice_result,
+        "document_deleted": bool(document_result),
+    }
+
+
+@app.post("/api/admin/delete-requests/{request_id}/reject")
+async def admin_reject_delete_request(
+    request_id: str,
+    payload: DeleteRequestReviewRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> Dict:
+    req = get_delete_request_by_id(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Delete request not found")
+    if str(req.get("status") or "") != "PENDING":
+        raise HTTPException(status_code=409, detail="Delete request already processed")
+    updated = update_delete_request(
+        request_id,
+        {
+            "status": "REJECTED",
+            "review_note": payload.note,
+            "reviewed_by_user_id": admin_user.get("id"),
+            "reviewed_by_username": admin_user.get("username"),
+        },
+    )
+    log_admin_event(
+        event_type="admin.delete_request_rejected",
+        actor_user_id=admin_user["id"],
+        target_type="invoice_delete_request",
+        target_id=request_id,
+        metadata_json={"invoice_id": req.get("invoice_id"), "document_id": req.get("document_id")},
+        diff_before={"delete_request": req},
+        diff_after={"delete_request": updated},
+    )
+    return {"status": "ok", "request": updated}
 
 
 @app.get("/api/invoices/{invoice_id}/cases", response_model=List[InvoiceCaseResponse])

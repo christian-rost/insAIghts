@@ -43,3 +43,12 @@ def log_admin_event(
 
     _mem_audit_events.append(row)
     return row
+
+
+def list_admin_events(limit: int = 200) -> List[Dict[str, Any]]:
+    db = get_db()
+    if db:
+        result = db.table(ADMIN_AUDIT_TABLE).select("*").order("created_at", desc=True).limit(limit).execute()
+        return result.data or []
+    rows = sorted(_mem_audit_events, key=lambda x: x.get("created_at", ""), reverse=True)
+    return rows[:limit]

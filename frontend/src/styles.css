@@ -685,6 +685,21 @@ label {
   margin-top: 0.8rem;
 }
 
+.mini-bar {
+  height: 6px;
+  width: 110px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.mini-bar span {
+  display: block;
+  height: 100%;
+  background: #ee7f00;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

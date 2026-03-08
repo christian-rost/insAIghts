@@ -38,6 +38,7 @@ Fuer eine Rechnung:
 - `Reject`
 - `Hold`
 - `Request Clarification`
+- `Loeschung anfordern` (kein Direkt-Loeschen)
 
 Jede Aktion kann optional mit Kommentar erfolgen.
 
@@ -73,7 +74,7 @@ Case-Status:
   - Dokumentpfad oder MinIO Object nicht vorhanden
 
 Hinweis Berechtigungen:
-- Dokument-Loeschung ist aktuell eine Admin-Funktion und nicht fuer normale Anwender freigegeben.
+- Anwender koennen Loeschung nur anfordern; die Freigabe/Ablehnung erfolgt durch Admin.
 
 ## 10. Datenschutz und Sicherheit
 - Verarbeitung nach Secure-by-Design und DSGVO-Grundsaetzen.

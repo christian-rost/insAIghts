@@ -24,6 +24,7 @@ Nur Basiswerte:
 - `GRAPH_DB_URI`
 - `GRAPH_DB_USER`
 - `GRAPH_DB_PASSWORD`
+- Optional: `PROVIDER_KEY_ENCRYPTION_KEY` (Fernet-Key fuer at-rest Verschluesselung der Provider-Keys)
 
 Nicht in Env pflegen:
 - Mistral API Key
@@ -57,9 +58,12 @@ Nicht in Env pflegen:
 - Connector konfigurieren
 - Verbindung testen
 - Pull, OCR/Extract, Mapping, Validation ausfuehren
+- One-Click Pipeline Run (komplette Kette in einem Lauf)
 - Vor dem Pull: Dateivorschau mit Multi-Select (einzeln/mehrere/alle)
 - Duplikate werden in der Vorschau markiert und beim Import uebersprungen
 - Einzelne Dokumente koennen als Admin entfernt werden (DB + Graph wird aktualisiert)
+- Markierte Dokumente koennen gezielt reprocessed werden (ohne globalen Reset)
+- Loeschantraege koennen im Pipeline-Tab gefiltert, freigegeben oder abgelehnt werden
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen
@@ -71,6 +75,11 @@ Nicht in Env pflegen:
 ### 4.7 Reset
 - Globaler Pipeline-Reset
 - Optional inkl. Neo4j-Reset
+
+### 4.8 Audit
+- Audit-Events im Admin abrufbar
+- Endpoint: `GET /api/admin/audit/events?limit=...`
+- Typische Events: Pipeline-Runs, Reprocessing, Loeschantrag-Freigaben/Ablehnungen, Konfigurationsaenderungen
 
 ## 5. Graph-Alias-Verwaltung (generisch)
 Alias-Endpunkte:
@@ -110,10 +119,11 @@ LLM-Analyse:
 ## 6. Betriebsablauf (empfohlen)
 1. Provider-Key setzen
 2. MinIO Connector pruefen
-3. Pipeline-Lauf starten
+3. One-Click Pipeline Run starten (oder Einzelschritte)
 4. Ergebnisse in Inbox pruefen
-5. Graph-Sync ausfuehren
-6. KPI und Audit kontrollieren
+5. Optional gezieltes Reprocessing fuer markierte Dokumente
+6. Loeschantraege pruefen (Approve/Reject)
+7. KPI und Audit kontrollieren
 
 ## 7. Audit und Compliance
 Alle relevanten Admin-Events werden in `insaights_admin_audit_log` geschrieben, u. a.:
@@ -122,6 +132,9 @@ Alle relevanten Admin-Events werden in `insaights_admin_audit_log` geschrieben, 
 - Provider/Connector Updates
 - Feld- und Regel-Updates
 - Graph-Konfig und Alias-Aenderungen
+- One-Click Pipeline-Run
+- Reprocessing markierter Dokumente
+- Loeschantraege (Erstellung, Freigabe, Ablehnung)
 - Pipeline-Reset
 
 ## 8. DSGVO-Betriebspunkte
@@ -129,6 +142,8 @@ Alle relevanten Admin-Events werden in `insaights_admin_audit_log` geschrieben, 
 - Rollenbasierter Zugriff
 - Nachvollziehbare Verarbeitung durch Audit-Events
 - Reprocessing kontrolliert ueber Reset-Mechanismus
+- Rollengetrennter Loeschprozess: User-Antrag, Admin-Freigabe
+- Optionale Verschluesselung von Provider-Keys in Supabase
 
 ## 9. Stoerungsdiagnose
 - `Failed to fetch`: API/CORS/Token pruefen
@@ -150,3 +165,4 @@ Alle relevanten Admin-Events werden in `insaights_admin_audit_log` geschrieben, 
 - `insaights_invoice_lines`
 - `insaights_invoice_actions`
 - `insaights_invoice_cases`
+- `insaights_document_delete_requests`

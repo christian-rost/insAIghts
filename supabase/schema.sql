@@ -253,6 +253,24 @@ create table if not exists insaights_invoice_cases (
 create index if not exists idx_insaights_invoice_cases_invoice on insaights_invoice_cases(invoice_id, created_at desc);
 create index if not exists idx_insaights_invoice_cases_status on insaights_invoice_cases(status, updated_at desc);
 
+create table if not exists insaights_document_delete_requests (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references insaights_invoices(id) on delete cascade,
+  document_id uuid references insaights_documents(id) on delete set null,
+  reason text not null,
+  status text not null default 'PENDING' check (status in ('PENDING', 'APPROVED', 'REJECTED')),
+  requested_by_user_id uuid not null,
+  requested_by_username text,
+  reviewed_by_user_id uuid,
+  reviewed_by_username text,
+  review_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_insaights_delete_requests_status on insaights_document_delete_requests(status, created_at desc);
+create index if not exists idx_insaights_delete_requests_invoice on insaights_document_delete_requests(invoice_id, created_at desc);
+
 create or replace function insaights_reset_invoice_pipeline()
 returns jsonb
 language plpgsql

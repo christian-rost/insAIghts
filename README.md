@@ -33,6 +33,9 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Generische Alias-Verwaltung pro Attribut (`entity_type`)
 - Graph-Auswertungen im Admin-Tab (Risiko, Empfaenger, Produkte, Status, Anomalien)
 - Globaler Reset fuer Reprocessing
+- One-Click Pipeline Run (Pull -> Extract -> Map -> Validate -> Graph)
+- Reprocessing markierter Dokumente ohne Global-Reset
+- Loeschantrag-Workflow (User anfragen, Admin freigeben/ablehnen)
 - Audit-Logging fuer operative und Admin-relevante Events
 
 ## Implementierte API-Endpunkte (Auszug)
@@ -67,6 +70,12 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
   - `GET /api/admin/graph/insights/drilldown?metric=...&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD`
   - `GET /api/admin/graph/insights/explain?window_days=...&compare_days=...&granularity=...&limit=...`
   - `GET /api/admin/kpi/overview`
+  - `GET /api/admin/audit/events?limit=...`
+  - `POST /api/admin/pipeline/run`
+  - `POST /api/admin/reprocess/documents`
+  - `GET /api/admin/delete-requests?status=...&limit=...`
+  - `POST /api/admin/delete-requests/{request_id}/approve`
+  - `POST /api/admin/delete-requests/{request_id}/reject`
   - `POST /api/admin/reset/invoice-pipeline`
 - Pipeline:
   - `POST /api/ingestion/minio/preview`
@@ -86,6 +95,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
   - `POST /api/invoices/{invoice_id}/reject`
   - `POST /api/invoices/{invoice_id}/hold`
   - `POST /api/invoices/{invoice_id}/request-clarification`
+  - `POST /api/invoices/{invoice_id}/delete-request`
   - `GET /api/invoices/{invoice_id}/cases`
   - `PATCH /api/cases/{case_id}`
 - Graph:
@@ -108,6 +118,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - `insaights_invoice_lines`
 - `insaights_invoice_actions`
 - `insaights_invoice_cases`
+- `insaights_document_delete_requests`
 
 ## Lokal starten
 1. `.env.example` nach `.env` kopieren.
@@ -126,5 +137,6 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 
 ## Wichtige Hinweise
 - Mistral API Key wird in der Admin-UI gepflegt, nicht ueber Coolify Env.
+- Optional: `PROVIDER_KEY_ENCRYPTION_KEY` fuer verschluesselte Provider-Keys at-rest.
 - MinIO ist aktuell die einzige aktiv genutzte Ingestion-Quelle.
 - Architektur ist auf weitere Connectoren (Mail/REST) vorbereitet.

@@ -68,6 +68,10 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - Aktivieren/Deaktivieren pro Connector.
 - Zeitplaene/Intervalle und Retry-Parameter setzen.
 - Testlauf pro Connector ausloesen.
+- MinIO-Vorschau mit Mehrfachauswahl und Duplikat-Markierung.
+- One-Click Pipeline Run (Pull -> Extract -> Map -> Validate -> Graph).
+- Selektives Reprocessing markierter Dokumente.
+- Loeschantrag-Queue (Approve/Reject).
 
 ### Beispiel-Felder
 - `connector_name`
@@ -171,15 +175,25 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/graph/insights/drilldown?metric=...&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD` (ADMIN)
 - `GET /api/admin/graph/insights/explain?window_days=...&compare_days=...&granularity=...&limit=...` (ADMIN)
 
-## 5.9 Pipeline-Reset
+## 5.9 Pipeline-Run und Reprocessing
+- `POST /api/admin/pipeline/run` (ADMIN)
+- `POST /api/admin/reprocess/documents` (ADMIN)
+
+## 5.10 Dokument-Loeschantraege
+- `POST /api/invoices/{invoice_id}/delete-request` (USER)
+- `GET /api/admin/delete-requests?status=...&limit=...` (ADMIN)
+- `POST /api/admin/delete-requests/{request_id}/approve` (ADMIN)
+- `POST /api/admin/delete-requests/{request_id}/reject` (ADMIN)
+
+## 5.11 Pipeline-Reset
 - `POST /api/admin/reset/invoice-pipeline` (ADMIN)
 - Zweck: Vollstaendiger Reset der Rechnungs-Pipeline fuer Reprocessing nach Feld-/Prompt-Aenderungen.
 
-## 5.10 Audit
-- Audit wird aktuell primaer ueber persistente Events in `insaights_admin_audit_log` bereitgestellt.
-- Separate Audit-Read-Endpoints sind als Ausbaupunkt vorgesehen.
+## 5.12 Audit
+- `GET /api/admin/audit/events?limit=...` (ADMIN)
+- Persistenz in `insaights_admin_audit_log`.
 
-## 5.11 Aktuell implementierter API-Stand (08.03.2026)
+## 5.13 Aktuell implementierter API-Stand (08.03.2026)
 - `GET /api/admin/users`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
@@ -193,6 +207,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/config/workflow-rules`
 - `PUT /api/admin/config/workflow-rules`
 - `GET /api/admin/kpi/overview`
+- `GET /api/admin/audit/events`
 - `GET /api/graph/global`
 - `GET /api/admin/config/graph`
 - `PUT /api/admin/config/graph`
@@ -203,18 +218,25 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/graph/insights/trends`
 - `GET /api/admin/graph/insights/drilldown`
 - `GET /api/admin/graph/insights/explain`
+- `POST /api/admin/pipeline/run`
+- `POST /api/admin/reprocess/documents`
+- `POST /api/invoices/{invoice_id}/delete-request`
+- `GET /api/admin/delete-requests`
+- `POST /api/admin/delete-requests/{request_id}/approve`
+- `POST /api/admin/delete-requests/{request_id}/reject`
 - `POST /api/admin/reset/invoice-pipeline`
 - `DELETE /api/admin/documents/{document_id}`
 
 ## 6. Datenmodell (Admin)
 ### Tabellenvorschlag
 - `insaights_users`
-- `insaights_config_provider_keys` (aktuell gespeichert, Verschluesselung als naechster Hardening-Schritt)
+- `insaights_config_provider_keys` (optional at-rest verschluesselt via `PROVIDER_KEY_ENCRYPTION_KEY`)
 - `insaights_config_connectors`
 - `insaights_config_extraction_fields`
 - `insaights_config_graph`
 - `insaights_recipient_aliases`
 - `insaights_admin_audit_log`
+- `insaights_document_delete_requests`
 
 ### Besonderheiten
 - `app_config_provider_keys.key_ciphertext` (encrypted at rest).

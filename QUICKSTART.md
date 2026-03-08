@@ -30,6 +30,7 @@ Pflicht in Coolify oder lokal `.env`:
 - `GRAPH_DB_URI`
 - `GRAPH_DB_USER`
 - `GRAPH_DB_PASSWORD`
+- Optional: `PROVIDER_KEY_ENCRYPTION_KEY` (Fernet-Key fuer verschluesselte Provider-Keys in DB)
 
 Hinweis:
 - Mistral API Key nicht als Env pflegen, sondern in Admin-UI unter Provider.
@@ -55,11 +56,15 @@ Hinweis:
    - `Testen` ausfuehren
 
 ## 6. Pipeline testen
-Im Tab `MinIO Pipeline` nacheinander:
+Variante A (empfohlen):
+1. Im Tab `MinIO Pipeline` auf `One-Click Pipeline Run`.
+
+Variante B (manuell):
 1. `Pull ausfuehren`
 2. `OCR/Extract`
 3. `Invoice Mapping`
 4. `Invoice Validation`
+5. `Graph Sync`
 
 Erwartung:
 - Dokumente in `insaights_documents`
@@ -99,9 +104,12 @@ Wenn neue Extraktionsfelder hinzugefuegt wurden:
 2. `reset_graph=true`
 3. Pipeline erneut starten (`Pull` -> `Extract` -> `Map` -> `Validate` -> `Graph Sync`)
 
+Alternative ohne Global-Reset:
+1. Admin Tab `MinIO Pipeline` -> betroffene Dokumente markieren
+2. `Auswahl reprocess` klicken
+
 ## 11. Smoke-Checks
 - `GET /api/health`
 - `GET /api/health/graph`
 - Login im Frontend
 - Mindestens 1 valide Rechnung in Inbox sichtbar
-

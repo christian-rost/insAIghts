@@ -266,6 +266,7 @@ Aktuell implementierte Kernendpunkte:
 - `POST /api/invoices/{invoice_id}/reject`
 - `POST /api/invoices/{invoice_id}/hold`
 - `POST /api/invoices/{invoice_id}/request-clarification`
+- `POST /api/invoices/{invoice_id}/delete-request`
 - `GET /api/invoices/{invoice_id}/cases`
 - `PATCH /api/cases/{case_id}`
 - `GET /api/graph/invoices/{invoice_id}`
@@ -300,6 +301,12 @@ Geplante naechste Ingestion-Endpunkte (noch nicht produktiv):
 - `POST /api/admin/graph/aliases`
 - `PUT /api/admin/graph/aliases/{alias_id}`
 - `GET /api/admin/kpi/overview`
+- `GET /api/admin/audit/events?limit=...`
+- `POST /api/admin/pipeline/run`
+- `POST /api/admin/reprocess/documents`
+- `GET /api/admin/delete-requests?status=...&limit=...`
+- `POST /api/admin/delete-requests/{request_id}/approve`
+- `POST /api/admin/delete-requests/{request_id}/reject`
 - `POST /api/admin/reset/invoice-pipeline`
 
 Festlegung:
@@ -483,6 +490,7 @@ Festlegung:
   - Connector-Config APIs (`GET/PUT/POST-test /api/admin/config/connectors/...`)
   - Basis-Audit-Logging fuer Login, User-Admin-Aktionen und Connector-Aenderungen
   - MinIO Ingestion Endpoint (`POST /api/ingestion/minio/pull`) mit idempotenter Dokumentanlage
+  - MinIO Vorschau-Endpoint (`POST /api/ingestion/minio/preview`) mit Multi-Select und Duplikat-Markierung
   - Dokumentliste Endpoint (`GET /api/documents`)
   - Extraktions-Endpoint (`POST /api/processing/documents/extract`) fuer INGESTED->EXTRACTED (Mistral OCR bei PDF/Bild)
   - Invoice-Mapping Endpoint (`POST /api/processing/invoices/map`) fuer EXTRACTED->MAPPED via Mistral-LLM-Extraktion (strukturierter JSON-Output) in eigene Rechnungstabellen
@@ -499,12 +507,20 @@ Festlegung:
   - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
   - Graph-Config Endpunkte (`GET/PUT /api/admin/config/graph`) fuer konfigurierbare Datenebenen-Felder
   - KPI-Endpoint (`GET /api/admin/kpi/overview`) fuer operative Admin-Uebersicht
+  - Audit-Read Endpoint (`GET /api/admin/audit/events`) fuer revisionssichere Einsicht
+  - One-Click Pipeline Endpoint (`POST /api/admin/pipeline/run`) fuer Pull->Extract->Map->Validate->Graph
+  - Selektives Reprocessing (`POST /api/admin/reprocess/documents`) fuer markierte Dokumente ohne globalen Reset
+  - Loeschantrag-Workflow (`POST /api/invoices/{id}/delete-request`, Admin-Review via `GET/POST /api/admin/delete-requests...`)
   - Global-Reset Endpoint (`POST /api/admin/reset/invoice-pipeline`) fuer komplettes Reprocessing inkl. optionalem Neo4j-Reset
+  - Optional verschluesselte Provider-Keys at-rest ueber `PROVIDER_KEY_ENCRYPTION_KEY` (Fernet)
 - Frontend bereits umgesetzt:
   - Login-/Registrierungs-View
   - Logout im Admin-Header
   - Basis-Admin-View fuer User-Liste und User-Anlage
-  - MinIO-Admin-UI (Connector speichern/testen, Pull ausloesen, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
+  - MinIO-Admin-UI (Connector speichern/testen, Vorschau + Multi-Select Pull, Dokumentliste, OCR/Extract, Invoice Mapping, Invoice Validation)
+  - One-Click Pipeline Run im Admin-Tab fuer schnellen End-to-End Lauf
+  - Selektives Dokument-Reprocessing ueber Checkbox-Auswahl in der Dokumentliste
+  - Loeschantrag-Queue im Admin-Tab (PENDING/APPROVED/REJECTED, Approve/Reject)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
   - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Admin-UI fuer Workflow-Regeln (formularbasiert) inkl. Runtime-Update ohne Redeploy
@@ -513,6 +529,7 @@ Festlegung:
   - Admin-Dashboard tab-basiert (statt langer vertikaler Seite); Meldungen/Fehler werden oben unter dem Header angezeigt
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
+  - Anwenderaktion `Loeschung anfordern` (role-separated, keine Direkt-Loeschung fuer Nicht-Admin)
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
   - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
@@ -534,6 +551,7 @@ Festlegung:
   - Feldkatalog fuer Extraktion wird in `insaights_config_extraction_fields` gepflegt und zur Prompt-Erstellung genutzt.
   - Workflow-Aktionshistorie wird in `insaights_invoice_actions` gespeichert.
   - Case-Management wird in `insaights_invoice_cases` gespeichert.
+  - Loeschantraege werden in `insaights_document_delete_requests` gespeichert.
   - Freigaberegeln werden in `insaights_config_workflow_rules` gepflegt und in `approve` serverseitig erzwungen.
 
 ## 15. Dokumentations-Governance (verbindlich)
@@ -553,6 +571,8 @@ Festlegung:
 - Graph-Datenebene ist ueber Admin konfigurierbar; Bulk-Sync und Global-Graph sind verfuegbar.
 - Alias-Management ist generisch pro Attribut (`entity_type`) verfuegbar, inkl. manueller Pflege in der Admin-UI.
 - Graph-Interaktion umfasst Knotenselektion (direkte Nachbarn hervorheben, indirekte abdunkeln) und Click+Hold-Dragging.
+- One-Click Pipeline Run, selektives Reprocessing und Loeschantrag-Workflow sind im Admin/Inbox-Flow verfuegbar.
+- Provider-Key-Verschluesselung at-rest kann per Env (`PROVIDER_KEY_ENCRYPTION_KEY`) aktiviert werden.
 - Offene Schwerpunkte fuer naechste Iteration:
   - Mail- und REST-Ingestion umsetzen.
   - Graph-/Ontologie-Schicht auf weitere Objektklassen erweitern (PO, GoodsReceipt, Case) und Graph-Visualisierung vertiefen.

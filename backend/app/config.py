@@ -22,6 +22,7 @@ CONNECTORS_TABLE = os.getenv("CONNECTORS_TABLE", "insaights_config_connectors")
 WORKFLOW_RULES_TABLE = os.getenv("WORKFLOW_RULES_TABLE", "insaights_config_workflow_rules")
 DOCUMENTS_TABLE = os.getenv("DOCUMENTS_TABLE", "insaights_documents")
 PROVIDER_KEYS_TABLE = os.getenv("PROVIDER_KEYS_TABLE", "insaights_config_provider_keys")
+DELETE_REQUESTS_TABLE = os.getenv("DELETE_REQUESTS_TABLE", "insaights_document_delete_requests")
 INVOICES_TABLE = os.getenv("INVOICES_TABLE", "insaights_invoices")
 INVOICE_LINES_TABLE = os.getenv("INVOICE_LINES_TABLE", "insaights_invoice_lines")
 INVOICE_ACTIONS_TABLE = os.getenv("INVOICE_ACTIONS_TABLE", "insaights_invoice_actions")
@@ -38,3 +39,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 GRAPH_DB_URI = os.getenv("GRAPH_DB_URI", "bolt://neo4j:7687")
 GRAPH_DB_USER = os.getenv("GRAPH_DB_USER", "neo4j")
 GRAPH_DB_PASSWORD = os.getenv("GRAPH_DB_PASSWORD", "")
+
+# Optional encryption key for provider secrets at rest.
+# Expected format: Fernet key, generated via `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+PROVIDER_KEY_ENCRYPTION_KEY = os.getenv("PROVIDER_KEY_ENCRYPTION_KEY", "")

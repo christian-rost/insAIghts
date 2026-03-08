@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   createUser,
+  createInvoiceDeleteRequest,
   createAttributeAlias,
   extractDocuments,
   getInvoice,
@@ -31,8 +32,13 @@ import {
   mapInvoices,
   logout,
   me,
+  approveDeleteRequest,
   deleteDocument,
+  listDeleteRequests,
   previewMinioObjects,
+  reprocessDocuments,
+  rejectDeleteRequest,
+  runPipeline,
   pullMinioSelected,
   register,
   resetInvoicePipeline,
@@ -291,6 +297,10 @@ function AdminView({ token, currentUser, onLogout }) {
   const [minioPreviewItems, setMinioPreviewItems] = useState([])
   const [minioPreviewSelection, setMinioPreviewSelection] = useState({})
   const [minioPreviewLoading, setMinioPreviewLoading] = useState(false)
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState({})
+  const [pipelineRunning, setPipelineRunning] = useState(false)
+  const [deleteRequests, setDeleteRequests] = useState([])
+  const [deleteRequestStatusFilter, setDeleteRequestStatusFilter] = useState("PENDING")
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
   const [globalGraphData, setGlobalGraphData] = useState(null)
   const [globalGraphError, setGlobalGraphError] = useState("")
@@ -376,6 +386,15 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const res = await listDocuments(token, 50)
       setDocuments(res.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadDeleteRequests() {
+    try {
+      const res = await listDeleteRequests(token, { status: deleteRequestStatusFilter, limit: 300 })
+      setDeleteRequests(res.items || [])
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -551,6 +570,37 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
+  function exportDrilldownCsv() {
+    const rows = graphDrilldown?.items || []
+    if (!rows.length) {
+      setError("Keine Drilldown-Daten fuer CSV vorhanden.")
+      return
+    }
+    const header = ["invoice_id", "invoice_number", "supplier_name", "invoice_date", "status", "gross_amount", "currency", "action_types"]
+    const lines = [header.join(",")]
+    for (const row of rows) {
+      const values = [
+        row.invoice_id,
+        row.invoice_number,
+        row.supplier_name,
+        row.invoice_date,
+        row.status,
+        row.gross_amount,
+        row.currency,
+        Array.isArray(row.action_types) ? row.action_types.join("|") : "",
+      ].map((v) => `"${String(v ?? "").replaceAll("\"", "\"\"")}"`)
+      lines.push(values.join(","))
+    }
+    const csv = lines.join("\\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `graph-drilldown-${graphDrilldown?.metric || "metric"}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   useEffect(() => {
     loadUsers()
     loadProvidersConfig()
@@ -562,7 +612,12 @@ function AdminView({ token, currentUser, onLogout }) {
     loadAttributeAliases("", "recipient")
     loadWorkflowRules()
     loadKpi()
+    loadDeleteRequests()
   }, [])
+
+  useEffect(() => {
+    loadDeleteRequests()
+  }, [deleteRequestStatusFilter])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
 
@@ -1325,6 +1380,36 @@ function AdminView({ token, currentUser, onLogout }) {
                 <div className="actions-row">
                   <button className="btn btn-primary" type="submit">Speichern</button>
                   <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={pipelineRunning}
+                    onClick={async () => {
+                      try {
+                        setPipelineRunning(true)
+                        setError("")
+                        setNotice("")
+                        const res = await runPipeline(token, {
+                          max_objects: minio.max_objects || 200,
+                          max_extract: minio.max_extract || 20,
+                          max_map: minio.max_map || 20,
+                          max_validate: minio.max_validate || 50,
+                          sync_limit: graphSyncLimit || 200,
+                        })
+                        await Promise.all([loadDocumentsList(), loadInvoicesList(), loadKpi(), loadDeleteRequests()])
+                        const s = res.summary || {}
+                        setNotice(
+                          `One-Click Run: Pull ${s.pull_created || 0}/${(s.pull_created || 0) + (s.pull_skipped || 0)}, Extract ${s.extract_ok || 0}, Map ${s.map_ok || 0}, Validate ${s.validate_ok || 0}, Graph ${s.graph_synced || 0}`
+                        )
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      } finally {
+                        setPipelineRunning(false)
+                      }
+                    }}
+                  >
+                    {pipelineRunning ? "Pipeline laeuft..." : "One-Click Pipeline Run"}
+                  </button>
+                  <button
                     className="btn btn-outline"
                     type="button"
                     onClick={async () => {
@@ -2010,10 +2095,22 @@ function AdminView({ token, currentUser, onLogout }) {
                             <td>{r.bucket_start}</td>
                             <td>{r.bucket_end}</td>
                             <td>{r.invoice_count ?? 0}</td>
-                            <td>{r.total_amount ?? 0}</td>
-                            <td>{r.reject_rate ?? 0}</td>
-                            <td>{r.hold_rate ?? 0}</td>
-                            <td>{r.clarification_rate ?? 0}</td>
+                            <td>
+                              <div>{r.total_amount ?? 0}</div>
+                              <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(r.total_amount || 0) / 100)}%` }} /></div>
+                            </td>
+                            <td>
+                              <div>{r.reject_rate ?? 0}</div>
+                              <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(r.reject_rate || 0) * 100)}%` }} /></div>
+                            </td>
+                            <td>
+                              <div>{r.hold_rate ?? 0}</div>
+                              <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(r.hold_rate || 0) * 100)}%` }} /></div>
+                            </td>
+                            <td>
+                              <div>{r.clarification_rate ?? 0}</div>
+                              <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(r.clarification_rate || 0) * 100)}%` }} /></div>
+                            </td>
                             <td>
                               <div className="actions-row">
                                 <button
@@ -2053,6 +2150,9 @@ function AdminView({ token, currentUser, onLogout }) {
                     <h3>
                       Drilldown Rechnungen ({graphDrilldown.metric || "-"}) - {graphDrilldown.total ?? 0}
                     </h3>
+                    <button className="btn btn-outline btn-sm" type="button" onClick={exportDrilldownCsv}>
+                      CSV Export
+                    </button>
                   </div>
                   <div className="card-body">
                     <table className="table">
@@ -2145,12 +2245,58 @@ function AdminView({ token, currentUser, onLogout }) {
           <section className="card">
             <div className="card-header row">
               <h3>Dokumente (MinIO Ingestion)</h3>
-              <button className="btn btn-outline" onClick={loadDocumentsList}>Neu laden</button>
+              <div className="actions-row">
+                <button className="btn btn-outline" onClick={loadDocumentsList}>Neu laden</button>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => {
+                    const next = {}
+                    for (const d of documents) next[String(d.id)] = true
+                    setSelectedDocumentIds(next)
+                  }}
+                >
+                  Alle markieren
+                </button>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => setSelectedDocumentIds({})}
+                >
+                  Auswahl leeren
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const ids = Object.keys(selectedDocumentIds).filter((id) => selectedDocumentIds[id])
+                      if (!ids.length) throw new Error("Bitte mindestens ein Dokument markieren.")
+                      setError("")
+                      setNotice("")
+                      const res = await reprocessDocuments(token, {
+                        document_ids: ids,
+                        run_extract: true,
+                        run_map: true,
+                        run_validate: true,
+                        run_graph_sync: true,
+                      })
+                      await Promise.all([loadDocumentsList(), loadInvoicesList(), loadKpi()])
+                      setNotice(`Reprocess abgeschlossen fuer ${res.documents?.length || 0} Dokumente`)
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Auswahl reprocess
+                </button>
+              </div>
             </div>
             <div className="card-body">
               <table className="table">
                 <thead>
                   <tr>
+                    <th></th>
                     <th>Datei</th>
                     <th>Typ</th>
                     <th>Status</th>
@@ -2161,6 +2307,15 @@ function AdminView({ token, currentUser, onLogout }) {
                 <tbody>
                   {documents.map((d) => (
                     <tr key={d.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={!!selectedDocumentIds[String(d.id)]}
+                          onChange={(e) =>
+                            setSelectedDocumentIds((all) => ({ ...all, [String(d.id)]: e.target.checked }))
+                          }
+                        />
+                      </td>
                       <td>{d.filename}</td>
                       <td>{d.file_type}</td>
                       <td>{d.status}</td>
@@ -2258,6 +2413,96 @@ function AdminView({ token, currentUser, onLogout }) {
                 ))}
               </tbody>
             </table>
+            </div>
+          </section>
+          ) : null}
+
+          {adminTab === "pipeline" ? (
+          <section className="card">
+            <div className="card-header row">
+              <h3>Loeschantraege</h3>
+              <div className="actions-row">
+                <select
+                  className="input"
+                  value={deleteRequestStatusFilter}
+                  onChange={(e) => setDeleteRequestStatusFilter(e.target.value)}
+                >
+                  <option value="PENDING">PENDING</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="REJECTED">REJECTED</option>
+                  <option value="">ALLE</option>
+                </select>
+                <button className="btn btn-outline" onClick={loadDeleteRequests}>Neu laden</button>
+              </div>
+            </div>
+            <div className="card-body">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Angefragt von</th>
+                    <th>Grund</th>
+                    <th>Status</th>
+                    <th>Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deleteRequests.length === 0 ? (
+                    <tr><td colSpan={5}>Keine Loeschantraege.</td></tr>
+                  ) : (
+                    deleteRequests.map((r) => (
+                      <tr key={r.id}>
+                        <td className="mono">{r.invoice_id || "-"}</td>
+                        <td>{r.requested_by_username || r.requested_by_user_id || "-"}</td>
+                        <td>{r.reason || "-"}</td>
+                        <td>{r.status || "-"}</td>
+                        <td>
+                          {r.status === "PENDING" ? (
+                            <div className="actions-row">
+                              <button
+                                className="btn btn-outline btn-sm"
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    setError("")
+                                    setNotice("")
+                                    await approveDeleteRequest(token, r.id, "")
+                                    await Promise.all([loadDeleteRequests(), loadDocumentsList(), loadInvoicesList(), loadKpi()])
+                                    setNotice("Loeschantrag freigegeben")
+                                  } catch (err) {
+                                    setError(String(err.message || err))
+                                  }
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    setError("")
+                                    setNotice("")
+                                    await rejectDeleteRequest(token, r.id, "")
+                                    await loadDeleteRequests()
+                                    setNotice("Loeschantrag abgelehnt")
+                                  } catch (err) {
+                                    setError(String(err.message || err))
+                                  }
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="muted-inline">{r.reviewed_by_username || "-"}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
           ) : null}
@@ -3012,6 +3257,26 @@ function UserView({ token, currentUser, onLogout }) {
                   </button>
                   <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>
                     Clarify
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        if (!selectedId) return
+                        const reason = String(actionComment || "").trim()
+                        if (!reason) throw new Error("Bitte Begruendung im Kommentarfeld eintragen.")
+                        setError("")
+                        setNotice("")
+                        await createInvoiceDeleteRequest(token, selectedId, reason)
+                        setActionComment("")
+                        setNotice("Loeschantrag erstellt (warte auf Admin-Freigabe)")
+                      } catch (e) {
+                        setError(String(e.message || e))
+                      }
+                    }}
+                  >
+                    Loeschung anfordern
                   </button>
                 </div>
 

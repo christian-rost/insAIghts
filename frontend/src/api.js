@@ -167,6 +167,77 @@ export async function deleteDocument(token, documentId) {
   return handleJson(response)
 }
 
+export async function runPipeline(token, payload) {
+  const response = await fetch(`${API_BASE}/api/admin/pipeline/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload || {}),
+  })
+  return handleJson(response)
+}
+
+export async function reprocessDocuments(token, payload) {
+  const response = await fetch(`${API_BASE}/api/admin/reprocess/documents`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload || {}),
+  })
+  return handleJson(response)
+}
+
+export async function createInvoiceDeleteRequest(token, invoiceId, reason) {
+  const response = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(invoiceId)}/delete-request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ reason }),
+  })
+  return handleJson(response)
+}
+
+export async function listDeleteRequests(token, { status = "", limit = 200 } = {}) {
+  const qs = new URLSearchParams({
+    status: status || "",
+    limit: String(limit),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/delete-requests?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function approveDeleteRequest(token, requestId, note = "") {
+  const response = await fetch(`${API_BASE}/api/admin/delete-requests/${encodeURIComponent(requestId)}/approve`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ note }),
+  })
+  return handleJson(response)
+}
+
+export async function rejectDeleteRequest(token, requestId, note = "") {
+  const response = await fetch(`${API_BASE}/api/admin/delete-requests/${encodeURIComponent(requestId)}/reject`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ note }),
+  })
+  return handleJson(response)
+}
+
 export async function extractDocuments(token, maxDocuments = 20) {
   const response = await fetch(`${API_BASE}/api/processing/documents/extract`, {
     method: "POST",

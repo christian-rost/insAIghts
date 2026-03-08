@@ -29,6 +29,19 @@ def list_documents(limit: int = 100) -> List[Dict[str, Any]]:
     return rows[:limit]
 
 
+def list_documents_by_ids(document_ids: List[str], limit: int = 1000) -> List[Dict[str, Any]]:
+    ids = [str(x or "").strip() for x in (document_ids or []) if str(x or "").strip()]
+    if not ids:
+        return []
+    db = get_db()
+    if db:
+        result = db.table(DOCUMENTS_TABLE).select("*").in_("id", ids).limit(min(limit, len(ids))).execute()
+        return result.data or []
+    rows = [row for _id, row in _mem_documents.items() if _id in set(ids)]
+    rows = sorted(rows, key=lambda x: x.get("created_at", ""), reverse=True)
+    return rows[:limit]
+
+
 def list_documents_by_status(status: str, limit: int = 100) -> List[Dict[str, Any]]:
     db = get_db()
     if db:
