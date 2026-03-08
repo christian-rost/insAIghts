@@ -172,6 +172,13 @@ function buildExtractedHeaderRows(invoice) {
   return rows
 }
 
+function formatMoney(value) {
+  if (value === null || value === undefined || value === "") return "-"
+  const n = Number(value)
+  if (!Number.isFinite(n)) return String(value)
+  return n.toFixed(2)
+}
+
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
   const [username, setUsername] = useState("")
@@ -3414,7 +3421,7 @@ function UserView({ token, currentUser, onLogout }) {
                   <div>
                     <div className="invoice-label">GESAMTPREIS</div>
                     <div className="invoice-value invoice-price">
-                      {selectedInvoice.gross_amount ?? "-"} {selectedInvoice.currency || ""}
+                      {formatMoney(selectedInvoice.gross_amount)} {selectedInvoice.currency || ""}
                     </div>
                   </div>
                   <div>
@@ -3545,7 +3552,7 @@ function UserView({ token, currentUser, onLogout }) {
                           <td>{line.line_no ?? "-"}</td>
                           <td>{line.description || "-"}</td>
                           <td>{line.quantity ?? "-"}</td>
-                          <td>{line.line_amount ?? "-"}</td>
+                          <td>{formatMoney(line.line_amount)}</td>
                           <td>{line.tax_rate ?? "-"}</td>
                         </tr>
                       ))
