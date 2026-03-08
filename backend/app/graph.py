@@ -71,6 +71,7 @@ def _sync_invoice_core(
     resolved_dimensions: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     fields = data_layer_fields or {"supplier_name", "currency", "status"}
+    invoice_id = str(invoice.get("id") or "")
     tx.run(
         """
         MERGE (i:Invoice {id: $id})
@@ -86,7 +87,7 @@ def _sync_invoice_core(
             i.source_system = $source_system,
             i.updated_at = datetime()
         """,
-        id=str(invoice.get("id") or ""),
+        id=invoice_id,
         invoice_number=invoice.get("invoice_number"),
         invoice_date=invoice.get("invoice_date"),
         due_date=invoice.get("due_date"),
@@ -99,6 +100,16 @@ def _sync_invoice_core(
         source_system=invoice.get("source_system"),
     )
 
+    # Rebuild invoice-level semantic edges on every sync to avoid stale links
+    # when normalization rules/configuration changes.
+    tx.run(
+        """
+        MATCH (i:Invoice {id: $invoice_id})-[r:BELONGS_TO|HAS_STATUS|IN_CURRENCY|HAS_DATA_FIELD|FOR_RECIPIENT]->()
+        DELETE r
+        """,
+        invoice_id=invoice_id,
+    )
+
     supplier_name = str(invoice.get("supplier_name") or "").strip()
     if "supplier_name" in fields and supplier_name:
         tx.run(
@@ -109,7 +120,7 @@ def _sync_invoice_core(
             MERGE (i)-[:BELONGS_TO]->(s)
             """,
             supplier_name=supplier_name,
-            invoice_id=str(invoice.get("id") or ""),
+            invoice_id=invoice_id,
         )
 
     status = str(invoice.get("status") or "").strip()
@@ -127,7 +138,7 @@ def _sync_invoice_core(
                 MERGE (i)-[:IN_CURRENCY]->(c)
             )
             """,
-            invoice_id=str(invoice.get("id") or ""),
+            invoice_id=invoice_id,
             status=status,
             currency=currency,
             enable_status="status" in fields,
@@ -145,7 +156,7 @@ def _sync_invoice_core(
                 d.last_raw_value = coalesce(dim.raw_value, d.last_raw_value)
             MERGE (i)-[:HAS_DATA_FIELD]->(d)
             """,
-            invoice_id=str(invoice.get("id") or ""),
+            invoice_id=invoice_id,
             dimensions=dimensions,
         )
 
@@ -181,6 +192,40 @@ def _extract_header_values(invoice: Dict[str, Any]) -> Dict[str, Any]:
                 if key not in values and value not in [None, ""]:
                     values[key] = value
     return values
+
+
+def _normalize_field_name(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    raw = raw.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    # Keep only letters/numbers/underscore for stable matching.
+    cleaned = []
+    for ch in raw:
+        if ch.isalnum() or ch == "_":
+            cleaned.append(ch)
+    return "".join(cleaned)
+
+
+_RECIPIENT_FIELD_KEYS = {_normalize_field_name(v) for v in RECIPIENT_FIELDS} | {"empfaenger", "empfanger", "recipient", "customername", "leistungsempfaenger"}
+
+
+def _is_recipient_field(field_name: str) -> bool:
+    return _normalize_field_name(field_name) in _RECIPIENT_FIELD_KEYS
+
+
+def _get_header_value_by_field(header_values: Dict[str, Any], selected_field: str) -> Any:
+    # 1) Exact lookup.
+    if selected_field in header_values:
+        return header_values.get(selected_field)
+    # 2) Canonicalized key lookup (handles Empfaenger/Empfänger/case variants).
+    target = _normalize_field_name(selected_field)
+    if not target:
+        return None
+    for key, value in header_values.items():
+        if _normalize_field_name(str(key)) == target:
+            return value
+    return None
 
 
 def _sync_line_items(tx, invoice_id: str, lines: List[Dict[str, Any]]) -> int:
@@ -273,6 +318,23 @@ def _sync_actions(tx, invoice_id: str, actions: List[Dict[str, Any]]) -> int:
     return len(actions)
 
 
+def _prune_orphan_semantic_nodes(tx) -> None:
+    tx.run(
+        """
+        MATCH (d:InvoiceDataField)
+        WHERE NOT (d)<-[:HAS_DATA_FIELD]-(:Invoice)
+        DETACH DELETE d
+        """
+    )
+    tx.run(
+        """
+        MATCH (r:Recipient)
+        WHERE NOT (r)<-[:FOR_RECIPIENT]-(:Invoice)
+        DETACH DELETE r
+        """
+    )
+
+
 def graph_sync_invoice(
     invoice: Dict[str, Any],
     line_items: List[Dict[str, Any]],
@@ -300,16 +362,18 @@ def graph_sync_invoice(
     dimension_fields = [f for f in selected_fields if f not in {"supplier_name", "status", "currency"}]
     resolved_dimensions = []
     for field_name in dimension_fields:
-        raw_value = header_values.get(field_name)
+        raw_value = _get_header_value_by_field(header_values, field_name)
         raw_text = str(raw_value or "").strip()
         if not raw_text:
             continue
         resolved_value = raw_text
-        if field_name in RECIPIENT_FIELDS:
+        dimension_key = field_name
+        if _is_recipient_field(field_name):
             resolved_value, _ = resolve_recipient_name(raw_text)
+            dimension_key = "recipient"
         resolved_dimensions.append(
             {
-                "field_name": field_name,
+                "field_name": dimension_key,
                 "value": resolved_value,
                 "raw_value": raw_text,
             }
@@ -320,6 +384,7 @@ def graph_sync_invoice(
             session.execute_write(_sync_invoice_core, invoice, selected_fields, resolved_dimensions)
             line_count = session.execute_write(_sync_line_items, invoice_id, line_items)
             action_count = session.execute_write(_sync_actions, invoice_id, actions)
+            session.execute_write(_prune_orphan_semantic_nodes)
         return {
             "status": "ok",
             "invoice_id": invoice_id,

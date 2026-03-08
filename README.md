@@ -125,6 +125,7 @@ Hinweis:
 - Die Graph-Visualisierung kann zwischen `Datenebene`, `Anwendungsebene` und `Alles` umgeschaltet werden.
 - Felder der Graph-Datenebene sind in Admin konfigurierbar (`/api/admin/config/graph`) und werden beim Sync fuer Verknuepfungen ueber gemeinsame Feldwerte verwendet.
 - Empfaenger-Entity-Resolution ist aktiv: Varianten wie `Rost, Christian` und `Christian Rost` werden kanonisiert; Originalwert bleibt in `extraction_json` erhalten.
+- Beim Graph-Sync werden invoice-semantische Kanten pro Rechnung neu aufgebaut (keine Alt-Kanten); Empfaenger-Feldvarianten werden auf gemeinsame Dimension `recipient` vereinheitlicht.
 
 ## Coolify
 
