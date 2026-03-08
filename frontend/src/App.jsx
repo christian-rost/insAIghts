@@ -235,6 +235,15 @@ function LoginView({ onLogin, loading, error }) {
 }
 
 function AdminView({ token, currentUser, onLogout }) {
+  const ADMIN_TABS = [
+    { id: "kpi", label: "KPI" },
+    { id: "model", label: "Model / Felder" },
+    { id: "providers", label: "Provider" },
+    { id: "users", label: "User Management" },
+    { id: "pipeline", label: "MinIO Pipeline" },
+    { id: "graph", label: "Graph" },
+    { id: "reset", label: "Reset" },
+  ]
   const [users, setUsers] = useState([])
   const [documents, setDocuments] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -272,6 +281,7 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphMaxNodes, setGlobalGraphMaxNodes] = useState(500)
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
   const [resetGraph, setResetGraph] = useState(true)
+  const [adminTab, setAdminTab] = useState("kpi")
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -409,6 +419,8 @@ function AdminView({ token, currentUser, onLogout }) {
           <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
         </div>
       </header>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {error ? <p className="error top-error">{error}</p> : null}
 
       {!isAdmin ? (
         <section className="card">
@@ -416,6 +428,25 @@ function AdminView({ token, currentUser, onLogout }) {
         </section>
       ) : (
         <>
+          <section className="card">
+            <div className="card-body">
+              <div className="admin-tabs">
+                {ADMIN_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`admin-tab ${adminTab === tab.id ? "active" : ""}`}
+                    onClick={() => setAdminTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {adminTab === "users" ? (
+            <>
           <section className="card">
             <div className="card-header"><h3>Benutzer anlegen</h3></div>
             <div className="card-body">
@@ -481,7 +512,10 @@ function AdminView({ token, currentUser, onLogout }) {
             </form>
             </div>
           </section>
+            </>
+          ) : null}
 
+          {adminTab === "providers" ? (
           <section className="card">
             <div className="card-header"><h3>Provider (Mistral)</h3></div>
             <div className="card-body">
@@ -532,7 +566,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </form>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "model" ? (
           <section className="card">
             <div className="card-header row">
               <h3>Extraktionsfelder (LLM)</h3>
@@ -731,7 +767,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </table>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "kpi" ? (
           <section className="card">
             <div className="card-header row">
               <h3>KPI Uebersicht</h3>
@@ -770,7 +808,9 @@ function AdminView({ token, currentUser, onLogout }) {
               )}
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "model" ? (
           <section className="card">
             <div className="card-header row">
               <h3>Workflow-Regeln (Approval)</h3>
@@ -1010,7 +1050,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "pipeline" ? (
           <section className="card">
             <div className="card-header"><h3>MinIO Connector</h3></div>
             <div className="card-body">
@@ -1216,7 +1258,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </form>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "graph" ? (
           <section className="card">
             <div className="card-header"><h3>Graph Sync (Neo4j)</h3></div>
             <div className="card-body">
@@ -1297,7 +1341,9 @@ function AdminView({ token, currentUser, onLogout }) {
               {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "reset" ? (
           <section className="card">
             <div className="card-header"><h3>Global Reset (Rechnungs-Pipeline)</h3></div>
             <div className="card-body">
@@ -1348,7 +1394,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "pipeline" ? (
           <section className="card">
             <div className="card-header row">
               <h3>Dokumente (MinIO Ingestion)</h3>
@@ -1377,7 +1425,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </table>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "pipeline" ? (
           <section className="card">
             <div className="card-header row">
               <h3>Rechnungen (Mapped)</h3>
@@ -1412,7 +1462,9 @@ function AdminView({ token, currentUser, onLogout }) {
               </table>
             </div>
           </section>
+          ) : null}
 
+          {adminTab === "users" ? (
           <section className="card">
             <div className="card-header row">
               <h3>Benutzerliste</h3>
@@ -1441,11 +1493,9 @@ function AdminView({ token, currentUser, onLogout }) {
             </table>
             </div>
           </section>
+          ) : null}
         </>
       )}
-
-      {notice ? <p className="notice">{notice}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
     </main>
   )
 }
@@ -1456,17 +1506,48 @@ function GraphCanvas({ graphData, onNodeSelect }) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedNodeId, setSelectedNodeId] = useState("")
+  const [layerMode, setLayerMode] = useState("data")
   const dragStateRef = useRef(null)
 
   const { nodes, edges } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
     const rawEdges = (graphData?.edges || []).map((e) => ({ ...e }))
+
+    const layerConfig = {
+      all: {
+        labels: null,
+        edges: null,
+      },
+      data: {
+        labels: new Set(["Invoice", "Supplier", "InvoiceLine", "Currency", "Recipient"]),
+        edges: new Set(["BELONGS_TO", "HAS_LINE", "IN_CURRENCY", "FOR_RECIPIENT"]),
+      },
+      app: {
+        labels: new Set(["Invoice", "InvoiceAction", "User", "InvoiceStatus"]),
+        edges: new Set(["TARGETS", "PERFORMED", "FROM_STATUS", "TO_STATUS", "HAS_STATUS"]),
+      },
+    }[layerMode] || { labels: null, edges: null }
+
+    let filteredNodes = rawNodes
+    if (layerConfig.labels) {
+      filteredNodes = rawNodes.filter((n) => (n.labels || []).some((label) => layerConfig.labels.has(label)))
+    }
+    const nodeIds = new Set(filteredNodes.map((n) => String(n.id)))
+
+    let filteredEdges = rawEdges
+    if (layerConfig.edges) {
+      filteredEdges = rawEdges.filter((e) => layerConfig.edges.has(String(e.type || "")))
+    }
+    filteredEdges = filteredEdges.filter(
+      (e) => nodeIds.has(String(e.source || "")) && nodeIds.has(String(e.target || "")),
+    )
+
     const centerX = width / 2
     const centerY = height / 2
     const radius = Math.max(90, Math.min(width, height) * 0.34)
 
-    const positioned = rawNodes.map((n, idx) => {
-      const angle = (idx / Math.max(1, rawNodes.length)) * Math.PI * 2
+    const positioned = filteredNodes.map((n, idx) => {
+      const angle = (idx / Math.max(1, filteredNodes.length)) * Math.PI * 2
       return {
         ...n,
         x: centerX + Math.cos(angle) * radius,
@@ -1474,8 +1555,8 @@ function GraphCanvas({ graphData, onNodeSelect }) {
       }
     })
 
-    return { nodes: positioned, edges: rawEdges }
-  }, [graphData])
+    return { nodes: positioned, edges: filteredEdges }
+  }, [graphData, layerMode])
 
   const nodeMap = useMemo(() => {
     const m = new Map()
@@ -1492,6 +1573,14 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     setSelectedNodeId("")
     if (onNodeSelect) onNodeSelect(null)
   }, [graphData])
+
+  useEffect(() => {
+    if (!selectedNodeId) return
+    if (!nodes.find((n) => String(n.id) === String(selectedNodeId))) {
+      setSelectedNodeId("")
+      if (onNodeSelect) onNodeSelect(null)
+    }
+  }, [nodes, selectedNodeId, onNodeSelect])
 
   function nodeLabel(node) {
     const labels = node.labels || []
@@ -1521,6 +1610,11 @@ function GraphCanvas({ graphData, onNodeSelect }) {
       <div className="graph-toolbar">
         <span className="muted-inline">Knoten: {nodes.length} | Kanten: {edges.length}</span>
         <div className="actions-row">
+          <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
+            <option value="data">Datenebene</option>
+            <option value="app">Anwendungsebene</option>
+            <option value="all">Alles</option>
+          </select>
           <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.min(2.4, z + 0.1))}>+</button>
           <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>-</button>
           <button className="btn btn-outline btn-sm" type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Reset</button>

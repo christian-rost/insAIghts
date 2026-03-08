@@ -494,11 +494,13 @@ Festlegung:
   - Admin-UI fuer Workflow-Regeln (formularbasiert) inkl. Runtime-Update ohne Redeploy
   - Admin-KPI-Panel (Dokumente/Rechnungen, Statusverteilungen, offene Cases, Freigaben 24h)
   - Admin-Danger-Zone fuer globalen Pipeline-Reset (Dokumente/Rechnungen/Positionen/Aktionen/Cases)
+  - Admin-Dashboard tab-basiert (statt langer vertikaler Seite); Meldungen/Fehler werden oben unter dem Header angezeigt
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
   - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
+  - Graph-Darstellung ist in Layer getrennt umschaltbar: Datenebene / Anwendungsebene / Alles
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Admin-Ansicht kann zusaetzlich einen globalen Graph-Ausschnitt laden und visualisieren
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)

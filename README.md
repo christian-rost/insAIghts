@@ -116,7 +116,9 @@ Hinweis:
 - Admin kann zusaetzlich einen globalen Graph-Ausschnitt laden (`/api/graph/global`, limitiert ueber max_nodes/max_edges).
 - In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails); Knoten-Auswahl hebt passende Positionen/Aktionen hervor.
 - Rechnungen werden im Graph auch ueber gemeinsame Dimensionen verbunden (`HAS_STATUS`, `IN_CURRENCY`, optional `FOR_RECIPIENT` aus Extraktionsfeldern wie `empfaenger`).
+- Admin-Dashboard ist tab-basiert aufgebaut; Status-/Fehlermeldungen werden oben direkt unter dem Header angezeigt.
 - In der Inbox zeigt die Rechnungsdetailansicht zusaetzlich "Extrahierte Felder (Header)" inkl. Feldwert und Indikator, ob der Wert direkt aus dem LLM-Output kam.
+- Die Graph-Visualisierung kann zwischen `Datenebene`, `Anwendungsebene` und `Alles` umgeschaltet werden.
 
 ## Coolify
 

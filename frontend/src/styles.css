@@ -319,6 +319,37 @@ label {
   margin-top: 0.7rem;
 }
 
+.top-error {
+  margin-top: 0;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid #d4d4d4;
+}
+
+.admin-tab {
+  border: none;
+  background: transparent;
+  color: #737373;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.65rem 0.8rem 0.7rem;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.admin-tab:hover {
+  color: #404040;
+}
+
+.admin-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
 .inbox-layout {
   width: calc(100% - 2rem);
   max-width: none;
