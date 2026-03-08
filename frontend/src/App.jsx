@@ -424,7 +424,13 @@ function AdminView({ token, currentUser, onLogout }) {
         String(row?.metadata_json?.run_id || "") === String(runId),
     )
     if (!rows.length) return
-    const latest = rows[0]
+    const latest = rows.reduce((best, row) => {
+      const seq = Number(row?.metadata_json?.seq || 0)
+      const bestSeq = Number(best?.metadata_json?.seq || 0)
+      if (seq > bestSeq) return row
+      if (seq < bestSeq) return best
+      return String(row?.created_at || "") > String(best?.created_at || "") ? row : best
+    }, rows[0])
     const meta = latest.metadata_json || {}
     const label = String(meta.step_label || meta.step || "Pipeline")
     const state = String(meta.state || "").toLowerCase()
@@ -2924,6 +2930,13 @@ function GraphCanvas({ graphData, onNodeSelect }) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedNodeId, setSelectedNodeId] = useState("")
   const [layerMode, setLayerMode] = useState("data")
+  const [labelMode, setLabelMode] = useState("auto")
+  const [showLineItems, setShowLineItems] = useState(true)
+  const [showDataFields, setShowDataFields] = useState(true)
+  const [showAppActions, setShowAppActions] = useState(true)
+  const [aggregateLines, setAggregateLines] = useState(true)
+  const [lineTopN, setLineTopN] = useState(8)
+  const [minNodeDegree, setMinNodeDegree] = useState(0)
   const [nodeOverrides, setNodeOverrides] = useState({})
   const dragStateRef = useRef(null)
   const nodeDragRef = useRef(null)
@@ -2938,8 +2951,8 @@ function GraphCanvas({ graphData, onNodeSelect }) {
         edges: null,
       },
       data: {
-        labels: new Set(["Invoice", "Supplier", "InvoiceLine", "Currency", "InvoiceDataField"]),
-        edges: new Set(["BELONGS_TO", "HAS_LINE", "IN_CURRENCY", "HAS_DATA_FIELD"]),
+        labels: new Set(["Invoice", "Supplier", "InvoiceLine", "Currency", "InvoiceDataField", "InvoiceLineGroup"]),
+        edges: new Set(["BELONGS_TO", "HAS_LINE", "IN_CURRENCY", "HAS_DATA_FIELD", "HAS_LINE_GROUP"]),
       },
       app: {
         labels: new Set(["Invoice", "InvoiceAction", "User", "InvoiceStatus"]),
@@ -2961,21 +2974,232 @@ function GraphCanvas({ graphData, onNodeSelect }) {
       (e) => nodeIds.has(String(e.source || "")) && nodeIds.has(String(e.target || "")),
     )
 
+    const visibleNodeIds = new Set(filteredNodes.map((n) => String(n.id)))
+    if (!showLineItems) {
+      for (const n of filteredNodes) {
+        if ((n.labels || []).includes("InvoiceLine")) visibleNodeIds.delete(String(n.id))
+      }
+    }
+    if (!showDataFields) {
+      for (const n of filteredNodes) {
+        if ((n.labels || []).includes("InvoiceDataField")) visibleNodeIds.delete(String(n.id))
+      }
+    }
+    if (!showAppActions) {
+      for (const n of filteredNodes) {
+        if ((n.labels || []).includes("InvoiceAction")) visibleNodeIds.delete(String(n.id))
+      }
+    }
+
+    filteredNodes = filteredNodes.filter((n) => visibleNodeIds.has(String(n.id)))
+    filteredEdges = filteredEdges.filter(
+      (e) => visibleNodeIds.has(String(e.source || "")) && visibleNodeIds.has(String(e.target || "")),
+    )
+
+    if (aggregateLines && showLineItems && layerMode !== "app") {
+      const byId = new Map(filteredNodes.map((n) => [String(n.id), n]))
+      const lineByInvoice = new Map()
+      for (const e of filteredEdges) {
+        if (String(e.type || "") !== "HAS_LINE") continue
+        const sourceId = String(e.source || "")
+        const targetId = String(e.target || "")
+        const sourceNode = byId.get(sourceId)
+        const targetNode = byId.get(targetId)
+        if (!sourceNode || !targetNode) continue
+        let invoiceId = ""
+        let lineId = ""
+        if ((sourceNode.labels || []).includes("Invoice") && (targetNode.labels || []).includes("InvoiceLine")) {
+          invoiceId = sourceId
+          lineId = targetId
+        } else if ((targetNode.labels || []).includes("Invoice") && (sourceNode.labels || []).includes("InvoiceLine")) {
+          invoiceId = targetId
+          lineId = sourceId
+        }
+        if (!invoiceId || !lineId) continue
+        const lines = lineByInvoice.get(invoiceId) || []
+        lines.push(lineId)
+        lineByInvoice.set(invoiceId, lines)
+      }
+
+      const nodesToRemove = new Set()
+      const edgesToRemove = new Set()
+      const nodesToAdd = []
+      const edgesToAdd = []
+      const topN = Math.max(1, Math.min(20, Number(lineTopN || 8)))
+      let syntheticCounter = 0
+
+      for (const [invoiceId, lineIds] of lineByInvoice.entries()) {
+        if (lineIds.length <= topN) continue
+        const sortedLineIds = [...lineIds].sort((a, b) => {
+          const na = Number(byId.get(a)?.properties?.line_amount || 0)
+          const nb = Number(byId.get(b)?.properties?.line_amount || 0)
+          return nb - na
+        })
+        const keep = new Set(sortedLineIds.slice(0, topN))
+        const grouped = sortedLineIds.slice(topN)
+        if (!grouped.length) continue
+
+        const aggId = `line-group:${invoiceId}:${syntheticCounter++}`
+        nodesToAdd.push({
+          id: aggId,
+          labels: ["InvoiceLineGroup"],
+          properties: {
+            invoice_id: invoiceId,
+            grouped_count: grouped.length,
+            grouped_line_ids: grouped,
+            name: `Weitere Positionen (${grouped.length})`,
+          },
+        })
+        edgesToAdd.push({
+          id: `edge:${aggId}`,
+          source: invoiceId,
+          target: aggId,
+          type: "HAS_LINE_GROUP",
+        })
+
+        for (const lid of grouped) nodesToRemove.add(lid)
+        for (const e of filteredEdges) {
+          const s = String(e.source || "")
+          const t = String(e.target || "")
+          if (nodesToRemove.has(s) || nodesToRemove.has(t)) edgesToRemove.add(String(e.id || `${s}-${t}-${e.type || ""}`))
+          if (keep.has(s) || keep.has(t)) continue
+        }
+      }
+
+      if (nodesToRemove.size > 0) {
+        filteredNodes = filteredNodes.filter((n) => !nodesToRemove.has(String(n.id)))
+        filteredEdges = filteredEdges.filter((e) => !edgesToRemove.has(String(e.id || `${e.source || ""}-${e.target || ""}-${e.type || ""}`)))
+      }
+      if (nodesToAdd.length) filteredNodes = filteredNodes.concat(nodesToAdd)
+      if (edgesToAdd.length) filteredEdges = filteredEdges.concat(edgesToAdd)
+    }
+
+    const degree = new Map()
+    for (const n of filteredNodes) degree.set(String(n.id), 0)
+    for (const e of filteredEdges) {
+      const s = String(e.source || "")
+      const t = String(e.target || "")
+      degree.set(s, (degree.get(s) || 0) + 1)
+      degree.set(t, (degree.get(t) || 0) + 1)
+    }
+
+    const coreLabels = new Set(["Invoice", "Supplier", "Currency", "InvoiceStatus", "InvoiceLineGroup"])
+    if (minNodeDegree > 0) {
+      const keepIds = new Set(
+        filteredNodes
+          .filter((n) => {
+            const labels = n.labels || []
+            if (labels.some((l) => coreLabels.has(l))) return true
+            return (degree.get(String(n.id)) || 0) >= minNodeDegree
+          })
+          .map((n) => String(n.id)),
+      )
+      filteredNodes = filteredNodes.filter((n) => keepIds.has(String(n.id)))
+      filteredEdges = filteredEdges.filter((e) => keepIds.has(String(e.source || "")) && keepIds.has(String(e.target || "")))
+    }
+
     const centerX = width / 2
     const centerY = height / 2
-    const radius = Math.max(90, Math.min(width, height) * 0.34)
+    const nodeById = new Map(filteredNodes.map((n) => [String(n.id), n]))
+    const adjacency = new Map()
+    for (const n of filteredNodes) adjacency.set(String(n.id), new Set())
+    for (const e of filteredEdges) {
+      const s = String(e.source || "")
+      const t = String(e.target || "")
+      if (!adjacency.has(s)) adjacency.set(s, new Set())
+      if (!adjacency.has(t)) adjacency.set(t, new Set())
+      adjacency.get(s).add(t)
+      adjacency.get(t).add(s)
+    }
 
-    const positioned = filteredNodes.map((n, idx) => {
-      const angle = (idx / Math.max(1, filteredNodes.length)) * Math.PI * 2
+    const invoiceNodes = filteredNodes.filter((n) => (n.labels || []).includes("Invoice"))
+    const positionedMap = new Map()
+
+    if (invoiceNodes.length === 1) {
+      positionedMap.set(String(invoiceNodes[0].id), { x: centerX, y: centerY })
+    } else if (invoiceNodes.length > 1) {
+      const invoiceRadius = Math.max(95, Math.min(width, height) * 0.24)
+      for (let i = 0; i < invoiceNodes.length; i += 1) {
+        const angle = (i / invoiceNodes.length) * Math.PI * 2
+        positionedMap.set(String(invoiceNodes[i].id), {
+          x: centerX + Math.cos(angle) * invoiceRadius,
+          y: centerY + Math.sin(angle) * invoiceRadius,
+        })
+      }
+    }
+
+    const invoiceIds = new Set(invoiceNodes.map((n) => String(n.id)))
+    const assignedByInvoice = new Map()
+    for (const inv of invoiceNodes) assignedByInvoice.set(String(inv.id), [])
+    for (const n of filteredNodes) {
+      const nid = String(n.id)
+      if (invoiceIds.has(nid)) continue
+      const neighbors = adjacency.get(nid) || new Set()
+      const connectedInvoices = [...neighbors].filter((x) => invoiceIds.has(x))
+      if (!connectedInvoices.length) {
+        continue
+      }
+      const assignedInvoice = connectedInvoices[0]
+      const arr = assignedByInvoice.get(assignedInvoice) || []
+      arr.push(nid)
+      assignedByInvoice.set(assignedInvoice, arr)
+    }
+
+    function ringRadiusForNode(node) {
+      const labels = node.labels || []
+      if (labels.includes("Supplier") || labels.includes("Currency") || labels.includes("InvoiceStatus")) return 95
+      if (labels.includes("User") || labels.includes("InvoiceAction")) return 125
+      if (labels.includes("InvoiceDataField") || labels.includes("InvoiceLine") || labels.includes("InvoiceLineGroup")) return 155
+      return 140
+    }
+
+    const invoiceCount = Math.max(1, invoiceNodes.length)
+    for (let i = 0; i < invoiceNodes.length; i += 1) {
+      const inv = invoiceNodes[i]
+      const invId = String(inv.id)
+      const invPos = positionedMap.get(invId) || { x: centerX, y: centerY }
+      const items = assignedByInvoice.get(invId) || []
+      if (!items.length) continue
+      const baseAngle = invoiceCount === 1 ? -Math.PI / 2 : (i / invoiceCount) * Math.PI * 2
+      const sector = invoiceCount === 1 ? Math.PI * 2 : (Math.PI * 2 / invoiceCount) * 0.95
+      const start = baseAngle - sector / 2
+      for (let k = 0; k < items.length; k += 1) {
+        const nid = items[k]
+        if (positionedMap.has(nid)) continue
+        const node = nodeById.get(nid)
+        if (!node) continue
+        const radius = ringRadiusForNode(node)
+        const a = start + ((k + 1) / (items.length + 1)) * sector
+        positionedMap.set(nid, {
+          x: invPos.x + Math.cos(a) * radius,
+          y: invPos.y + Math.sin(a) * radius,
+        })
+      }
+    }
+
+    const leftovers = filteredNodes.filter((n) => !positionedMap.has(String(n.id))).map((n) => String(n.id))
+    if (leftovers.length) {
+      const r = Math.max(110, Math.min(width, height) * 0.42)
+      for (let i = 0; i < leftovers.length; i += 1) {
+        const angle = (i / leftovers.length) * Math.PI * 2
+        positionedMap.set(leftovers[i], {
+          x: centerX + Math.cos(angle) * r,
+          y: centerY + Math.sin(angle) * r,
+        })
+      }
+    }
+
+    const positioned = filteredNodes.map((n) => {
+      const p = positionedMap.get(String(n.id)) || { x: centerX, y: centerY }
       return {
         ...n,
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: p.x,
+        y: p.y,
       }
     })
 
     return { nodes: positioned, edges: filteredEdges }
-  }, [graphData, layerMode])
+  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree])
 
   const renderedNodes = useMemo(
     () => nodes.map((n) => ({ ...n, ...(nodeOverrides[String(n.id)] || {}) })),
@@ -3013,7 +3237,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     setSelectedNodeId("")
     setNodeOverrides({})
     if (onNodeSelect) onNodeSelect(null)
-  }, [graphData, layerMode])
+  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree])
 
   useEffect(() => {
     if (!selectedNodeId) return
@@ -3029,6 +3253,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     if (labels.includes("Invoice")) return p.invoice_number || p.id || "Invoice"
     if (labels.includes("Supplier")) return p.name || "Supplier"
     if (labels.includes("InvoiceLine")) return p.description || `Line ${p.line_no || ""}`.trim()
+    if (labels.includes("InvoiceLineGroup")) return p.name || `Weitere Positionen (${p.grouped_count || 0})`
     if (labels.includes("InvoiceDataField")) return `${p.field_name || "field"}: ${p.value || ""}`.trim()
     if (labels.includes("InvoiceAction")) return p.action_type || "Action"
     if (labels.includes("User")) return p.username || p.id || "User"
@@ -3041,6 +3266,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     if (labels.includes("Invoice")) return "#ee7f00"
     if (labels.includes("Supplier")) return "#335b8c"
     if (labels.includes("InvoiceLine")) return "#6b7280"
+    if (labels.includes("InvoiceLineGroup")) return "#7c8ea8"
     if (labels.includes("InvoiceDataField")) return "#475569"
     if (labels.includes("InvoiceAction")) return "#1f7a4a"
     if (labels.includes("User")) return "#6d28d9"
@@ -3063,19 +3289,72 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     return s === selected || t === selected
   }
 
+  function isDetailNode(node) {
+    const labels = node.labels || []
+    return labels.includes("InvoiceLine") || labels.includes("InvoiceDataField") || labels.includes("InvoiceAction")
+  }
+
+  function shouldShowLabel(node, direct) {
+    if (labelMode === "none") return false
+    if (labelMode === "all") return true
+    if (selectedNodeId) return !!direct
+    const labels = node.labels || []
+    if (zoom >= 1.35) return !isDetailNode(node) || labels.includes("InvoiceLineGroup")
+    return (
+      labels.includes("Invoice") ||
+      labels.includes("Supplier") ||
+      labels.includes("Currency") ||
+      labels.includes("InvoiceStatus") ||
+      labels.includes("InvoiceLineGroup")
+    )
+  }
+
   return (
     <div className="graph-panel">
       <div className="graph-toolbar">
-        <span className="muted-inline">Knoten: {nodes.length} | Kanten: {edges.length}</span>
-        <div className="actions-row">
-          <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
-            <option value="data">Datenebene</option>
-            <option value="app">Anwendungsebene</option>
-            <option value="all">Alles</option>
-          </select>
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.min(2.4, z + 0.1))}>+</button>
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>-</button>
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Reset</button>
+        <div className="graph-toolbar-main">
+          <span className="muted-inline">Knoten: {nodes.length} | Kanten: {edges.length}</span>
+          <div className="actions-row">
+            <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
+              <option value="data">Datenebene</option>
+              <option value="app">Anwendungsebene</option>
+              <option value="all">Alles</option>
+            </select>
+            <select className="input btn-sm" value={labelMode} onChange={(e) => setLabelMode(e.target.value)}>
+              <option value="auto">Labels: Auto</option>
+              <option value="all">Labels: Alle</option>
+              <option value="none">Labels: Aus</option>
+            </select>
+            <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.min(2.4, z + 0.1))}>+</button>
+            <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>-</button>
+            <button className="btn btn-outline btn-sm" type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Reset</button>
+          </div>
+        </div>
+        <div className="graph-toolbar-filters">
+          <label className="graph-toggle-item"><input type="checkbox" checked={showLineItems} onChange={(e) => setShowLineItems(e.target.checked)} /> Positionen</label>
+          <label className="graph-toggle-item"><input type="checkbox" checked={showDataFields} onChange={(e) => setShowDataFields(e.target.checked)} /> Datenfelder</label>
+          <label className="graph-toggle-item"><input type="checkbox" checked={showAppActions} onChange={(e) => setShowAppActions(e.target.checked)} /> Aktionen</label>
+          <label className="graph-toggle-item"><input type="checkbox" checked={aggregateLines} onChange={(e) => setAggregateLines(e.target.checked)} /> Positionen clustern</label>
+          <label className="graph-toggle-item">Top-N:
+            <input
+              className="input btn-sm graph-number-input"
+              type="number"
+              min={1}
+              max={20}
+              value={lineTopN}
+              onChange={(e) => setLineTopN(Math.max(1, Math.min(20, Number(e.target.value || 8))))}
+            />
+          </label>
+          <label className="graph-toggle-item">Min Degree:
+            <input
+              className="input btn-sm graph-number-input"
+              type="number"
+              min={0}
+              max={20}
+              value={minNodeDegree}
+              onChange={(e) => setMinNodeDegree(Math.max(0, Math.min(20, Number(e.target.value || 0))))}
+            />
+          </label>
         </div>
       </div>
       <svg
@@ -3146,6 +3425,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
           {renderedNodes.map((node) => {
             const selected = String(selectedNodeId) === String(node.id)
             const direct = isNodeDirectlyConnected(node.id)
+            const showLabel = shouldShowLabel(node, direct)
             return (
               <g
                 key={node.id}
@@ -3164,13 +3444,15 @@ function GraphCanvas({ graphData, onNodeSelect }) {
                 <circle
                   cx={node.x}
                   cy={node.y}
-                  r={selected ? 14 : 11}
+                  r={selected ? 14 : (node.labels || []).includes("InvoiceLineGroup") ? 12 : 11}
                   fill={nodeColor(node)}
                   className={selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}
                 />
-                <text x={node.x + 16} y={node.y + 4} className={direct ? "graph-label" : "graph-label graph-label-dim"}>
-                  {nodeLabel(node).slice(0, 48)}
-                </text>
+                {showLabel ? (
+                  <text x={node.x + 16} y={node.y + 4} className={direct ? "graph-label" : "graph-label graph-label-dim"}>
+                    {nodeLabel(node).slice(0, 48)}
+                  </text>
+                ) : null}
               </g>
             )
           })}

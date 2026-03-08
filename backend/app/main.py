@@ -909,8 +909,11 @@ async def admin_pipeline_run(
     admin_user: Dict = Depends(require_admin),
 ) -> Dict:
     run_id = str(payload.client_run_id or "").strip() or str(uuid.uuid4())
+    progress_seq = 0
 
     def log_progress(step: str, step_label: str, state: str, result: Optional[Dict[str, Any]] = None) -> None:
+        nonlocal progress_seq
+        progress_seq += 1
         log_admin_event(
             event_type="admin.pipeline_run.progress",
             actor_user_id=admin_user["id"],
@@ -918,6 +921,7 @@ async def admin_pipeline_run(
             target_id="one_click",
             metadata_json={
                 "run_id": run_id,
+                "seq": progress_seq,
                 "step": step,
                 "step_label": step_label,
                 "state": state,

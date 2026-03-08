@@ -81,6 +81,12 @@ Nicht in Env pflegen:
 - Globalen Graph laden
 - Alias-Review fuer beliebige Attribute (`entity_type`)
 - Graph-Insights laden (Top N Auswertungen)
+- Graph-UX-Steuerungen fuer Inbox und Global-Graph:
+  - Label-Modus: `Auto` / `Alle` / `Aus`
+  - Detail-Filter: Positionen, Datenfelder, Aktionen ein-/ausblenden
+  - Positionen-Clustering (Top-N + Sammelknoten "Weitere Positionen")
+  - Noise-Filter ueber `Min Degree`
+  - Verbesserte Layout-Logik (invoice-zentrierte Gruppierung statt reinem Ring)
 
 ### 4.7 Reset
 - Globaler Pipeline-Reset

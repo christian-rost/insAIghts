@@ -595,9 +595,35 @@ label {
 
 .graph-toolbar {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.8rem;
+}
+
+.graph-toolbar-main {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
+}
+
+.graph-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.8rem;
+  align-items: center;
+}
+
+.graph-toggle-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.graph-number-input {
+  width: 74px;
 }
 
 .graph-svg {
@@ -786,6 +812,11 @@ label {
 
   .graph-svg {
     min-height: 300px;
+  }
+
+  .graph-toolbar-main {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .inbox-item-number {
