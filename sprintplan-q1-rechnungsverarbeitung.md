@@ -194,6 +194,6 @@ Eine produktionsnahe Rechnungsverarbeitungs-Anwendung mit stabiler Ingestion, na
   - Anwender-Inbox inkl. Detail, Positionen, PDF/Bild-Vorschau, Workflow-Aktionen.
   - Freigaberegeln fuer `approve` aus Admin-Konfiguration serverseitig durchgesetzt.
   - Audit- und Aktionshistorie fuer operative Statuswechsel.
+  - KPI-Dashboard V1 inkl. Zeittrend, Aktionsverteilung, Touchless-Rate und Lieferanten-Ausnahmequote.
 - Noch offen fuer vollstaendige Q1-Zielerreichung:
   - Mail- und REST-Connectoren in Produktivqualitaet.
-  - KPI-Dashboard V1.

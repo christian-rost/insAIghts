@@ -148,5 +148,3 @@ Datenqualitaet plattformweit heben und Skalierung absichern.
 - LLM-basierte Feldextraktion ist ueber Admin-UI konfigurierbar.
 - Noch offen fuer Roadmap-Q1-Vollabdeckung:
   - Mail- und REST-Connector produktiv anbinden.
-  - Freigaberegeln aus Admin-UI serverseitig erzwingen.
-  - KPI-Dashboard V1 abschliessen.

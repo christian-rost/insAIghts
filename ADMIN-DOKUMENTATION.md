@@ -39,6 +39,9 @@ Nicht in Env pflegen:
 ### 4.1 KPI
 - Gesamtstatus von Dokumenten, Rechnungen, Cases
 - Monitoring der operativen Last
+- Trend letzte 14 Tage (Dokumente, Rechnungen, Approvals)
+- Touchless-Rate und durchschnittliche Freigabezeit
+- Lieferanten-Ausnahmequote und Top-Lieferanten nach Volumen
 
 ### 4.2 Model / Felder
 - Extraktionsfelder fuer Header und Line-Items

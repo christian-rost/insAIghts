@@ -1027,6 +1027,8 @@ function AdminView({ token, currentUser, onLogout }) {
                     <div className="kpi-tile"><span>Rechnungen</span><strong>{kpi?.totals?.invoices ?? 0}</strong></div>
                     <div className="kpi-tile"><span>Offene Cases</span><strong>{kpi?.totals?.open_cases ?? 0}</strong></div>
                     <div className="kpi-tile"><span>Freigaben 24h</span><strong>{kpi?.throughput?.approved_last_24h ?? 0}</strong></div>
+                    <div className="kpi-tile"><span>Avg. Min bis Approve</span><strong>{kpi?.throughput?.avg_minutes_to_approve ?? "-"}</strong></div>
+                    <div className="kpi-tile"><span>Touchless Rate</span><strong>{kpi?.throughput?.touchless_rate != null ? `${(Number(kpi?.throughput?.touchless_rate || 0) * 100).toFixed(1)}%` : "-"}</strong></div>
                   </div>
                   <div className="kpi-subgrid">
                     <div>
@@ -1044,6 +1046,103 @@ function AdminView({ token, currentUser, onLogout }) {
                           <li key={key}><span>{key}</span><strong>{value}</strong></li>
                         ))}
                       </ul>
+                    </div>
+                    <div>
+                      <div className="invoice-label">AKTIONEN NACH TYP</div>
+                      <ul className="simple-list">
+                        {Object.entries(kpi?.actions_by_type || {}).map(([key, value]) => (
+                          <li key={key}><span>{key}</span><strong>{value}</strong></li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="kpi-subgrid">
+                    <div>
+                      <div className="invoice-label">TREND LETZTE 14 TAGE</div>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Tag</th>
+                            <th>Dokumente</th>
+                            <th>Rechnungen</th>
+                            <th>Approvals</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(kpi?.trend_last_14d || []).map((row) => (
+                            <tr key={row.day}>
+                              <td>{row.day}</td>
+                              <td>
+                                <div>{row.documents_ingested ?? 0}</div>
+                                <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(row.documents_ingested || 0) * 10)}%` }} /></div>
+                              </td>
+                              <td>
+                                <div>{row.invoices_created ?? 0}</div>
+                                <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(row.invoices_created || 0) * 10)}%` }} /></div>
+                              </td>
+                              <td>
+                                <div>{row.approvals ?? 0}</div>
+                                <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(row.approvals || 0) * 10)}%` }} /></div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div>
+                      <div className="invoice-label">LIEFERANTEN AUSNAHMEQUOTE</div>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Lieferant</th>
+                            <th>Rechnungen</th>
+                            <th>Ausnahmen</th>
+                            <th>Quote</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(kpi?.supplier_quality?.top_exception_rate || []).length === 0 ? (
+                            <tr><td colSpan={4}>Keine Daten.</td></tr>
+                          ) : (
+                            (kpi?.supplier_quality?.top_exception_rate || []).map((row) => (
+                              <tr key={`${row.supplier_name}:${row.invoice_count}`}>
+                                <td>{row.supplier_name}</td>
+                                <td>{row.invoice_count}</td>
+                                <td>{row.exception_count}</td>
+                                <td>
+                                  <div>{(Number(row.exception_rate || 0) * 100).toFixed(1)}%</div>
+                                  <div className="mini-bar"><span style={{ width: `${Math.min(100, Number(row.exception_rate || 0) * 100)}%` }} /></div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="kpi-subgrid">
+                    <div>
+                      <div className="invoice-label">TOP LIEFERANTEN (VOLUMEN)</div>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Lieferant</th>
+                            <th>Rechnungen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(kpi?.supplier_quality?.top_by_volume || []).length === 0 ? (
+                            <tr><td colSpan={2}>Keine Daten.</td></tr>
+                          ) : (
+                            (kpi?.supplier_quality?.top_by_volume || []).map((row) => (
+                              <tr key={`${row.supplier_name}:${row.invoice_count}`}>
+                                <td>{row.supplier_name}</td>
+                                <td>{row.invoice_count}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </>
