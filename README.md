@@ -115,6 +115,7 @@ Hinweis:
 - Graph-Schicht ist nutzbar: Invoice-Subgraph kann pro Rechnung geladen werden; Admin kann Bulk-Sync nach Neo4j ausfuehren.
 - Admin kann zusaetzlich einen globalen Graph-Ausschnitt laden (`/api/graph/global`, limitiert ueber max_nodes/max_edges).
 - In der Inbox wird der Invoice-Subgraph interaktiv dargestellt (Nodes/Edges, Zoom/Pan, Knotendetails); Knoten-Auswahl hebt passende Positionen/Aktionen hervor.
+- Rechnungen werden im Graph auch ueber gemeinsame Dimensionen verbunden (`HAS_STATUS`, `IN_CURRENCY`, optional `FOR_RECIPIENT` aus Extraktionsfeldern wie `empfaenger`).
 - In der Inbox zeigt die Rechnungsdetailansicht zusaetzlich "Extrahierte Felder (Header)" inkl. Feldwert und Indikator, ob der Wert direkt aus dem LLM-Output kam.
 
 ## Coolify

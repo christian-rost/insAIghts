@@ -64,6 +64,7 @@ def graph_healthcheck() -> Dict[str, Any]:
 
 
 def _sync_invoice_core(tx, invoice: Dict[str, Any]) -> None:
+    recipients = _extract_recipient_values(invoice)
     tx.run(
         """
         MERGE (i:Invoice {id: $id})
@@ -104,6 +105,65 @@ def _sync_invoice_core(tx, invoice: Dict[str, Any]) -> None:
             supplier_name=supplier_name,
             invoice_id=str(invoice.get("id") or ""),
         )
+
+    tx.run(
+        """
+        MATCH (i:Invoice {id: $invoice_id})
+        FOREACH (_ IN CASE WHEN $status IS NULL OR $status = '' THEN [] ELSE [1] END |
+            MERGE (s:InvoiceStatus {name: $status})
+            MERGE (i)-[:HAS_STATUS]->(s)
+        )
+        FOREACH (_ IN CASE WHEN $currency IS NULL OR $currency = '' THEN [] ELSE [1] END |
+            MERGE (c:Currency {code: $currency})
+            MERGE (i)-[:IN_CURRENCY]->(c)
+        )
+        """,
+        invoice_id=str(invoice.get("id") or ""),
+        status=invoice.get("status"),
+        currency=invoice.get("currency"),
+    )
+
+    if recipients:
+        tx.run(
+            """
+            UNWIND $recipients AS recipient
+            MATCH (i:Invoice {id: $invoice_id})
+            MERGE (r:Recipient {name: recipient})
+            MERGE (i)-[:FOR_RECIPIENT]->(r)
+            """,
+            invoice_id=str(invoice.get("id") or ""),
+            recipients=recipients,
+        )
+
+
+def _extract_recipient_values(invoice: Dict[str, Any]) -> List[str]:
+    extraction = invoice.get("extraction_json")
+    if not isinstance(extraction, dict):
+        return []
+    candidates: List[str] = []
+    custom_header = extraction.get("custom_header_fields")
+    if isinstance(custom_header, dict):
+        for key in ("empfaenger", "leistungsempfaenger", "recipient", "customer_name"):
+            value = custom_header.get(key)
+            if value is not None and str(value).strip():
+                candidates.append(str(value).strip())
+    llm_output = extraction.get("llm_output")
+    if isinstance(llm_output, dict):
+        header = llm_output.get("header")
+        if isinstance(header, dict):
+            for key in ("empfaenger", "leistungsempfaenger", "recipient", "customer_name"):
+                value = header.get(key)
+                if value is not None and str(value).strip():
+                    candidates.append(str(value).strip())
+    # deduplicate preserving order
+    seen = set()
+    deduped: List[str] = []
+    for name in candidates:
+        if name in seen:
+            continue
+        seen.add(name)
+        deduped.append(name)
+    return deduped
 
 
 def _sync_line_items(tx, invoice_id: str, lines: List[Dict[str, Any]]) -> int:
