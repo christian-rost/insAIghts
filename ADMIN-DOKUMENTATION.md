@@ -79,6 +79,7 @@ Nicht in Env pflegen:
 ### 4.8 Audit
 - Audit-Events im Admin abrufbar
 - Endpoint: `GET /api/admin/audit/events?limit=...`
+- Eigener Admin-Tab mit Filtern fuer `event_type`, `actor_user_id`, `target_type`
 - Typische Events: Pipeline-Runs, Reprocessing, Loeschantrag-Freigaben/Ablehnungen, Konfigurationsaenderungen
 
 ## 5. Graph-Alias-Verwaltung (generisch)

@@ -27,6 +27,7 @@ import {
   listAttributeAliases,
   listDocuments,
   listProviders,
+  listAdminAuditEvents,
   listUsers,
   login,
   mapInvoices,
@@ -260,6 +261,7 @@ function AdminView({ token, currentUser, onLogout }) {
     { id: "users", label: "User Management" },
     { id: "pipeline", label: "MinIO Pipeline" },
     { id: "graph", label: "Graph" },
+    { id: "audit", label: "Audit" },
     { id: "reset", label: "Reset" },
   ]
   const [users, setUsers] = useState([])
@@ -301,6 +303,11 @@ function AdminView({ token, currentUser, onLogout }) {
   const [pipelineRunning, setPipelineRunning] = useState(false)
   const [deleteRequests, setDeleteRequests] = useState([])
   const [deleteRequestStatusFilter, setDeleteRequestStatusFilter] = useState("PENDING")
+  const [auditEvents, setAuditEvents] = useState([])
+  const [auditLimit, setAuditLimit] = useState(200)
+  const [auditEventTypeFilter, setAuditEventTypeFilter] = useState("")
+  const [auditActorFilter, setAuditActorFilter] = useState("")
+  const [auditTargetTypeFilter, setAuditTargetTypeFilter] = useState("")
   const [graphSyncLimit, setGraphSyncLimit] = useState(200)
   const [globalGraphData, setGlobalGraphData] = useState(null)
   const [globalGraphError, setGlobalGraphError] = useState("")
@@ -395,6 +402,15 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const res = await listDeleteRequests(token, { status: deleteRequestStatusFilter, limit: 300 })
       setDeleteRequests(res.items || [])
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadAuditEvents(limit = auditLimit) {
+    try {
+      const res = await listAdminAuditEvents(token, limit || 200)
+      setAuditEvents(res.items || [])
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -613,6 +629,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadWorkflowRules()
     loadKpi()
     loadDeleteRequests()
+    loadAuditEvents()
   }, [])
 
   useEffect(() => {
@@ -620,6 +637,20 @@ function AdminView({ token, currentUser, onLogout }) {
   }, [deleteRequestStatusFilter])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
+  const filteredAuditEvents = useMemo(() => {
+    const byType = String(auditEventTypeFilter || "").trim().toLowerCase()
+    const byActor = String(auditActorFilter || "").trim().toLowerCase()
+    const byTargetType = String(auditTargetTypeFilter || "").trim().toLowerCase()
+    return (auditEvents || []).filter((row) => {
+      const eventType = String(row.event_type || "").toLowerCase()
+      const actor = String(row.actor_user_id || "").toLowerCase()
+      const targetType = String(row.target_type || "").toLowerCase()
+      if (byType && !eventType.includes(byType)) return false
+      if (byActor && !actor.includes(byActor)) return false
+      if (byTargetType && !targetType.includes(byTargetType)) return false
+      return true
+    })
+  }, [auditEvents, auditActorFilter, auditEventTypeFilter, auditTargetTypeFilter])
 
   return (
     <main className="app-layout">
@@ -1017,6 +1048,95 @@ function AdminView({ token, currentUser, onLogout }) {
                   </div>
                 </>
               )}
+            </div>
+          </section>
+          ) : null}
+
+          {adminTab === "audit" ? (
+          <section className="card">
+            <div className="card-header row">
+              <h3>Audit Events</h3>
+              <div className="actions-row">
+                <input
+                  className="input"
+                  type="number"
+                  min={20}
+                  max={2000}
+                  value={auditLimit}
+                  onChange={(e) => setAuditLimit(Math.max(20, Math.min(2000, Number(e.target.value || 200))))}
+                />
+                <button
+                  className="btn btn-outline"
+                  onClick={async () => {
+                    setError("")
+                    await loadAuditEvents(auditLimit || 200)
+                  }}
+                >
+                  Neu laden
+                </button>
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="grid">
+                <label>
+                  Filter Event-Typ
+                  <input
+                    className="input"
+                    value={auditEventTypeFilter}
+                    onChange={(e) => setAuditEventTypeFilter(e.target.value)}
+                    placeholder="z. B. admin.pipeline_run"
+                  />
+                </label>
+                <label>
+                  Filter Actor User ID
+                  <input
+                    className="input"
+                    value={auditActorFilter}
+                    onChange={(e) => setAuditActorFilter(e.target.value)}
+                    placeholder="UUID (Teilstring)"
+                  />
+                </label>
+                <label>
+                  Filter Target Type
+                  <input
+                    className="input"
+                    value={auditTargetTypeFilter}
+                    onChange={(e) => setAuditTargetTypeFilter(e.target.value)}
+                    placeholder="invoice, documents, ..."
+                  />
+                </label>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Zeit</th>
+                    <th>Event</th>
+                    <th>Actor</th>
+                    <th>Target</th>
+                    <th>Metadata</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAuditEvents.length === 0 ? (
+                    <tr><td colSpan={5}>Keine Audit-Events gefunden.</td></tr>
+                  ) : (
+                    filteredAuditEvents.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.created_at || "-"}</td>
+                        <td className="mono">{row.event_type || "-"}</td>
+                        <td className="mono">{row.actor_user_id || "-"}</td>
+                        <td>
+                          <div className="mono">{row.target_type || "-"}</div>
+                          <div className="mono">{row.target_id || "-"}</div>
+                        </td>
+                        <td>
+                          <pre className="graph-node-json">{JSON.stringify(row.metadata_json || {}, null, 2)}</pre>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
           ) : null}

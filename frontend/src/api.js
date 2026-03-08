@@ -214,6 +214,14 @@ export async function listDeleteRequests(token, { status = "", limit = 200 } = {
   return handleJson(response)
 }
 
+export async function listAdminAuditEvents(token, limit = 200) {
+  const qs = new URLSearchParams({ limit: String(limit) })
+  const response = await fetch(`${API_BASE}/api/admin/audit/events?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
 export async function approveDeleteRequest(token, requestId, note = "") {
   const response = await fetch(`${API_BASE}/api/admin/delete-requests/${encodeURIComponent(requestId)}/approve`, {
     method: "POST",

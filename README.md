@@ -22,6 +22,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 ## Aktueller Funktionsumfang
 - Auth mit `username/password` (+ Self-Registration)
 - Admin-Dashboard mit Tabs
+- Admin-Audit-Tab mit Filterung und Event-Einsicht
 - User-Management
 - Provider-Management (Mistral Key ueber UI)
 - MinIO als aktuell einzige produktive Quelle
