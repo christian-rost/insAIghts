@@ -39,6 +39,8 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `POST /api/admin/config/extraction-fields` (ADMIN)
 - `GET /api/admin/config/workflow-rules` (ADMIN)
 - `PUT /api/admin/config/workflow-rules` (ADMIN)
+- `GET /api/admin/config/graph` (ADMIN)
+- `PUT /api/admin/config/graph` (ADMIN)
 - `GET /api/admin/kpi/overview` (ADMIN)
 - `POST /api/admin/reset/invoice-pipeline` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
@@ -67,6 +69,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_config_provider_keys`
 - `insaights_config_extraction_fields`
 - `insaights_config_workflow_rules`
+- `insaights_config_graph`
 - `insaights_documents`
 - `insaights_invoices`
 - `insaights_invoice_lines`
@@ -119,6 +122,7 @@ Hinweis:
 - Admin-Dashboard ist tab-basiert aufgebaut; Status-/Fehlermeldungen werden oben direkt unter dem Header angezeigt.
 - In der Inbox zeigt die Rechnungsdetailansicht zusaetzlich "Extrahierte Felder (Header)" inkl. Feldwert und Indikator, ob der Wert direkt aus dem LLM-Output kam.
 - Die Graph-Visualisierung kann zwischen `Datenebene`, `Anwendungsebene` und `Alles` umgeschaltet werden.
+- Felder der Graph-Datenebene sind in Admin konfigurierbar (`/api/admin/config/graph`) und werden beim Sync fuer Verknuepfungen ueber gemeinsame Feldwerte verwendet.
 
 ## Coolify
 

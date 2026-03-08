@@ -70,6 +70,21 @@ values (
 )
 on conflict (rule_name) do nothing;
 
+create table if not exists insaights_config_graph (
+  id uuid primary key default gen_random_uuid(),
+  config_name text not null unique,
+  config_json jsonb not null default '{}'::jsonb,
+  updated_by uuid,
+  updated_at timestamptz not null default now()
+);
+
+insert into insaights_config_graph (config_name, config_json)
+values (
+  'invoice_data_layer',
+  '{"data_layer_fields": ["supplier_name", "currency", "status", "empfaenger"]}'::jsonb
+)
+on conflict (config_name) do nothing;
+
 create table if not exists insaights_config_provider_keys (
   id uuid primary key default gen_random_uuid(),
   provider_name text not null unique check (provider_name in ('mistral')),

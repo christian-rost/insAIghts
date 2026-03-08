@@ -352,6 +352,25 @@ export async function updateWorkflowRules(token, rulesJson) {
   return handleJson(response)
 }
 
+export async function getGraphConfig(token) {
+  const response = await fetch(`${API_BASE}/api/admin/config/graph`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function updateGraphConfig(token, dataLayerFields) {
+  const response = await fetch(`${API_BASE}/api/admin/config/graph`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ data_layer_fields: dataLayerFields }),
+  })
+  return handleJson(response)
+}
+
 export async function getKpiOverview(token) {
   const response = await fetch(`${API_BASE}/api/admin/kpi/overview`, {
     headers: { ...authHeaders(token) },

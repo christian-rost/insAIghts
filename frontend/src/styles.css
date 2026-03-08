@@ -630,6 +630,21 @@ label {
   padding: 0.45rem 0.55rem;
 }
 
+.graph-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.45rem 0.8rem;
+  margin: 0.55rem 0 0.7rem;
+}
+
+.graph-field-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

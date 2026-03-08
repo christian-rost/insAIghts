@@ -161,6 +161,8 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 
 ## 5.8 Graph
 - `GET /api/graph/global?max_nodes=&max_edges=` (ADMIN)
+- `GET /api/admin/config/graph` (ADMIN)
+- `PUT /api/admin/config/graph` (ADMIN)
 
 ## 5.9 Pipeline-Reset
 - `POST /api/admin/reset/invoice-pipeline` (ADMIN)
@@ -185,6 +187,8 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `PUT /api/admin/config/workflow-rules`
 - `GET /api/admin/kpi/overview`
 - `GET /api/graph/global`
+- `GET /api/admin/config/graph`
+- `PUT /api/admin/config/graph`
 - `POST /api/admin/reset/invoice-pipeline`
 
 ## 6. Datenmodell (Admin)

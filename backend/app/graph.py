@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from neo4j import GraphDatabase
 
@@ -63,8 +63,9 @@ def graph_healthcheck() -> Dict[str, Any]:
         }
 
 
-def _sync_invoice_core(tx, invoice: Dict[str, Any]) -> None:
-    recipients = _extract_recipient_values(invoice)
+def _sync_invoice_core(tx, invoice: Dict[str, Any], data_layer_fields: Optional[Set[str]] = None) -> None:
+    fields = data_layer_fields or {"supplier_name", "currency", "status"}
+    header_values = _extract_header_values(invoice)
     tx.run(
         """
         MERGE (i:Invoice {id: $id})
@@ -94,7 +95,7 @@ def _sync_invoice_core(tx, invoice: Dict[str, Any]) -> None:
     )
 
     supplier_name = str(invoice.get("supplier_name") or "").strip()
-    if supplier_name:
+    if "supplier_name" in fields and supplier_name:
         tx.run(
             """
             MERGE (s:Supplier {name: $supplier_name})
@@ -106,64 +107,80 @@ def _sync_invoice_core(tx, invoice: Dict[str, Any]) -> None:
             invoice_id=str(invoice.get("id") or ""),
         )
 
-    tx.run(
-        """
-        MATCH (i:Invoice {id: $invoice_id})
-        FOREACH (_ IN CASE WHEN $status IS NULL OR $status = '' THEN [] ELSE [1] END |
-            MERGE (s:InvoiceStatus {name: $status})
-            MERGE (i)-[:HAS_STATUS]->(s)
-        )
-        FOREACH (_ IN CASE WHEN $currency IS NULL OR $currency = '' THEN [] ELSE [1] END |
-            MERGE (c:Currency {code: $currency})
-            MERGE (i)-[:IN_CURRENCY]->(c)
-        )
-        """,
-        invoice_id=str(invoice.get("id") or ""),
-        status=invoice.get("status"),
-        currency=invoice.get("currency"),
-    )
-
-    if recipients:
+    status = str(invoice.get("status") or "").strip()
+    currency = str(invoice.get("currency") or "").strip()
+    if "status" in fields or "currency" in fields:
         tx.run(
             """
-            UNWIND $recipients AS recipient
             MATCH (i:Invoice {id: $invoice_id})
-            MERGE (r:Recipient {name: recipient})
-            MERGE (i)-[:FOR_RECIPIENT]->(r)
+            FOREACH (_ IN CASE WHEN $enable_status AND NOT ($status IS NULL OR $status = '') THEN [1] ELSE [] END |
+                MERGE (s:InvoiceStatus {name: $status})
+                MERGE (i)-[:HAS_STATUS]->(s)
+            )
+            FOREACH (_ IN CASE WHEN $enable_currency AND NOT ($currency IS NULL OR $currency = '') THEN [1] ELSE [] END |
+                MERGE (c:Currency {code: $currency})
+                MERGE (i)-[:IN_CURRENCY]->(c)
+            )
             """,
             invoice_id=str(invoice.get("id") or ""),
-            recipients=recipients,
+            status=status,
+            currency=currency,
+            enable_status="status" in fields,
+            enable_currency="currency" in fields,
+        )
+
+    dimension_fields = [f for f in fields if f not in {"supplier_name", "status", "currency"}]
+    dimensions = []
+    for field_name in dimension_fields:
+        raw_value = header_values.get(field_name)
+        value = str(raw_value or "").strip()
+        if not value:
+            continue
+        dimensions.append({"field_name": field_name, "value": value})
+    if dimensions:
+        tx.run(
+            """
+            UNWIND $dimensions AS dim
+            MATCH (i:Invoice {id: $invoice_id})
+            MERGE (d:InvoiceDataField {field_name: dim.field_name, value: dim.value})
+            MERGE (i)-[:HAS_DATA_FIELD]->(d)
+            """,
+            invoice_id=str(invoice.get("id") or ""),
+            dimensions=dimensions,
         )
 
 
-def _extract_recipient_values(invoice: Dict[str, Any]) -> List[str]:
+def _extract_header_values(invoice: Dict[str, Any]) -> Dict[str, Any]:
     extraction = invoice.get("extraction_json")
+    values: Dict[str, Any] = {}
+    values.update(
+        {
+            "supplier_name": invoice.get("supplier_name"),
+            "invoice_number": invoice.get("invoice_number"),
+            "invoice_date": invoice.get("invoice_date"),
+            "due_date": invoice.get("due_date"),
+            "currency": invoice.get("currency"),
+            "status": invoice.get("status"),
+            "gross_amount": invoice.get("gross_amount"),
+            "net_amount": invoice.get("net_amount"),
+            "tax_amount": invoice.get("tax_amount"),
+        }
+    )
     if not isinstance(extraction, dict):
-        return []
-    candidates: List[str] = []
+        return values
     custom_header = extraction.get("custom_header_fields")
     if isinstance(custom_header, dict):
-        for key in ("empfaenger", "leistungsempfaenger", "recipient", "customer_name"):
-            value = custom_header.get(key)
-            if value is not None and str(value).strip():
-                candidates.append(str(value).strip())
+        for key, value in custom_header.items():
+            if key not in values and value not in [None, ""]:
+                values[key] = value
     llm_output = extraction.get("llm_output")
     if isinstance(llm_output, dict):
         header = llm_output.get("header")
         if isinstance(header, dict):
-            for key in ("empfaenger", "leistungsempfaenger", "recipient", "customer_name"):
-                value = header.get(key)
-                if value is not None and str(value).strip():
-                    candidates.append(str(value).strip())
-    # deduplicate preserving order
-    seen = set()
-    deduped: List[str] = []
-    for name in candidates:
-        if name in seen:
-            continue
-        seen.add(name)
-        deduped.append(name)
-    return deduped
+            for key, value in header.items():
+                if key not in values and value not in [None, ""]:
+                    values[key] = value
+    return values
 
 
 def _sync_line_items(tx, invoice_id: str, lines: List[Dict[str, Any]]) -> int:
@@ -256,7 +273,12 @@ def _sync_actions(tx, invoice_id: str, actions: List[Dict[str, Any]]) -> int:
     return len(actions)
 
 
-def graph_sync_invoice(invoice: Dict[str, Any], line_items: List[Dict[str, Any]], actions: List[Dict[str, Any]]) -> Dict[str, Any]:
+def graph_sync_invoice(
+    invoice: Dict[str, Any],
+    line_items: List[Dict[str, Any]],
+    actions: List[Dict[str, Any]],
+    data_layer_fields: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     driver = get_graph_driver()
     if not driver:
         return {
@@ -270,9 +292,13 @@ def graph_sync_invoice(invoice: Dict[str, Any], line_items: List[Dict[str, Any]]
             "reason": "invoice.id is required",
         }
 
+    selected_fields = {str(f).strip() for f in (data_layer_fields or []) if str(f).strip()}
+    if not selected_fields:
+        selected_fields = {"supplier_name", "currency", "status"}
+
     try:
         with driver.session() as session:
-            session.execute_write(_sync_invoice_core, invoice)
+            session.execute_write(_sync_invoice_core, invoice, selected_fields)
             line_count = session.execute_write(_sync_line_items, invoice_id, line_items)
             action_count = session.execute_write(_sync_actions, invoice_id, actions)
         return {
@@ -280,6 +306,7 @@ def graph_sync_invoice(invoice: Dict[str, Any], line_items: List[Dict[str, Any]]
             "invoice_id": invoice_id,
             "line_items": line_count,
             "actions": action_count,
+            "data_layer_fields": sorted(selected_fields),
         }
     except Exception as exc:
         return {

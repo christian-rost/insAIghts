@@ -23,6 +23,7 @@ from .document_storage import (
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
 from .graph import graph_get_global_subgraph, graph_get_invoice_subgraph, graph_reset_invoice_domain, graph_sync_invoice
+from .graph_config_storage import get_graph_config, update_graph_config
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
 from .invoice_storage import (
@@ -164,6 +165,18 @@ class WorkflowRulesUpdateRequest(BaseModel):
     rules_json: Dict
 
 
+class GraphConfigResponse(BaseModel):
+    id: Optional[str] = None
+    config_name: str
+    config_json: Dict = Field(default_factory=dict)
+    updated_by: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class GraphConfigUpdateRequest(BaseModel):
+    data_layer_fields: List[str] = Field(default_factory=list)
+
+
 class InvoiceCaseResponse(BaseModel):
     id: str
     invoice_id: str
@@ -278,7 +291,9 @@ def _sync_invoice_graph_best_effort(invoice_id: str) -> Dict:
         return {"status": "not_found", "invoice_id": invoice_id}
     line_items = list_invoice_lines(invoice_id)
     actions = list_invoice_actions(invoice_id, limit=500)
-    return graph_sync_invoice(invoice, line_items, actions)
+    graph_cfg = get_graph_config()
+    data_layer_fields = (graph_cfg.get("config_json") or {}).get("data_layer_fields") or []
+    return graph_sync_invoice(invoice, line_items, actions, data_layer_fields=data_layer_fields)
 
 
 @app.post("/api/auth/login", response_model=LoginResponse)
@@ -505,6 +520,38 @@ async def admin_update_workflow_rules(
         diff_after={"workflow_rules": after.get("rules_json")},
     )
     return WorkflowRulesResponse(**after)
+
+
+@app.get("/api/admin/config/graph", response_model=GraphConfigResponse)
+async def admin_get_graph_config(_: Dict = Depends(require_admin)) -> GraphConfigResponse:
+    return GraphConfigResponse(**get_graph_config())
+
+
+@app.put("/api/admin/config/graph", response_model=GraphConfigResponse)
+async def admin_update_graph_config(
+    payload: GraphConfigUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> GraphConfigResponse:
+    cleaned = []
+    seen = set()
+    for raw in payload.data_layer_fields:
+        name = str(raw or "").strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        cleaned.append(name)
+    before = get_graph_config()
+    after = update_graph_config(cleaned, actor_user_id=admin_user["id"])
+    log_admin_event(
+        event_type="admin.graph_config_updated",
+        actor_user_id=admin_user["id"],
+        target_type="graph_config",
+        target_id="invoice_data_layer",
+        metadata_json={"data_layer_fields_count": len(cleaned)},
+        diff_before={"graph_config": before.get("config_json")},
+        diff_after={"graph_config": after.get("config_json")},
+    )
+    return GraphConfigResponse(**after)
 
 
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)

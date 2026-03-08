@@ -7,6 +7,7 @@ import {
   getGlobalGraph,
   getInvoiceDocumentBlob,
   getKpiOverview,
+  getGraphConfig,
   invoiceApprove,
   invoiceHold,
   invoiceRequestClarification,
@@ -36,9 +37,11 @@ import {
   testConnector,
   updateWorkflowRules,
   updateConnector,
+  updateGraphConfig,
 } from "./api"
 
 const APPROVAL_ROLE_OPTIONS = ["AP_CLERK", "APPROVER", "ADMIN"]
+const CORE_GRAPH_FIELD_OPTIONS = ["supplier_name", "currency", "status"]
 
 function defaultWorkflowRules() {
   return {
@@ -282,6 +285,8 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
   const [resetGraph, setResetGraph] = useState(true)
   const [adminTab, setAdminTab] = useState("kpi")
+  const [graphFieldOptions, setGraphFieldOptions] = useState(CORE_GRAPH_FIELD_OPTIONS)
+  const [selectedGraphFields, setSelectedGraphFields] = useState(CORE_GRAPH_FIELD_OPTIONS)
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -362,6 +367,12 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const rows = await listExtractionFields(token, "invoice", false)
       setExtractionFields(rows || [])
+      const headerFields = (rows || [])
+        .filter((r) => r.scope === "header")
+        .map((r) => String(r.field_name || "").trim())
+        .filter(Boolean)
+      const merged = Array.from(new Set([...CORE_GRAPH_FIELD_OPTIONS, ...headerFields]))
+      setGraphFieldOptions(merged)
       const drafts = {}
       for (const row of rows || []) {
         const key = `${row.scope}:${row.field_name}`
@@ -374,6 +385,16 @@ function AdminView({ token, currentUser, onLogout }) {
         }
       }
       setExtractionFieldDrafts(drafts)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadGraphConfig() {
+    try {
+      const row = await getGraphConfig(token)
+      const fields = (row?.config_json?.data_layer_fields || []).map((x) => String(x || "").trim()).filter(Boolean)
+      setSelectedGraphFields(fields.length ? fields : CORE_GRAPH_FIELD_OPTIONS)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -404,6 +425,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadDocumentsList()
     loadInvoicesList()
     loadExtractionFields()
+    loadGraphConfig()
     loadWorkflowRules()
     loadKpi()
   }, [])
@@ -1264,6 +1286,53 @@ function AdminView({ token, currentUser, onLogout }) {
           <section className="card">
             <div className="card-header"><h3>Graph Sync (Neo4j)</h3></div>
             <div className="card-body">
+              <div className="invoice-label">DATENEBENE FELDER (KONFIGURIERBAR)</div>
+              <p className="muted">
+                Diese Felder verbinden Rechnungen in der Datenebene ueber gemeinsame Werte.
+                Nach Aenderung bitte "Sync alle Rechnungen" ausfuehren.
+              </p>
+              <div className="graph-fields-grid">
+                {graphFieldOptions.map((fieldName) => {
+                  const checked = selectedGraphFields.includes(fieldName)
+                  return (
+                    <label key={fieldName} className="graph-field-item">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setSelectedGraphFields((current) => {
+                            if (e.target.checked) return Array.from(new Set([...current, fieldName]))
+                            return current.filter((f) => f !== fieldName)
+                          })
+                        }}
+                      />
+                      <span className="mono">{fieldName}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="actions-row" style={{ marginBottom: "0.8rem" }}>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setError("")
+                      setNotice("")
+                      await updateGraphConfig(token, selectedGraphFields)
+                      await loadGraphConfig()
+                      setNotice(`Graph-Felder gespeichert (${selectedGraphFields.length})`)
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Graph-Felder speichern
+                </button>
+                <button className="btn btn-outline" type="button" onClick={loadGraphConfig}>Neu laden</button>
+              </div>
+
+              <div className="invoice-divider" />
               <div className="actions-row">
                 <label>
                   Max Invoices
@@ -1519,8 +1588,8 @@ function GraphCanvas({ graphData, onNodeSelect }) {
         edges: null,
       },
       data: {
-        labels: new Set(["Invoice", "Supplier", "InvoiceLine", "Currency", "Recipient"]),
-        edges: new Set(["BELONGS_TO", "HAS_LINE", "IN_CURRENCY", "FOR_RECIPIENT"]),
+        labels: new Set(["Invoice", "Supplier", "InvoiceLine", "Currency", "InvoiceDataField"]),
+        edges: new Set(["BELONGS_TO", "HAS_LINE", "IN_CURRENCY", "HAS_DATA_FIELD"]),
       },
       app: {
         labels: new Set(["Invoice", "InvoiceAction", "User", "InvoiceStatus"]),
@@ -1588,6 +1657,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     if (labels.includes("Invoice")) return p.invoice_number || p.id || "Invoice"
     if (labels.includes("Supplier")) return p.name || "Supplier"
     if (labels.includes("InvoiceLine")) return p.description || `Line ${p.line_no || ""}`.trim()
+    if (labels.includes("InvoiceDataField")) return `${p.field_name || "field"}: ${p.value || ""}`.trim()
     if (labels.includes("InvoiceAction")) return p.action_type || "Action"
     if (labels.includes("User")) return p.username || p.id || "User"
     if (labels.includes("InvoiceStatus")) return p.name || "Status"
@@ -1599,6 +1669,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     if (labels.includes("Invoice")) return "#ee7f00"
     if (labels.includes("Supplier")) return "#335b8c"
     if (labels.includes("InvoiceLine")) return "#6b7280"
+    if (labels.includes("InvoiceDataField")) return "#475569"
     if (labels.includes("InvoiceAction")) return "#1f7a4a"
     if (labels.includes("User")) return "#6d28d9"
     if (labels.includes("InvoiceStatus")) return "#0f766e"

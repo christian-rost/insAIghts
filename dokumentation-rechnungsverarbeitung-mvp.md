@@ -482,6 +482,7 @@ Festlegung:
   - Provider-Config Endpunkte (`GET/PUT /api/admin/config/providers/...`) fuer Key-Verwaltung via Admin-UI
   - Extraktionsfeld-Config Endpunkte (`GET/POST /api/admin/config/extraction-fields`) fuer LLM-Feldkatalog
   - Workflow-Regel Endpunkte (`GET/PUT /api/admin/config/workflow-rules`) fuer serverseitige Freigabelogik
+  - Graph-Config Endpunkte (`GET/PUT /api/admin/config/graph`) fuer konfigurierbare Datenebenen-Felder
   - KPI-Endpoint (`GET /api/admin/kpi/overview`) fuer operative Admin-Uebersicht
   - Global-Reset Endpoint (`POST /api/admin/reset/invoice-pipeline`) fuer komplettes Reprocessing inkl. optionalem Neo4j-Reset
 - Frontend bereits umgesetzt:
@@ -501,6 +502,7 @@ Festlegung:
   - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Graph-Darstellung ist in Layer getrennt umschaltbar: Datenebene / Anwendungsebene / Alles
+  - Felder der Graph-Datenebene sind ueber Admin konfigurierbar und steuern, welche gemeinsamen Feldwerte Rechnungen verknuepfen
   - Admin-Aktion fuer Bulk-Graph-Synchronisation nach Neo4j
   - Admin-Ansicht kann zusaetzlich einen globalen Graph-Ausschnitt laden und visualisieren
   - Inbox-Design an Referenz "View Invoices" angeglichen (3-spaltig: Liste links, Rechnungsdaten Mitte, PDF/Bild rechts)
