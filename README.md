@@ -41,6 +41,9 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `PUT /api/admin/config/workflow-rules` (ADMIN)
 - `GET /api/admin/config/graph` (ADMIN)
 - `PUT /api/admin/config/graph` (ADMIN)
+- `GET /api/admin/graph/aliases` (ADMIN, query: `entity_type`)
+- `POST /api/admin/graph/aliases` (ADMIN)
+- `PUT /api/admin/graph/aliases/{alias_id}` (ADMIN)
 - `GET /api/admin/kpi/overview` (ADMIN)
 - `POST /api/admin/reset/invoice-pipeline` (ADMIN)
 - `PUT /api/admin/config/connectors/{connector_name}` (ADMIN)
@@ -128,7 +131,8 @@ Hinweis:
 - Beim Graph-Sync werden invoice-semantische Kanten pro Rechnung neu aufgebaut (keine Alt-Kanten); Empfaenger-Feldvarianten werden auf gemeinsame Dimension `recipient` vereinheitlicht.
 - Im Graph kann ein selektierter Node seine direkten Nachbarn hervorheben; indirekte Knoten/Kanten werden abgedunkelt.
 - Im Graph koennen Nodes per Click+Hold innerhalb der Flaeche verschoben werden (interaktive Layout-Anpassung).
-- Admin-Graph-Tab enthaelt Alias-Review fuer Empfaenger (`raw/normalized/canonical`) mit manueller Korrektur.
+- Admin-Graph-Tab enthaelt ein generisches Alias-Review fuer beliebige Attribute (`entity_type`, `raw/normalized/canonical`) mit manueller Korrektur.
+- Zusaetzlich koennen Attribute-Aliase manuell angelegt werden (raw -> canonical), auch bevor ein Wert in Rechnungen vorkommt.
 
 ## Coolify
 

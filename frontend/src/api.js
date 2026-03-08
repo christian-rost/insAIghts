@@ -371,19 +371,22 @@ export async function updateGraphConfig(token, dataLayerFields) {
   return handleJson(response)
 }
 
-export async function listRecipientAliases(token, { limit = 200, search = "" } = {}) {
+export async function listAttributeAliases(token, { entityType, limit = 200, search = "" } = {}) {
+  const et = String(entityType || "").trim()
+  if (!et) throw new Error("entityType is required")
   const qs = new URLSearchParams({
+    entity_type: et,
     limit: String(limit),
     search: search || "",
   })
-  const response = await fetch(`${API_BASE}/api/admin/graph/recipient-aliases?${qs.toString()}`, {
+  const response = await fetch(`${API_BASE}/api/admin/graph/aliases?${qs.toString()}`, {
     headers: { ...authHeaders(token) },
   })
   return handleJson(response)
 }
 
-export async function updateRecipientAlias(token, aliasId, canonicalValue) {
-  const response = await fetch(`${API_BASE}/api/admin/graph/recipient-aliases/${encodeURIComponent(aliasId)}`, {
+export async function updateAttributeAlias(token, aliasId, canonicalValue) {
+  const response = await fetch(`${API_BASE}/api/admin/graph/aliases/${encodeURIComponent(aliasId)}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -392,6 +395,33 @@ export async function updateRecipientAlias(token, aliasId, canonicalValue) {
     body: JSON.stringify({ canonical_value: canonicalValue }),
   })
   return handleJson(response)
+}
+
+export async function createAttributeAlias(token, { entityType, rawValue, canonicalValue }) {
+  const et = String(entityType || "").trim()
+  if (!et) throw new Error("entityType is required")
+  const response = await fetch(`${API_BASE}/api/admin/graph/aliases`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ entity_type: et, raw_value: rawValue, canonical_value: canonicalValue }),
+  })
+  return handleJson(response)
+}
+
+// Legacy wrappers for existing callers.
+export async function listRecipientAliases(token, { limit = 200, search = "" } = {}) {
+  return listAttributeAliases(token, { entityType: "recipient", limit, search })
+}
+
+export async function updateRecipientAlias(token, aliasId, canonicalValue) {
+  return updateAttributeAlias(token, aliasId, canonicalValue)
+}
+
+export async function createRecipientAlias(token, { rawValue, canonicalValue }) {
+  return createAttributeAlias(token, { entityType: "recipient", rawValue, canonicalValue })
 }
 
 export async function getKpiOverview(token) {

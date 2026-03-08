@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from neo4j import GraphDatabase
 
 from .config import GRAPH_DB_PASSWORD, GRAPH_DB_URI, GRAPH_DB_USER
-from .recipient_resolution_storage import RECIPIENT_FIELDS, resolve_recipient_name
+from .recipient_resolution_storage import resolve_attribute_value
 
 _driver = None
 
@@ -207,13 +207,6 @@ def _normalize_field_name(value: str) -> str:
     return "".join(cleaned)
 
 
-_RECIPIENT_FIELD_KEYS = {_normalize_field_name(v) for v in RECIPIENT_FIELDS} | {"empfaenger", "empfanger", "recipient", "customername", "leistungsempfaenger"}
-
-
-def _is_recipient_field(field_name: str) -> bool:
-    return _normalize_field_name(field_name) in _RECIPIENT_FIELD_KEYS
-
-
 def _get_header_value_by_field(header_values: Dict[str, Any], selected_field: str) -> Any:
     # 1) Exact lookup.
     if selected_field in header_values:
@@ -366,11 +359,8 @@ def graph_sync_invoice(
         raw_text = str(raw_value or "").strip()
         if not raw_text:
             continue
-        resolved_value = raw_text
-        dimension_key = field_name
-        if _is_recipient_field(field_name):
-            resolved_value, _ = resolve_recipient_name(raw_text)
-            dimension_key = "recipient"
+        resolved_value, _ = resolve_attribute_value(field_name, raw_text)
+        dimension_key = _normalize_field_name(field_name) or field_name
         resolved_dimensions.append(
             {
                 "field_name": dimension_key,

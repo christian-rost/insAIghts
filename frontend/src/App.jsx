@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   createUser,
+  createAttributeAlias,
   extractDocuments,
   getInvoice,
   getInvoiceGraph,
@@ -18,7 +19,7 @@ import {
   listInvoiceLines,
   listInvoices,
   listConnectors,
-  listRecipientAliases,
+  listAttributeAliases,
   listDocuments,
   listProviders,
   listUsers,
@@ -30,7 +31,7 @@ import {
   register,
   resetInvoicePipeline,
   updateProvider,
-  updateRecipientAlias,
+  updateAttributeAlias,
   upsertExtractionField,
   syncInvoicesGraphBulk,
   updateCase,
@@ -289,9 +290,12 @@ function AdminView({ token, currentUser, onLogout }) {
   const [adminTab, setAdminTab] = useState("kpi")
   const [graphFieldOptions, setGraphFieldOptions] = useState(CORE_GRAPH_FIELD_OPTIONS)
   const [selectedGraphFields, setSelectedGraphFields] = useState(CORE_GRAPH_FIELD_OPTIONS)
-  const [recipientAliases, setRecipientAliases] = useState([])
-  const [recipientAliasDrafts, setRecipientAliasDrafts] = useState({})
-  const [recipientAliasSearch, setRecipientAliasSearch] = useState("")
+  const [attributeAliases, setAttributeAliases] = useState([])
+  const [attributeAliasDrafts, setAttributeAliasDrafts] = useState({})
+  const [attributeAliasSearch, setAttributeAliasSearch] = useState("")
+  const [selectedAliasEntityType, setSelectedAliasEntityType] = useState("recipient")
+  const [newAliasRaw, setNewAliasRaw] = useState("")
+  const [newAliasCanonical, setNewAliasCanonical] = useState("")
   const [workflowRules, setWorkflowRules] = useState(defaultWorkflowRules())
   const [kpi, setKpi] = useState(null)
   const [fieldForm, setFieldForm] = useState({
@@ -378,6 +382,12 @@ function AdminView({ token, currentUser, onLogout }) {
         .filter(Boolean)
       const merged = Array.from(new Set([...CORE_GRAPH_FIELD_OPTIONS, ...headerFields]))
       setGraphFieldOptions(merged)
+      setSelectedAliasEntityType((current) => {
+        const value = String(current || "").trim()
+        if (value && merged.includes(value)) return value
+        if (value) return value
+        return merged[0] || "recipient"
+      })
       const drafts = {}
       for (const row of rows || []) {
         const key = `${row.scope}:${row.field_name}`
@@ -405,15 +415,25 @@ function AdminView({ token, currentUser, onLogout }) {
     }
   }
 
-  async function loadRecipientAliases(search = recipientAliasSearch) {
+  async function loadAttributeAliases(search = attributeAliasSearch, entityType = selectedAliasEntityType) {
+    const scope = String(entityType || "").trim()
+    if (!scope) {
+      setAttributeAliases([])
+      setAttributeAliasDrafts({})
+      return
+    }
     try {
-      const rows = await listRecipientAliases(token, { limit: 300, search })
-      setRecipientAliases(rows || [])
+      const rows = await listAttributeAliases(token, {
+        entityType: scope,
+        limit: 300,
+        search,
+      })
+      setAttributeAliases(rows || [])
       const drafts = {}
       for (const row of rows || []) {
         drafts[row.id] = row.canonical_value || ""
       }
-      setRecipientAliasDrafts(drafts)
+      setAttributeAliasDrafts(drafts)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -445,7 +465,7 @@ function AdminView({ token, currentUser, onLogout }) {
     loadInvoicesList()
     loadExtractionFields()
     loadGraphConfig()
-    loadRecipientAliases("")
+    loadAttributeAliases("", "recipient")
     loadWorkflowRules()
     loadKpi()
   }, [])
@@ -1354,25 +1374,78 @@ function AdminView({ token, currentUser, onLogout }) {
 
               <div className="invoice-divider" />
               <div className="row">
-                <div className="invoice-label">EMPFAENGER ALIAS REVIEW</div>
+                <div className="invoice-label">ATTRIBUTE ALIAS REVIEW</div>
                 <div className="actions-row">
                   <input
                     className="input"
-                    value={recipientAliasSearch}
-                    onChange={(e) => setRecipientAliasSearch(e.target.value)}
+                    value={selectedAliasEntityType}
+                    onChange={(e) => setSelectedAliasEntityType(e.target.value)}
+                    list="alias-entity-type-options"
+                    placeholder="Attribut (entity_type), z.B. empfaenger"
+                  />
+                  <datalist id="alias-entity-type-options">
+                    {graphFieldOptions.map((fieldName) => (
+                      <option key={fieldName} value={fieldName} />
+                    ))}
+                  </datalist>
+                  <input
+                    className="input"
+                    value={attributeAliasSearch}
+                    onChange={(e) => setAttributeAliasSearch(e.target.value)}
                     placeholder="Suche Alias..."
                   />
-                  <button className="btn btn-outline" type="button" onClick={() => loadRecipientAliases(recipientAliasSearch)}>
+                  <button className="btn btn-outline" type="button" onClick={() => loadAttributeAliases(attributeAliasSearch, selectedAliasEntityType)}>
                     Suchen
                   </button>
-                  <button className="btn btn-outline" type="button" onClick={() => { setRecipientAliasSearch(""); loadRecipientAliases("") }}>
+                  <button className="btn btn-outline" type="button" onClick={() => { setAttributeAliasSearch(""); loadAttributeAliases("", selectedAliasEntityType) }}>
                     Reset
                   </button>
                 </div>
               </div>
+              <div className="alias-create-grid">
+                <input
+                  className="input"
+                  value={newAliasRaw}
+                  onChange={(e) => setNewAliasRaw(e.target.value)}
+                  placeholder="Raw-Wert"
+                />
+                <input
+                  className="input"
+                  value={newAliasCanonical}
+                  onChange={(e) => setNewAliasCanonical(e.target.value)}
+                  placeholder="Canonical-Wert"
+                />
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setError("")
+                      setNotice("")
+                      if (!String(selectedAliasEntityType || "").trim()) {
+                        throw new Error("Bitte zuerst ein Attribut (entity_type) angeben")
+                      }
+                      await createAttributeAlias(token, {
+                        entityType: selectedAliasEntityType,
+                        rawValue: newAliasRaw,
+                        canonicalValue: newAliasCanonical,
+                      })
+                      setNewAliasRaw("")
+                      setNewAliasCanonical("")
+                      await loadAttributeAliases(attributeAliasSearch, selectedAliasEntityType)
+                      setNotice("Alias angelegt")
+                    } catch (err) {
+                      setError(String(err.message || err))
+                    }
+                  }}
+                >
+                  Alias hinzufuegen
+                </button>
+              </div>
               <table className="table">
                 <thead>
                   <tr>
+                    <th>ATTRIBUT</th>
                     <th>RAW</th>
                     <th>NORMALIZED</th>
                     <th>CANONICAL</th>
@@ -1382,21 +1455,22 @@ function AdminView({ token, currentUser, onLogout }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {recipientAliases.length === 0 ? (
-                    <tr><td colSpan={6}>Keine Alias-Daten gefunden.</td></tr>
+                  {attributeAliases.length === 0 ? (
+                    <tr><td colSpan={7}>Keine Alias-Daten gefunden.</td></tr>
                   ) : (
-                    recipientAliases.map((row) => {
-                      const draft = recipientAliasDrafts[row.id] ?? row.canonical_value ?? ""
+                    attributeAliases.map((row) => {
+                      const draft = attributeAliasDrafts[row.id] ?? row.canonical_value ?? ""
                       const dirty = (draft || "").trim() !== (row.canonical_value || "").trim()
                       return (
                         <tr key={row.id}>
+                          <td className="mono">{row.entity_type || "-"}</td>
                           <td>{row.raw_value || "-"}</td>
                           <td className="mono">{row.normalized_value || "-"}</td>
                           <td>
                             <input
                               className="input"
                               value={draft}
-                              onChange={(e) => setRecipientAliasDrafts((all) => ({ ...all, [row.id]: e.target.value }))}
+                              onChange={(e) => setAttributeAliasDrafts((all) => ({ ...all, [row.id]: e.target.value }))}
                             />
                           </td>
                           <td>{row.match_method || "-"}</td>
@@ -1410,8 +1484,8 @@ function AdminView({ token, currentUser, onLogout }) {
                                 try {
                                   setError("")
                                   setNotice("")
-                                  await updateRecipientAlias(token, row.id, draft)
-                                  await loadRecipientAliases(recipientAliasSearch)
+                                  await updateAttributeAlias(token, row.id, draft)
+                                  await loadAttributeAliases(attributeAliasSearch, selectedAliasEntityType)
                                   setNotice(`Alias aktualisiert: ${row.raw_value}`)
                                 } catch (err) {
                                   setError(String(err.message || err))

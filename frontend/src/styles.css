@@ -671,6 +671,13 @@ label {
   font-weight: 500;
 }
 
+.alias-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0.7rem;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
@@ -709,6 +716,10 @@ label {
   }
 
   .kpi-subgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .alias-create-grid {
     grid-template-columns: 1fr;
   }
 

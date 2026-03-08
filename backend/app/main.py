@@ -40,7 +40,7 @@ from .invoice_storage import (
 from .invoice_validation import load_validation_context, validate_invoice
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
-from .recipient_resolution_storage import list_recipient_aliases, update_recipient_alias
+from .recipient_resolution_storage import create_attribute_alias, get_attribute_alias_by_id, list_attribute_aliases, update_attribute_alias
 from .reset_service import reset_invoice_pipeline_data
 from .user_storage import bootstrap_admin, create_user, list_users, update_user
 from .workflow_rules_storage import get_workflow_rules, update_workflow_rules
@@ -178,7 +178,7 @@ class GraphConfigUpdateRequest(BaseModel):
     data_layer_fields: List[str] = Field(default_factory=list)
 
 
-class RecipientAliasResponse(BaseModel):
+class AttributeAliasResponse(BaseModel):
     id: str
     entity_type: str
     raw_value: str
@@ -191,7 +191,13 @@ class RecipientAliasResponse(BaseModel):
     updated_at: Optional[str] = None
 
 
-class RecipientAliasUpdateRequest(BaseModel):
+class AttributeAliasUpdateRequest(BaseModel):
+    canonical_value: str = Field(min_length=1, max_length=255)
+
+
+class AttributeAliasCreateRequest(BaseModel):
+    entity_type: str = Field(default="recipient", min_length=1, max_length=128)
+    raw_value: str = Field(min_length=1, max_length=255)
     canonical_value: str = Field(min_length=1, max_length=255)
 
 
@@ -572,37 +578,121 @@ async def admin_update_graph_config(
     return GraphConfigResponse(**after)
 
 
-@app.get("/api/admin/graph/recipient-aliases", response_model=List[RecipientAliasResponse])
-async def admin_list_recipient_aliases(
+@app.get("/api/admin/graph/aliases", response_model=List[AttributeAliasResponse])
+async def admin_list_attribute_aliases(
+    entity_type: str,
     limit: int = 200,
     search: str = "",
     _: Dict = Depends(require_admin),
-) -> List[RecipientAliasResponse]:
-    rows = list_recipient_aliases(limit=limit, search=search)
-    return [RecipientAliasResponse(**r) for r in rows]
+) -> List[AttributeAliasResponse]:
+    rows = list_attribute_aliases(entity_type=entity_type, limit=limit, search=search)
+    return [AttributeAliasResponse(**r) for r in rows]
 
 
-@app.put("/api/admin/graph/recipient-aliases/{alias_id}", response_model=RecipientAliasResponse)
-async def admin_update_recipient_alias(
-    alias_id: str,
-    payload: RecipientAliasUpdateRequest,
+@app.post("/api/admin/graph/aliases", response_model=AttributeAliasResponse)
+async def admin_create_attribute_alias(
+    payload: AttributeAliasCreateRequest,
     admin_user: Dict = Depends(require_admin),
-) -> RecipientAliasResponse:
-    before_rows = [r for r in list_recipient_aliases(limit=2000) if str(r.get("id") or "") == alias_id]
-    before = before_rows[0] if before_rows else None
-    updated = update_recipient_alias(alias_id, payload.canonical_value, match_method="manual")
-    if not updated:
-        raise HTTPException(status_code=404, detail="Recipient alias not found")
+) -> AttributeAliasResponse:
+    created = create_attribute_alias(payload.entity_type, payload.raw_value, payload.canonical_value, match_method="manual")
+    if not created:
+        raise HTTPException(status_code=400, detail="Invalid alias payload")
     log_admin_event(
-        event_type="admin.recipient_alias_updated",
+        event_type="admin.attribute_alias_created",
         actor_user_id=admin_user["id"],
-        target_type="recipient_alias",
+        target_type="attribute_alias",
+        target_id=str(created.get("id") or ""),
+        metadata_json={
+            "entity_type": created.get("entity_type"),
+            "raw_value": created.get("raw_value"),
+            "canonical_value": created.get("canonical_value"),
+        },
+        diff_after={"alias": created},
+    )
+    return AttributeAliasResponse(**created)
+
+
+@app.put("/api/admin/graph/aliases/{alias_id}", response_model=AttributeAliasResponse)
+async def admin_update_attribute_alias(
+    alias_id: str,
+    payload: AttributeAliasUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> AttributeAliasResponse:
+    before = get_attribute_alias_by_id(alias_id)
+    updated = update_attribute_alias(alias_id, payload.canonical_value, match_method="manual")
+    if not updated:
+        raise HTTPException(status_code=404, detail="Attribute alias not found")
+    log_admin_event(
+        event_type="admin.attribute_alias_updated",
+        actor_user_id=admin_user["id"],
+        target_type="attribute_alias",
         target_id=alias_id,
-        metadata_json={"canonical_value": updated.get("canonical_value")},
+        metadata_json={"entity_type": updated.get("entity_type"), "canonical_value": updated.get("canonical_value")},
         diff_before={"alias": before} if before else None,
         diff_after={"alias": updated},
     )
-    return RecipientAliasResponse(**updated)
+    return AttributeAliasResponse(**updated)
+
+
+# Legacy compatibility endpoints: default recipient alias scope.
+@app.get("/api/admin/graph/recipient-aliases", response_model=List[AttributeAliasResponse])
+async def admin_list_recipient_aliases_legacy(
+    limit: int = 200,
+    search: str = "",
+    _: Dict = Depends(require_admin),
+) -> List[AttributeAliasResponse]:
+    rows = list_attribute_aliases(entity_type="recipient", limit=limit, search=search)
+    if len(rows) < limit:
+        existing_ids = {str(r.get("id") or "") for r in rows}
+        extra = list_attribute_aliases(entity_type="empfaenger", limit=limit, search=search)
+        rows.extend([r for r in extra if str(r.get("id") or "") not in existing_ids])
+        rows = rows[:limit]
+    return [AttributeAliasResponse(**r) for r in rows]
+
+
+@app.post("/api/admin/graph/recipient-aliases", response_model=AttributeAliasResponse)
+async def admin_create_recipient_alias_legacy(
+    payload: AttributeAliasCreateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> AttributeAliasResponse:
+    # Preserve old route behavior while allowing modern payloads.
+    entity_type = str(payload.entity_type or "recipient").strip() or "recipient"
+    created = create_attribute_alias(entity_type, payload.raw_value, payload.canonical_value, match_method="manual")
+    if not created:
+        raise HTTPException(status_code=400, detail="Invalid alias payload")
+    log_admin_event(
+        event_type="admin.attribute_alias_created",
+        actor_user_id=admin_user["id"],
+        target_type="attribute_alias",
+        target_id=str(created.get("id") or ""),
+        metadata_json={
+            "entity_type": created.get("entity_type"),
+            "raw_value": created.get("raw_value"),
+            "canonical_value": created.get("canonical_value"),
+        },
+        diff_after={"alias": created},
+    )
+    return AttributeAliasResponse(**created)
+
+
+@app.put("/api/admin/graph/recipient-aliases/{alias_id}", response_model=AttributeAliasResponse)
+async def admin_update_recipient_alias_legacy(
+    alias_id: str,
+    payload: AttributeAliasUpdateRequest,
+    admin_user: Dict = Depends(require_admin),
+) -> AttributeAliasResponse:
+    updated = update_attribute_alias(alias_id, payload.canonical_value, match_method="manual")
+    if not updated:
+        raise HTTPException(status_code=404, detail="Attribute alias not found")
+    log_admin_event(
+        event_type="admin.attribute_alias_updated",
+        actor_user_id=admin_user["id"],
+        target_type="attribute_alias",
+        target_id=alias_id,
+        metadata_json={"entity_type": updated.get("entity_type"), "canonical_value": updated.get("canonical_value")},
+        diff_after={"alias": updated},
+    )
+    return AttributeAliasResponse(**updated)
 
 
 @app.put("/api/admin/config/connectors/{connector_name}", response_model=ConnectorConfigResponse)
