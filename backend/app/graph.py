@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from neo4j import GraphDatabase
 
 from .config import GRAPH_DB_PASSWORD, GRAPH_DB_URI, GRAPH_DB_USER
+from .recipient_resolution_storage import RECIPIENT_FIELDS, resolve_recipient_name
 
 _driver = None
 
@@ -63,9 +64,13 @@ def graph_healthcheck() -> Dict[str, Any]:
         }
 
 
-def _sync_invoice_core(tx, invoice: Dict[str, Any], data_layer_fields: Optional[Set[str]] = None) -> None:
+def _sync_invoice_core(
+    tx,
+    invoice: Dict[str, Any],
+    data_layer_fields: Optional[Set[str]] = None,
+    resolved_dimensions: Optional[List[Dict[str, Any]]] = None,
+) -> None:
     fields = data_layer_fields or {"supplier_name", "currency", "status"}
-    header_values = _extract_header_values(invoice)
     tx.run(
         """
         MERGE (i:Invoice {id: $id})
@@ -129,20 +134,15 @@ def _sync_invoice_core(tx, invoice: Dict[str, Any], data_layer_fields: Optional[
             enable_currency="currency" in fields,
         )
 
-    dimension_fields = [f for f in fields if f not in {"supplier_name", "status", "currency"}]
-    dimensions = []
-    for field_name in dimension_fields:
-        raw_value = header_values.get(field_name)
-        value = str(raw_value or "").strip()
-        if not value:
-            continue
-        dimensions.append({"field_name": field_name, "value": value})
+    dimensions = resolved_dimensions or []
     if dimensions:
         tx.run(
             """
             UNWIND $dimensions AS dim
             MATCH (i:Invoice {id: $invoice_id})
             MERGE (d:InvoiceDataField {field_name: dim.field_name, value: dim.value})
+            SET d.updated_at = datetime(),
+                d.last_raw_value = coalesce(dim.raw_value, d.last_raw_value)
             MERGE (i)-[:HAS_DATA_FIELD]->(d)
             """,
             invoice_id=str(invoice.get("id") or ""),
@@ -296,9 +296,28 @@ def graph_sync_invoice(
     if not selected_fields:
         selected_fields = {"supplier_name", "currency", "status"}
 
+    header_values = _extract_header_values(invoice)
+    dimension_fields = [f for f in selected_fields if f not in {"supplier_name", "status", "currency"}]
+    resolved_dimensions = []
+    for field_name in dimension_fields:
+        raw_value = header_values.get(field_name)
+        raw_text = str(raw_value or "").strip()
+        if not raw_text:
+            continue
+        resolved_value = raw_text
+        if field_name in RECIPIENT_FIELDS:
+            resolved_value, _ = resolve_recipient_name(raw_text)
+        resolved_dimensions.append(
+            {
+                "field_name": field_name,
+                "value": resolved_value,
+                "raw_value": raw_text,
+            }
+        )
+
     try:
         with driver.session() as session:
-            session.execute_write(_sync_invoice_core, invoice, selected_fields)
+            session.execute_write(_sync_invoice_core, invoice, selected_fields, resolved_dimensions)
             line_count = session.execute_write(_sync_line_items, invoice_id, line_items)
             action_count = session.execute_write(_sync_actions, invoice_id, actions)
         return {

@@ -70,6 +70,7 @@ Startpunkt fuer die insAIghts-Plattform mit:
 - `insaights_config_extraction_fields`
 - `insaights_config_workflow_rules`
 - `insaights_config_graph`
+- `insaights_recipient_aliases`
 - `insaights_documents`
 - `insaights_invoices`
 - `insaights_invoice_lines`
@@ -123,6 +124,7 @@ Hinweis:
 - In der Inbox zeigt die Rechnungsdetailansicht zusaetzlich "Extrahierte Felder (Header)" inkl. Feldwert und Indikator, ob der Wert direkt aus dem LLM-Output kam.
 - Die Graph-Visualisierung kann zwischen `Datenebene`, `Anwendungsebene` und `Alles` umgeschaltet werden.
 - Felder der Graph-Datenebene sind in Admin konfigurierbar (`/api/admin/config/graph`) und werden beim Sync fuer Verknuepfungen ueber gemeinsame Feldwerte verwendet.
+- Empfaenger-Entity-Resolution ist aktiv: Varianten wie `Rost, Christian` und `Christian Rost` werden kanonisiert; Originalwert bleibt in `extraction_json` erhalten.
 
 ## Coolify
 

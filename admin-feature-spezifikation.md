@@ -197,6 +197,8 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `insaights_config_provider_keys` (aktuell gespeichert, Verschluesselung als naechster Hardening-Schritt)
 - `insaights_config_connectors`
 - `insaights_config_extraction_fields`
+- `insaights_config_graph`
+- `insaights_recipient_aliases`
 - `insaights_admin_audit_log`
 
 ### Besonderheiten

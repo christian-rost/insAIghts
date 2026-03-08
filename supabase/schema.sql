@@ -85,6 +85,23 @@ values (
 )
 on conflict (config_name) do nothing;
 
+create table if not exists insaights_recipient_aliases (
+  id uuid primary key default gen_random_uuid(),
+  entity_type text not null default 'recipient',
+  raw_value text not null,
+  raw_value_key text not null,
+  normalized_value text not null,
+  canonical_value text not null,
+  match_method text not null default 'rule' check (match_method in ('rule', 'exact_raw', 'exact_normalized', 'fuzzy', 'manual', 'empty')),
+  confidence numeric(5,4) not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (entity_type, raw_value_key)
+);
+
+create index if not exists idx_insaights_recipient_aliases_norm on insaights_recipient_aliases(entity_type, normalized_value);
+create index if not exists idx_insaights_recipient_aliases_canonical on insaights_recipient_aliases(entity_type, canonical_value);
+
 create table if not exists insaights_config_provider_keys (
   id uuid primary key default gen_random_uuid(),
   provider_name text not null unique check (provider_name in ('mistral')),

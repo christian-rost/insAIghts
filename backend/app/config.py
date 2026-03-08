@@ -28,6 +28,7 @@ INVOICE_ACTIONS_TABLE = os.getenv("INVOICE_ACTIONS_TABLE", "insaights_invoice_ac
 EXTRACTION_FIELDS_TABLE = os.getenv("EXTRACTION_FIELDS_TABLE", "insaights_config_extraction_fields")
 INVOICE_CASES_TABLE = os.getenv("INVOICE_CASES_TABLE", "insaights_invoice_cases")
 GRAPH_CONFIG_TABLE = os.getenv("GRAPH_CONFIG_TABLE", "insaights_config_graph")
+RECIPIENT_ALIASES_TABLE = os.getenv("RECIPIENT_ALIASES_TABLE", "insaights_recipient_aliases")
 
 # Bootstrap admin (explicitly required by project decisions).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
