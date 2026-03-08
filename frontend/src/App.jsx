@@ -6,6 +6,7 @@ import {
   getInvoice,
   getInvoiceGraph,
   getGlobalGraph,
+  getGraphInsights,
   getInvoiceDocumentBlob,
   getKpiOverview,
   getGraphConfig,
@@ -286,6 +287,8 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphError, setGlobalGraphError] = useState("")
   const [globalGraphMaxNodes, setGlobalGraphMaxNodes] = useState(500)
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
+  const [graphInsights, setGraphInsights] = useState(null)
+  const [graphInsightsLimit, setGraphInsightsLimit] = useState(10)
   const [resetGraph, setResetGraph] = useState(true)
   const [adminTab, setAdminTab] = useState("kpi")
   const [graphFieldOptions, setGraphFieldOptions] = useState(CORE_GRAPH_FIELD_OPTIONS)
@@ -452,6 +455,15 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const next = await getKpiOverview(token)
       setKpi(next)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadGraphInsights(limit = graphInsightsLimit) {
+    try {
+      const next = await getGraphInsights(token, { limit })
+      setGraphInsights(next)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -1578,6 +1590,170 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
               {globalGraphError ? <p className="error">{globalGraphError}</p> : null}
               {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
+
+              <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">GRAPH INSIGHTS</div>
+                <div className="actions-row">
+                  <label>
+                    Top N
+                    <input
+                      className="input"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={graphInsightsLimit}
+                      onChange={(e) => setGraphInsightsLimit(Number(e.target.value || 1))}
+                    />
+                  </label>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        await loadGraphInsights(graphInsightsLimit || 10)
+                        setNotice("Graph Insights geladen")
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Insights laden
+                  </button>
+                </div>
+              </div>
+
+              {graphInsights ? (
+                <div className="insights-grid">
+                  <section className="card">
+                    <div className="card-header"><h3>Lieferanten-Risiko</h3></div>
+                    <div className="card-body">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Lieferant</th>
+                            <th>Rechnungen</th>
+                            <th>Summe</th>
+                            <th>Reject-Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(graphInsights.supplier_risk || []).map((r, idx) => (
+                            <tr key={`sr-${idx}`}>
+                              <td>{r.supplier_name || "-"}</td>
+                              <td>{r.invoice_count ?? 0}</td>
+                              <td>{r.gross_amount_sum ?? 0}</td>
+                              <td>{r.reject_rate ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <div className="card-header"><h3>Top Empfaenger</h3></div>
+                    <div className="card-body">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Empfaenger</th>
+                            <th>Rechnungen</th>
+                            <th>Summe</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(graphInsights.top_recipients || []).map((r, idx) => (
+                            <tr key={`tr-${idx}`}>
+                              <td>{r.recipient_value || "-"}</td>
+                              <td>{r.invoice_count ?? 0}</td>
+                              <td>{r.gross_amount_sum ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <div className="card-header"><h3>Top Produkte</h3></div>
+                    <div className="card-body">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Produkt</th>
+                            <th>Positionen</th>
+                            <th>Betrag</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(graphInsights.top_products || []).map((r, idx) => (
+                            <tr key={`tp-${idx}`}>
+                              <td>{r.product_name || "-"}</td>
+                              <td>{r.line_count ?? 0}</td>
+                              <td>{r.amount_sum ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <div className="card-header"><h3>Status/Prozess</h3></div>
+                    <div className="card-body">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Status</th>
+                            <th>Rechnungen</th>
+                            <th>Aktionen</th>
+                            <th>Aktionen/Invoice</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(graphInsights.status_distribution || []).map((r, idx) => (
+                            <tr key={`sd-${idx}`}>
+                              <td>{r.status_name || "-"}</td>
+                              <td>{r.invoice_count ?? 0}</td>
+                              <td>{r.action_count ?? 0}</td>
+                              <td>{r.actions_per_invoice ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="card">
+                    <div className="card-header"><h3>Anomalie-Kandidaten</h3></div>
+                    <div className="card-body">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Lieferant</th>
+                            <th>Signal</th>
+                            <th>Rechnungen</th>
+                            <th>Reject-Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(graphInsights.anomaly_candidates || []).map((r, idx) => (
+                            <tr key={`ac-${idx}`}>
+                              <td>{r.supplier_name || "-"}</td>
+                              <td>{r.signal || "-"}</td>
+                              <td>{r.invoice_count ?? 0}</td>
+                              <td>{r.reject_rate ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+              ) : null}
             </div>
           </section>
           ) : null}

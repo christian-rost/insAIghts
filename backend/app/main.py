@@ -22,7 +22,13 @@ from .document_storage import (
 )
 from .extraction_field_storage import list_extraction_fields, upsert_extraction_field
 from .graph import graph_healthcheck
-from .graph import graph_get_global_subgraph, graph_get_invoice_subgraph, graph_reset_invoice_domain, graph_sync_invoice
+from .graph import (
+    graph_get_global_subgraph,
+    graph_get_insights,
+    graph_get_invoice_subgraph,
+    graph_reset_invoice_domain,
+    graph_sync_invoice,
+)
 from .graph_config_storage import get_graph_config, update_graph_config
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
@@ -723,6 +729,11 @@ async def admin_update_connector(
 @app.get("/api/admin/kpi/overview")
 async def admin_kpi_overview(_: Dict = Depends(require_admin)) -> Dict:
     return get_kpi_overview(limit=5000)
+
+
+@app.get("/api/admin/graph/insights")
+async def admin_graph_insights(limit: int = 10, _: Dict = Depends(require_admin)) -> Dict:
+    return graph_get_insights(limit=limit)
 
 
 @app.post("/api/admin/reset/invoice-pipeline")

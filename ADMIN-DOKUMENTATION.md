@@ -63,6 +63,7 @@ Nicht in Env pflegen:
 - Bulk-Sync aller Rechnungen
 - Globalen Graph laden
 - Alias-Review fuer beliebige Attribute (`entity_type`)
+- Graph-Insights laden (Top N Auswertungen)
 
 ### 4.7 Reset
 - Globaler Pipeline-Reset
@@ -83,6 +84,17 @@ Hinweise:
 - Alias-Logik gilt pro `entity_type`.
 - Originalwerte bleiben in Extraktionsdaten erhalten.
 - Nach Alias-Aenderungen `Sync alle Rechnungen` erneut ausfuehren.
+
+## 5.1 Graph-Insights
+Endpunkt:
+- `GET /api/admin/graph/insights?limit=10`
+
+Gelieferte Auswertungen:
+- `supplier_risk`
+- `top_recipients`
+- `top_products`
+- `status_distribution`
+- `anomaly_candidates`
 
 ## 6. Betriebsablauf (empfohlen)
 1. Provider-Key setzen
@@ -127,4 +139,3 @@ Alle relevanten Admin-Events werden in `insaights_admin_audit_log` geschrieben, 
 - `insaights_invoice_lines`
 - `insaights_invoice_actions`
 - `insaights_invoice_cases`
-

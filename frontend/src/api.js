@@ -439,3 +439,13 @@ export async function resetInvoicePipeline(token, { resetGraph = true } = {}) {
   })
   return handleJson(response)
 }
+
+export async function getGraphInsights(token, { limit = 10 } = {}) {
+  const qs = new URLSearchParams({
+    limit: String(limit),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/graph/insights?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}

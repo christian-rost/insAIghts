@@ -31,6 +31,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Inbox fuer Nicht-Admin-User
 - Graph-Funktion in Inbox + Admin
 - Generische Alias-Verwaltung pro Attribut (`entity_type`)
+- Graph-Auswertungen im Admin-Tab (Risiko, Empfaenger, Produkte, Status, Anomalien)
 - Globaler Reset fuer Reprocessing
 - Audit-Logging fuer operative und Admin-relevante Events
 
@@ -61,6 +62,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
   - `GET /api/admin/graph/aliases?entity_type=...`
   - `POST /api/admin/graph/aliases`
   - `PUT /api/admin/graph/aliases/{alias_id}`
+  - `GET /api/admin/graph/insights?limit=...`
   - `GET /api/admin/kpi/overview`
   - `POST /api/admin/reset/invoice-pipeline`
 - Pipeline:
@@ -121,4 +123,3 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Mistral API Key wird in der Admin-UI gepflegt, nicht ueber Coolify Env.
 - MinIO ist aktuell die einzige aktiv genutzte Ingestion-Quelle.
 - Architektur ist auf weitere Connectoren (Mail/REST) vorbereitet.
-

@@ -523,6 +523,148 @@ def graph_get_global_subgraph(max_nodes: int = 500, max_edges: int = 1200) -> Di
         }
 
 
+def graph_get_insights(limit: int = 10) -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "unavailable",
+            "reason": "graph credentials or uri not configured",
+            "supplier_risk": [],
+            "top_recipients": [],
+            "top_products": [],
+            "status_distribution": [],
+            "anomaly_candidates": [],
+        }
+
+    top_n = max(1, min(int(limit or 10), 100))
+
+    supplier_risk_query = """
+    MATCH (i:Invoice)-[:BELONGS_TO]->(s:Supplier)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH s, i, collect(distinct a) AS actions
+    WITH s,
+         count(distinct i) AS invoice_count,
+         sum(coalesce(toFloat(i.gross_amount), 0.0)) AS gross_amount_sum,
+         sum(CASE WHEN any(x IN actions WHERE x.action_type = 'reject') THEN 1 ELSE 0 END) AS rejected_count,
+         sum(CASE WHEN any(x IN actions WHERE x.action_type = 'hold') THEN 1 ELSE 0 END) AS hold_count,
+         sum(CASE WHEN any(x IN actions WHERE x.action_type = 'request_clarification') THEN 1 ELSE 0 END) AS clarification_count
+    RETURN
+      s.name AS supplier_name,
+      invoice_count,
+      round(gross_amount_sum, 2) AS gross_amount_sum,
+      rejected_count,
+      hold_count,
+      clarification_count,
+      round(toFloat(rejected_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS reject_rate
+    ORDER BY reject_rate DESC, invoice_count DESC
+    LIMIT $limit
+    """
+
+    top_recipients_query = """
+    MATCH (i:Invoice)-[:HAS_DATA_FIELD]->(d:InvoiceDataField)
+    WHERE d.field_name IN ['recipient', 'empfaenger', 'leistungsempfaenger']
+    RETURN
+      d.value AS recipient_value,
+      count(distinct i) AS invoice_count,
+      round(sum(coalesce(toFloat(i.gross_amount), 0.0)), 2) AS gross_amount_sum
+    ORDER BY invoice_count DESC, gross_amount_sum DESC
+    LIMIT $limit
+    """
+
+    top_products_query = """
+    MATCH (i:Invoice)-[:HAS_LINE]->(l:InvoiceLine)
+    WITH coalesce(l.description, '(ohne bezeichnung)') AS product_name,
+         count(l) AS line_count,
+         sum(coalesce(toFloat(l.quantity), 0.0)) AS quantity_sum,
+         sum(coalesce(toFloat(l.line_amount), 0.0)) AS amount_sum
+    RETURN
+      product_name,
+      line_count,
+      round(quantity_sum, 2) AS quantity_sum,
+      round(amount_sum, 2) AS amount_sum
+    ORDER BY amount_sum DESC, line_count DESC
+    LIMIT $limit
+    """
+
+    status_distribution_query = """
+    MATCH (i:Invoice)-[:HAS_STATUS]->(s:InvoiceStatus)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH s.name AS status_name,
+         count(distinct i) AS invoice_count,
+         count(distinct a) AS action_count
+    RETURN
+      status_name,
+      invoice_count,
+      action_count,
+      round(toFloat(action_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 2) AS actions_per_invoice
+    ORDER BY invoice_count DESC
+    """
+
+    anomaly_candidates_query = """
+    MATCH (i:Invoice)-[:BELONGS_TO]->(s:Supplier)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH s, i, collect(distinct a) AS actions
+    WITH s,
+         count(distinct i) AS invoice_count,
+         sum(coalesce(toFloat(i.gross_amount), 0.0)) AS gross_amount_sum,
+         sum(CASE WHEN any(x IN actions WHERE x.action_type = 'reject') THEN 1 ELSE 0 END) AS rejected_count
+    WHERE invoice_count >= 2
+    WITH s, invoice_count, gross_amount_sum, rejected_count,
+         toFloat(rejected_count) / invoice_count AS reject_rate
+    WHERE reject_rate >= 0.3 OR gross_amount_sum >= 5000
+    RETURN
+      s.name AS supplier_name,
+      invoice_count,
+      round(gross_amount_sum, 2) AS gross_amount_sum,
+      rejected_count,
+      round(reject_rate, 4) AS reject_rate,
+      CASE
+        WHEN reject_rate >= 0.5 THEN 'high_reject_rate'
+        WHEN gross_amount_sum >= 10000 THEN 'high_amount_volume'
+        ELSE 'watchlist'
+      END AS signal
+    ORDER BY reject_rate DESC, gross_amount_sum DESC
+    LIMIT $limit
+    """
+
+    def _run(session, query: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        records = session.run(query, **params)
+        out: List[Dict[str, Any]] = []
+        for rec in records:
+            row = {}
+            for key in rec.keys():
+                row[key] = _json_safe(rec.get(key))
+            out.append(row)
+        return out
+
+    try:
+        with driver.session() as session:
+            supplier_risk = _run(session, supplier_risk_query, {"limit": top_n})
+            top_recipients = _run(session, top_recipients_query, {"limit": top_n})
+            top_products = _run(session, top_products_query, {"limit": top_n})
+            status_distribution = _run(session, status_distribution_query, {"limit": top_n})
+            anomaly_candidates = _run(session, anomaly_candidates_query, {"limit": top_n})
+        return {
+            "status": "ok",
+            "limit": top_n,
+            "supplier_risk": supplier_risk,
+            "top_recipients": top_recipients,
+            "top_products": top_products,
+            "status_distribution": status_distribution,
+            "anomaly_candidates": anomaly_candidates,
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "reason": str(exc),
+            "supplier_risk": [],
+            "top_recipients": [],
+            "top_products": [],
+            "status_distribution": [],
+            "anomaly_candidates": [],
+        }
+
+
 def graph_reset_invoice_domain() -> Dict[str, Any]:
     driver = get_graph_driver()
     if not driver:

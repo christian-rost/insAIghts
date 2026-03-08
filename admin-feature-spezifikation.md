@@ -164,6 +164,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/graph/aliases?entity_type=...` (ADMIN)
 - `POST /api/admin/graph/aliases` (ADMIN)
 - `PUT /api/admin/graph/aliases/{id}` (ADMIN)
+- `GET /api/admin/graph/insights?limit=...` (ADMIN)
 
 ## 5.9 Pipeline-Reset
 - `POST /api/admin/reset/invoice-pipeline` (ADMIN)
@@ -193,6 +194,7 @@ Diese Spezifikation definiert die Admin Control Plane fuer Benutzerverwaltung, R
 - `GET /api/admin/graph/aliases`
 - `POST /api/admin/graph/aliases`
 - `PUT /api/admin/graph/aliases/{id}`
+- `GET /api/admin/graph/insights`
 - `POST /api/admin/reset/invoice-pipeline`
 
 ## 6. Datenmodell (Admin)

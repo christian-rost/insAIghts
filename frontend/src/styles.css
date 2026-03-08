@@ -678,6 +678,13 @@ label {
   margin: 0.4rem 0 0.7rem;
 }
 
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
