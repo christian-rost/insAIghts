@@ -465,10 +465,42 @@ label {
   margin-bottom: 0.6rem;
 }
 
+.section-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
+}
+
+.section-toggle-row .invoice-label {
+  margin-bottom: 0;
+}
+
 .invoice-actions {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
-  gap: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.15rem;
+}
+
+.invoice-actions-comment-row {
+  width: 100%;
+}
+
+.invoice-actions-comment-row .input {
+  width: 100%;
+}
+
+.invoice-actions-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.invoice-actions-button-row .btn {
+  min-width: 94px;
 }
 
 .kpi-grid {
@@ -729,8 +761,9 @@ label {
     grid-template-columns: 1fr;
   }
 
-  .invoice-actions {
-    grid-template-columns: 1fr;
+  .invoice-actions-button-row .btn {
+    min-width: 0;
+    flex: 1 1 calc(50% - 0.55rem);
   }
 
   .kpi-grid {

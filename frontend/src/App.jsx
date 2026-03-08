@@ -3131,6 +3131,7 @@ function UserView({ token, currentUser, onLogout }) {
   const [graphError, setGraphError] = useState("")
   const [graphSelection, setGraphSelection] = useState(null)
   const [actionComment, setActionComment] = useState("")
+  const [headerFieldsOpen, setHeaderFieldsOpen] = useState(true)
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
   const [search, setSearch] = useState("")
@@ -3430,73 +3431,90 @@ function UserView({ token, currentUser, onLogout }) {
                 </div>
 
                 <div className="invoice-divider" />
-                <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
-                {extractedHeaderRows.length === 0 ? (
-                  <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
-                ) : (
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>FELD</th>
-                        <th>WERT</th>
-                        <th>LLM</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {extractedHeaderRows.map((row) => (
-                        <tr key={row.field_name}>
-                          <td>
-                            <div className="mono">{row.field_name}</div>
-                            {row.description ? <div className="muted-inline">{row.description}</div> : null}
-                          </td>
-                          <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
-                          <td>{row.provided_by_llm ? "ja" : "nein"}</td>
+                <div className="section-toggle-row">
+                  <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={() => setHeaderFieldsOpen((v) => !v)}
+                  >
+                    {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
+                  </button>
+                </div>
+                {headerFieldsOpen ? (
+                  extractedHeaderRows.length === 0 ? (
+                    <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
+                  ) : (
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>FELD</th>
+                          <th>WERT</th>
+                          <th>LLM</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {extractedHeaderRows.map((row) => (
+                          <tr key={row.field_name}>
+                            <td>
+                              <div className="mono">{row.field_name}</div>
+                              {row.description ? <div className="muted-inline">{row.description}</div> : null}
+                            </td>
+                            <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
+                            <td>{row.provided_by_llm ? "ja" : "nein"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                ) : (
+                  <p className="muted-inline">Header-Felder eingeklappt.</p>
                 )}
 
                 <div className="invoice-divider" />
                 <div className="invoice-actions">
-                  <input
-                    className="input"
-                    value={actionComment}
-                    onChange={(e) => setActionComment(e.target.value)}
-                    placeholder="Kommentar (optional)"
-                  />
-                  <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
-                    Approve
-                  </button>
-                  <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
-                    Reject
-                  </button>
-                  <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
-                    Hold
-                  </button>
-                  <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>
-                    Clarify
-                  </button>
-                  <button
-                    className="btn btn-outline"
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        if (!selectedId) return
-                        const reason = String(actionComment || "").trim()
-                        if (!reason) throw new Error("Bitte Begruendung im Kommentarfeld eintragen.")
-                        setError("")
-                        setNotice("")
-                        await createInvoiceDeleteRequest(token, selectedId, reason)
-                        setActionComment("")
-                        setNotice("Loeschantrag erstellt (warte auf Admin-Freigabe)")
-                      } catch (e) {
-                        setError(String(e.message || e))
-                      }
-                    }}
-                  >
-                    Loeschung anfordern
-                  </button>
+                  <div className="invoice-actions-comment-row">
+                    <input
+                      className="input"
+                      value={actionComment}
+                      onChange={(e) => setActionComment(e.target.value)}
+                      placeholder="Kommentar (optional)"
+                    />
+                  </div>
+                  <div className="invoice-actions-button-row">
+                    <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
+                      Approve
+                    </button>
+                    <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
+                      Reject
+                    </button>
+                    <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
+                      Hold
+                    </button>
+                    <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>
+                      Clarify
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          if (!selectedId) return
+                          const reason = String(actionComment || "").trim()
+                          if (!reason) throw new Error("Bitte Begruendung im Kommentarfeld eintragen.")
+                          setError("")
+                          setNotice("")
+                          await createInvoiceDeleteRequest(token, selectedId, reason)
+                          setActionComment("")
+                          setNotice("Loeschantrag erstellt (warte auf Admin-Freigabe)")
+                        } catch (e) {
+                          setError(String(e.message || e))
+                        }
+                      }}
+                    >
+                      Loeschung anfordern
+                    </button>
+                  </div>
                 </div>
 
                 <div className="invoice-divider" />
