@@ -24,7 +24,9 @@ from .extraction_field_storage import list_extraction_fields, upsert_extraction_
 from .graph import graph_healthcheck
 from .graph import (
     graph_get_global_subgraph,
+    graph_get_insight_drilldown,
     graph_get_insights,
+    graph_get_trend_insights,
     graph_get_invoice_subgraph,
     graph_reset_invoice_domain,
     graph_sync_invoice,
@@ -44,6 +46,7 @@ from .invoice_storage import (
     update_invoice,
 )
 from .invoice_validation import load_validation_context, validate_invoice
+from .insight_explainer import explain_graph_insights
 from .minio_ingestion import classify_file_type, list_minio_objects, parse_minio_config, source_uri
 from .provider_storage import get_provider, list_providers, update_provider
 from .recipient_resolution_storage import create_attribute_alias, get_attribute_alias_by_id, list_attribute_aliases, update_attribute_alias
@@ -734,6 +737,68 @@ async def admin_kpi_overview(_: Dict = Depends(require_admin)) -> Dict:
 @app.get("/api/admin/graph/insights")
 async def admin_graph_insights(limit: int = 10, _: Dict = Depends(require_admin)) -> Dict:
     return graph_get_insights(limit=limit)
+
+
+@app.get("/api/admin/graph/insights/trends")
+async def admin_graph_insight_trends(
+    window_days: int = 30,
+    compare_days: int = 30,
+    granularity: str = "week",
+    _: Dict = Depends(require_admin),
+) -> Dict:
+    return graph_get_trend_insights(
+        window_days=window_days,
+        compare_days=compare_days,
+        granularity=granularity,
+    )
+
+
+@app.get("/api/admin/graph/insights/drilldown")
+async def admin_graph_insight_drilldown(
+    metric: str,
+    period_start: str,
+    period_end: str,
+    limit: int = 100,
+    offset: int = 0,
+    _: Dict = Depends(require_admin),
+) -> Dict:
+    return graph_get_insight_drilldown(
+        metric=metric,
+        period_start=period_start,
+        period_end=period_end,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@app.get("/api/admin/graph/insights/explain")
+async def admin_graph_insight_explain(
+    window_days: int = 30,
+    compare_days: int = 30,
+    granularity: str = "week",
+    limit: int = 10,
+    _: Dict = Depends(require_admin),
+) -> Dict:
+    trend = graph_get_trend_insights(
+        window_days=window_days,
+        compare_days=compare_days,
+        granularity=granularity,
+    )
+    insights = graph_get_insights(limit=limit)
+    if trend.get("status") not in {"ok"} and insights.get("status") not in {"ok"}:
+        return {
+            "status": "error",
+            "reason": "trend and insights unavailable",
+            "trend": trend,
+            "insights": insights,
+        }
+    explanation = explain_graph_insights({"trend": trend, "insights": insights})
+    return {
+        "status": explanation.get("status") or "ok",
+        "trend": trend,
+        "insights": insights,
+        "explanation": explanation,
+    }
 
 
 @app.post("/api/admin/reset/invoice-pipeline")

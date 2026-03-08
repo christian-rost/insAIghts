@@ -7,6 +7,9 @@ import {
   getInvoiceGraph,
   getGlobalGraph,
   getGraphInsights,
+  getGraphInsightDrilldown,
+  getGraphInsightExplanation,
+  getGraphTrendInsights,
   getInvoiceDocumentBlob,
   getKpiOverview,
   getGraphConfig,
@@ -289,6 +292,12 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
   const [graphInsights, setGraphInsights] = useState(null)
   const [graphInsightsLimit, setGraphInsightsLimit] = useState(10)
+  const [graphTrend, setGraphTrend] = useState(null)
+  const [trendWindowDays, setTrendWindowDays] = useState(30)
+  const [trendCompareDays, setTrendCompareDays] = useState(30)
+  const [trendGranularity, setTrendGranularity] = useState("week")
+  const [graphDrilldown, setGraphDrilldown] = useState(null)
+  const [graphExplanation, setGraphExplanation] = useState(null)
   const [resetGraph, setResetGraph] = useState(true)
   const [adminTab, setAdminTab] = useState("kpi")
   const [graphFieldOptions, setGraphFieldOptions] = useState(CORE_GRAPH_FIELD_OPTIONS)
@@ -464,6 +473,50 @@ function AdminView({ token, currentUser, onLogout }) {
     try {
       const next = await getGraphInsights(token, { limit })
       setGraphInsights(next)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadGraphTrendInsights() {
+    try {
+      const next = await getGraphTrendInsights(token, {
+        windowDays: trendWindowDays,
+        compareDays: trendCompareDays,
+        granularity: trendGranularity,
+      })
+      setGraphTrend(next)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadGraphDrilldown(metric, periodStart, periodEnd) {
+    try {
+      const next = await getGraphInsightDrilldown(token, {
+        metric,
+        periodStart,
+        periodEnd,
+        limit: 200,
+        offset: 0,
+      })
+      setGraphDrilldown(next)
+    } catch (e) {
+      setError(String(e.message || e))
+    }
+  }
+
+  async function loadGraphExplanation() {
+    try {
+      const next = await getGraphInsightExplanation(token, {
+        windowDays: trendWindowDays,
+        compareDays: trendCompareDays,
+        granularity: trendGranularity,
+        limit: graphInsightsLimit,
+      })
+      setGraphExplanation(next)
+      if (next?.trend?.status === "ok") setGraphTrend(next.trend)
+      if (next?.insights?.status === "ok") setGraphInsights(next.insights)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -1752,6 +1805,263 @@ function AdminView({ token, currentUser, onLogout }) {
                       </table>
                     </div>
                   </section>
+                </div>
+              ) : null}
+
+              <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">TREND-INSIGHTS (ZEITREIHE)</div>
+                <div className="actions-row">
+                  <label>
+                    Zeitraum (Tage)
+                    <input
+                      className="input"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={trendWindowDays}
+                      onChange={(e) => setTrendWindowDays(Number(e.target.value || 1))}
+                    />
+                  </label>
+                  <label>
+                    Vergleich (Tage)
+                    <input
+                      className="input"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={trendCompareDays}
+                      onChange={(e) => setTrendCompareDays(Number(e.target.value || 1))}
+                    />
+                  </label>
+                  <label>
+                    Granularitaet
+                    <select
+                      className="input"
+                      value={trendGranularity}
+                      onChange={(e) => setTrendGranularity(e.target.value)}
+                    >
+                      <option value="day">Tag</option>
+                      <option value="week">Woche</option>
+                      <option value="month">Monat</option>
+                    </select>
+                  </label>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        await loadGraphTrendInsights()
+                        setNotice("Trend-Insights geladen")
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    Trends laden
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError("")
+                        setNotice("")
+                        await loadGraphExplanation()
+                        setNotice("LLM-Analyse erstellt")
+                      } catch (err) {
+                        setError(String(err.message || err))
+                      }
+                    }}
+                  >
+                    LLM Analyse erstellen
+                  </button>
+                </div>
+              </div>
+
+              {graphExplanation?.explanation ? (
+                <div className="card" style={{ marginTop: "0.7rem" }}>
+                  <div className="card-header">
+                    <h3>LLM Management-Analyse ({graphExplanation.explanation.provider || "-"})</h3>
+                  </div>
+                  <div className="card-body">
+                    {graphExplanation.explanation.reason ? (
+                      <p className="muted-inline">Hinweis: {graphExplanation.explanation.reason}</p>
+                    ) : null}
+                    <p className="muted" style={{ whiteSpace: "pre-wrap" }}>
+                      {graphExplanation.explanation.analysis_text || "Keine Analyse verfuegbar."}
+                    </p>
+                    {(graphExplanation.explanation.highlights || []).length ? (
+                      <>
+                        <div className="invoice-label">HIGHLIGHTS</div>
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>Thema</th>
+                              <th>Signal</th>
+                              <th>Detail</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(graphExplanation.explanation.highlights || []).map((h, idx) => (
+                              <tr key={`hl-${idx}`}>
+                                <td>{h.topic || "-"}</td>
+                                <td>{h.signal || "-"}</td>
+                                <td>{h.detail || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : null}
+
+                    {(graphExplanation.explanation.recommendations || []).length ? (
+                      <>
+                        <div className="invoice-label">VORGESCHLAGENE TREND-KPIS</div>
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>KPI</th>
+                              <th>Prioritaet</th>
+                              <th>Begruendung</th>
+                              <th>Formel</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(graphExplanation.explanation.recommendations || []).map((r, idx) => (
+                              <tr key={`rec-${idx}`}>
+                                <td>{r.kpi || "-"}</td>
+                                <td>{r.priority || "-"}</td>
+                                <td>{r.reason || "-"}</td>
+                                <td className="mono">{r.formula || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {graphTrend?.summary ? (
+                <div className="kpi-grid" style={{ marginTop: "0.6rem" }}>
+                  <div className="kpi-tile">
+                    <span>Rechnungen (aktuell)</span>
+                    <strong>{graphTrend.summary.current?.invoice_count ?? 0}</strong>
+                  </div>
+                  <div className="kpi-tile">
+                    <span>Gesamtbetrag (aktuell)</span>
+                    <strong>{graphTrend.summary.current?.total_amount ?? 0}</strong>
+                  </div>
+                  <div className="kpi-tile">
+                    <span>Reject-Rate (aktuell)</span>
+                    <strong>{graphTrend.summary.current?.reject_rate ?? 0}</strong>
+                  </div>
+                  <div className="kpi-tile">
+                    <span>Hold-Rate (aktuell)</span>
+                    <strong>{graphTrend.summary.current?.hold_rate ?? 0}</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              {graphTrend?.trends?.length ? (
+                <div className="card" style={{ marginTop: "0.7rem" }}>
+                  <div className="card-header"><h3>Trend je Bucket</h3></div>
+                  <div className="card-body">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Bucket Start</th>
+                          <th>Bucket End</th>
+                          <th>Rechnungen</th>
+                          <th>Betrag</th>
+                          <th>Reject</th>
+                          <th>Hold</th>
+                          <th>Clarify</th>
+                          <th>Drilldown</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {graphTrend.trends.map((r, idx) => (
+                          <tr key={`trend-${idx}`}>
+                            <td>{r.bucket_start}</td>
+                            <td>{r.bucket_end}</td>
+                            <td>{r.invoice_count ?? 0}</td>
+                            <td>{r.total_amount ?? 0}</td>
+                            <td>{r.reject_rate ?? 0}</td>
+                            <td>{r.hold_rate ?? 0}</td>
+                            <td>{r.clarification_rate ?? 0}</td>
+                            <td>
+                              <div className="actions-row">
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  type="button"
+                                  onClick={() => loadGraphDrilldown("invoice_count", r.bucket_start, r.bucket_end)}
+                                >
+                                  Count
+                                </button>
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  type="button"
+                                  onClick={() => loadGraphDrilldown("reject_rate", r.bucket_start, r.bucket_end)}
+                                >
+                                  Reject
+                                </button>
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  type="button"
+                                  onClick={() => loadGraphDrilldown("hold_rate", r.bucket_start, r.bucket_end)}
+                                >
+                                  Hold
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+
+              {graphDrilldown?.items ? (
+                <div className="card" style={{ marginTop: "0.7rem" }}>
+                  <div className="card-header">
+                    <h3>
+                      Drilldown Rechnungen ({graphDrilldown.metric || "-"}) - {graphDrilldown.total ?? 0}
+                    </h3>
+                  </div>
+                  <div className="card-body">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Rechnungsnr.</th>
+                          <th>Lieferant</th>
+                          <th>Datum</th>
+                          <th>Status</th>
+                          <th>Betrag</th>
+                          <th>Waehrung</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(graphDrilldown.items || []).map((r, idx) => (
+                          <tr key={`drill-${idx}`}>
+                            <td>{r.invoice_number || r.invoice_id || "-"}</td>
+                            <td>{r.supplier_name || "-"}</td>
+                            <td>{r.invoice_date || "-"}</td>
+                            <td>{r.status || "-"}</td>
+                            <td>{r.gross_amount ?? 0}</td>
+                            <td>{r.currency || "-"}</td>
+                            <td>{Array.isArray(r.action_types) ? r.action_types.join(", ") : "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : null}
             </div>

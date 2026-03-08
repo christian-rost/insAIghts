@@ -63,6 +63,9 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
   - `POST /api/admin/graph/aliases`
   - `PUT /api/admin/graph/aliases/{alias_id}`
   - `GET /api/admin/graph/insights?limit=...`
+  - `GET /api/admin/graph/insights/trends?window_days=...&compare_days=...&granularity=day|week|month`
+  - `GET /api/admin/graph/insights/drilldown?metric=...&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD`
+  - `GET /api/admin/graph/insights/explain?window_days=...&compare_days=...&granularity=...&limit=...`
   - `GET /api/admin/kpi/overview`
   - `POST /api/admin/reset/invoice-pipeline`
 - Pipeline:

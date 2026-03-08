@@ -88,6 +88,9 @@ Hinweise:
 ## 5.1 Graph-Insights
 Endpunkt:
 - `GET /api/admin/graph/insights?limit=10`
+- `GET /api/admin/graph/insights/trends?window_days=30&compare_days=30&granularity=week`
+- `GET /api/admin/graph/insights/drilldown?metric=reject_rate&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD`
+- `GET /api/admin/graph/insights/explain?window_days=30&compare_days=30&granularity=week&limit=10`
 
 Gelieferte Auswertungen:
 - `supplier_risk`
@@ -95,6 +98,11 @@ Gelieferte Auswertungen:
 - `top_products`
 - `status_distribution`
 - `anomaly_candidates`
+
+LLM-Analyse:
+- Nutzt den konfigurierten/aktiven Mistral-Provider-Key.
+- Liefert Management-Zusammenfassung, Highlights und Vorschlaege fuer weitere Trend-KPIs.
+- Falls Provider nicht verfuegbar ist, wird ein deterministischer Fallback-Text mit KPI-Vorschlaegen geliefert.
 
 ## 6. Betriebsablauf (empfohlen)
 1. Provider-Key setzen

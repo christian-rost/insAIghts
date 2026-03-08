@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from neo4j import GraphDatabase
@@ -8,6 +9,9 @@ from .config import GRAPH_DB_PASSWORD, GRAPH_DB_URI, GRAPH_DB_USER
 from .recipient_resolution_storage import resolve_attribute_value
 
 _driver = None
+
+ALLOWED_TREND_GRANULARITIES = {"day", "week", "month"}
+ALLOWED_DRILLDOWN_METRICS = {"invoice_count", "total_amount", "reject_rate", "hold_rate", "clarification_rate"}
 
 
 def _json_safe(value: Any) -> Any:
@@ -662,6 +666,314 @@ def graph_get_insights(limit: int = 10) -> Dict[str, Any]:
             "top_products": [],
             "status_distribution": [],
             "anomaly_candidates": [],
+        }
+
+
+def _parse_date(value: str) -> Optional[date]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value)).date()
+    except Exception:
+        return None
+
+
+def _period_aggregate(session, start_iso: str, end_iso: str) -> Dict[str, float]:
+    query = """
+    MATCH (i:Invoice)
+    WITH i, date(i.invoice_date) AS d
+    WHERE d IS NOT NULL AND d >= date($start_date) AND d < date($end_date)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH i, collect(distinct a.action_type) AS action_types
+    WITH
+      count(distinct i) AS invoice_count,
+      sum(coalesce(toFloat(i.gross_amount), 0.0)) AS total_amount,
+      sum(CASE WHEN 'reject' IN action_types THEN 1 ELSE 0 END) AS reject_count,
+      sum(CASE WHEN 'hold' IN action_types THEN 1 ELSE 0 END) AS hold_count,
+      sum(CASE WHEN 'request_clarification' IN action_types THEN 1 ELSE 0 END) AS clarification_count
+    RETURN
+      invoice_count,
+      round(total_amount, 2) AS total_amount,
+      round(toFloat(reject_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS reject_rate,
+      round(toFloat(hold_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS hold_rate,
+      round(toFloat(clarification_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS clarification_rate
+    """
+    rec = session.run(query, start_date=start_iso, end_date=end_iso).single()
+    if not rec:
+        return {
+            "invoice_count": 0.0,
+            "total_amount": 0.0,
+            "reject_rate": 0.0,
+            "hold_rate": 0.0,
+            "clarification_rate": 0.0,
+        }
+    return {
+        "invoice_count": float(rec.get("invoice_count") or 0),
+        "total_amount": float(rec.get("total_amount") or 0),
+        "reject_rate": float(rec.get("reject_rate") or 0),
+        "hold_rate": float(rec.get("hold_rate") or 0),
+        "clarification_rate": float(rec.get("clarification_rate") or 0),
+    }
+
+
+def graph_get_trend_insights(
+    window_days: int = 30,
+    compare_days: Optional[int] = None,
+    granularity: str = "week",
+) -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "unavailable",
+            "reason": "graph credentials or uri not configured",
+            "trends": [],
+        }
+
+    wd = max(1, min(int(window_days or 30), 365))
+    cd = max(1, min(int(compare_days or wd), 365))
+    g = str(granularity or "week").strip().lower()
+    if g not in ALLOWED_TREND_GRANULARITIES:
+        g = "week"
+
+    today = datetime.now(timezone.utc).date()
+    current_end = today + timedelta(days=1)
+    current_start = current_end - timedelta(days=wd)
+    previous_end = current_start
+    previous_start = previous_end - timedelta(days=cd)
+
+    trends_query = """
+    MATCH (i:Invoice)
+    WITH i, date(i.invoice_date) AS d
+    WHERE d IS NOT NULL AND d >= date($start_date) AND d < date($end_date)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH i, d, collect(distinct a.action_type) AS action_types
+    WITH
+      i,
+      action_types,
+      CASE
+        WHEN $granularity = 'day' THEN d
+        WHEN $granularity = 'month' THEN date({year: d.year, month: d.month, day: 1})
+        ELSE date.truncate('week', d)
+      END AS bucket_start
+    WITH
+      bucket_start,
+      CASE
+        WHEN $granularity = 'day' THEN bucket_start + duration('P1D')
+        WHEN $granularity = 'month' THEN bucket_start + duration('P1M')
+        ELSE bucket_start + duration('P7D')
+      END AS bucket_end,
+      collect(distinct i) AS invoices,
+      collect(action_types) AS action_sets
+    WITH
+      bucket_start,
+      bucket_end,
+      size(invoices) AS invoice_count,
+      round(reduce(sumAmount = 0.0, inv IN invoices | sumAmount + coalesce(toFloat(inv.gross_amount), 0.0)), 2) AS total_amount,
+      reduce(rejectCount = 0, actions IN action_sets | rejectCount + CASE WHEN 'reject' IN actions THEN 1 ELSE 0 END) AS reject_count,
+      reduce(holdCount = 0, actions IN action_sets | holdCount + CASE WHEN 'hold' IN actions THEN 1 ELSE 0 END) AS hold_count,
+      reduce(clarCount = 0, actions IN action_sets | clarCount + CASE WHEN 'request_clarification' IN actions THEN 1 ELSE 0 END) AS clarification_count
+    RETURN
+      toString(bucket_start) AS bucket_start,
+      toString(bucket_end) AS bucket_end,
+      invoice_count,
+      total_amount,
+      round(toFloat(reject_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS reject_rate,
+      round(toFloat(hold_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS hold_rate,
+      round(toFloat(clarification_count) / CASE WHEN invoice_count = 0 THEN 1 ELSE invoice_count END, 4) AS clarification_rate
+    ORDER BY bucket_start ASC
+    """
+
+    try:
+        with driver.session() as session:
+            trend_rows = []
+            for rec in session.run(
+                trends_query,
+                start_date=current_start.isoformat(),
+                end_date=current_end.isoformat(),
+                granularity=g,
+            ):
+                trend_rows.append(
+                    {
+                        "bucket_start": _json_safe(rec.get("bucket_start")),
+                        "bucket_end": _json_safe(rec.get("bucket_end")),
+                        "invoice_count": _json_safe(rec.get("invoice_count")),
+                        "total_amount": _json_safe(rec.get("total_amount")),
+                        "reject_rate": _json_safe(rec.get("reject_rate")),
+                        "hold_rate": _json_safe(rec.get("hold_rate")),
+                        "clarification_rate": _json_safe(rec.get("clarification_rate")),
+                    }
+                )
+
+            current_summary = _period_aggregate(session, current_start.isoformat(), current_end.isoformat())
+            previous_summary = _period_aggregate(session, previous_start.isoformat(), previous_end.isoformat())
+
+        delta = {}
+        for key, current_val in current_summary.items():
+            prev_val = float(previous_summary.get(key) or 0.0)
+            abs_change = float(current_val) - prev_val
+            pct_change = None
+            if prev_val != 0:
+                pct_change = round(abs_change / prev_val, 4)
+            delta[key] = {
+                "absolute": round(abs_change, 4),
+                "percent": pct_change,
+            }
+
+        return {
+            "status": "ok",
+            "config": {
+                "window_days": wd,
+                "compare_days": cd,
+                "granularity": g,
+            },
+            "periods": {
+                "current_start": current_start.isoformat(),
+                "current_end": current_end.isoformat(),
+                "previous_start": previous_start.isoformat(),
+                "previous_end": previous_end.isoformat(),
+            },
+            "summary": {
+                "current": current_summary,
+                "previous": previous_summary,
+                "delta": delta,
+            },
+            "trends": trend_rows,
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "reason": str(exc),
+            "trends": [],
+        }
+
+
+def graph_get_insight_drilldown(
+    metric: str,
+    period_start: str,
+    period_end: str,
+    limit: int = 100,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    driver = get_graph_driver()
+    if not driver:
+        return {
+            "status": "unavailable",
+            "reason": "graph credentials or uri not configured",
+            "items": [],
+            "total": 0,
+        }
+
+    m = str(metric or "").strip().lower()
+    if m not in ALLOWED_DRILLDOWN_METRICS:
+        return {
+            "status": "error",
+            "reason": f"unsupported metric: {metric}",
+            "items": [],
+            "total": 0,
+        }
+    start = _parse_date(period_start)
+    end = _parse_date(period_end)
+    if not start or not end or start >= end:
+        return {
+            "status": "error",
+            "reason": "invalid period_start/period_end",
+            "items": [],
+            "total": 0,
+        }
+
+    l = max(1, min(int(limit or 100), 500))
+    o = max(0, int(offset or 0))
+
+    where_by_metric = {
+        "invoice_count": "true",
+        "total_amount": "true",
+        "reject_rate": "'reject' IN action_types",
+        "hold_rate": "'hold' IN action_types",
+        "clarification_rate": "'request_clarification' IN action_types",
+    }
+
+    base_with = """
+    MATCH (i:Invoice)
+    WITH i, date(i.invoice_date) AS d
+    WHERE d IS NOT NULL AND d >= date($start_date) AND d < date($end_date)
+    OPTIONAL MATCH (s:Supplier)<-[:BELONGS_TO]-(i)
+    OPTIONAL MATCH (a:InvoiceAction)-[:TARGETS]->(i)
+    WITH i, s, collect(distinct a.action_type) AS action_types
+    """
+
+    total_query = (
+        base_with
+        + f"""
+    WHERE {where_by_metric[m]}
+    RETURN count(distinct i) AS total
+    """
+    )
+
+    items_query = (
+        base_with
+        + f"""
+    WHERE {where_by_metric[m]}
+    RETURN
+      i.id AS invoice_id,
+      i.invoice_number AS invoice_number,
+      i.invoice_date AS invoice_date,
+      i.status AS status,
+      i.currency AS currency,
+      i.gross_amount AS gross_amount,
+      i.supplier_name AS supplier_name_fallback,
+      s.name AS supplier_name_graph,
+      action_types
+    ORDER BY i.invoice_date DESC
+    SKIP $offset
+    LIMIT $limit
+    """
+    )
+
+    try:
+        with driver.session() as session:
+            total_rec = session.run(
+                total_query,
+                start_date=start.isoformat(),
+                end_date=end.isoformat(),
+            ).single()
+            total = int(total_rec.get("total") or 0) if total_rec else 0
+            rows = session.run(
+                items_query,
+                start_date=start.isoformat(),
+                end_date=end.isoformat(),
+                offset=o,
+                limit=l,
+            )
+            items = []
+            for rec in rows:
+                items.append(
+                    {
+                        "invoice_id": _json_safe(rec.get("invoice_id")),
+                        "invoice_number": _json_safe(rec.get("invoice_number")),
+                        "invoice_date": _json_safe(rec.get("invoice_date")),
+                        "status": _json_safe(rec.get("status")),
+                        "currency": _json_safe(rec.get("currency")),
+                        "gross_amount": _json_safe(rec.get("gross_amount")),
+                        "supplier_name": _json_safe(rec.get("supplier_name_graph") or rec.get("supplier_name_fallback")),
+                        "action_types": _json_safe(rec.get("action_types") or []),
+                    }
+                )
+        return {
+            "status": "ok",
+            "metric": m,
+            "period_start": start.isoformat(),
+            "period_end": end.isoformat(),
+            "limit": l,
+            "offset": o,
+            "total": total,
+            "items": items,
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "reason": str(exc),
+            "items": [],
+            "total": 0,
         }
 
 

@@ -449,3 +449,51 @@ export async function getGraphInsights(token, { limit = 10 } = {}) {
   })
   return handleJson(response)
 }
+
+export async function getGraphTrendInsights(
+  token,
+  { windowDays = 30, compareDays = 30, granularity = "week" } = {},
+) {
+  const qs = new URLSearchParams({
+    window_days: String(windowDays),
+    compare_days: String(compareDays),
+    granularity: String(granularity || "week"),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/graph/insights/trends?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function getGraphInsightDrilldown(
+  token,
+  { metric, periodStart, periodEnd, limit = 100, offset = 0 } = {},
+) {
+  const qs = new URLSearchParams({
+    metric: String(metric || ""),
+    period_start: String(periodStart || ""),
+    period_end: String(periodEnd || ""),
+    limit: String(limit),
+    offset: String(offset),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/graph/insights/drilldown?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
+
+export async function getGraphInsightExplanation(
+  token,
+  { windowDays = 30, compareDays = 30, granularity = "week", limit = 10 } = {},
+) {
+  const qs = new URLSearchParams({
+    window_days: String(windowDays),
+    compare_days: String(compareDays),
+    granularity: String(granularity || "week"),
+    limit: String(limit),
+  })
+  const response = await fetch(`${API_BASE}/api/admin/graph/insights/explain?${qs.toString()}`, {
+    headers: { ...authHeaders(token) },
+  })
+  return handleJson(response)
+}
