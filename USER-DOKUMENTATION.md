@@ -60,6 +60,7 @@ Case-Status:
 
 ## 8. Graph in der Inbox
 - `Graph neu laden` laedt den Subgraph der aktuellen Rechnung.
+- In der Inbox werden nur Knoten gezeigt, die mit der ausgewaehlten Rechnung verbunden sind (isolierte Fremdknoten werden ausgeblendet).
 - Klick auf Node:
   - direkte Nachbarn werden hervorgehoben
   - indirekte Knoten werden abgedunkelt

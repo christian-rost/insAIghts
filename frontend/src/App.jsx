@@ -2923,7 +2923,7 @@ function AdminView({ token, currentUser, onLogout }) {
   )
 }
 
-function GraphCanvas({ graphData, onNodeSelect }) {
+function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootComponentOnly = false }) {
   const width = 760
   const height = 360
   const [zoom, setZoom] = useState(1)
@@ -2941,7 +2941,7 @@ function GraphCanvas({ graphData, onNodeSelect }) {
   const dragStateRef = useRef(null)
   const nodeDragRef = useRef(null)
 
-  const { nodes, edges } = useMemo(() => {
+  const { nodes, edges, hiddenDisconnectedCount } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
     const rawEdges = (graphData?.edges || []).map((e) => ({ ...e }))
 
@@ -3098,6 +3098,38 @@ function GraphCanvas({ graphData, onNodeSelect }) {
       filteredEdges = filteredEdges.filter((e) => keepIds.has(String(e.source || "")) && keepIds.has(String(e.target || "")))
     }
 
+    let disconnectedHidden = 0
+    if (showRootComponentOnly && String(rootNodeId || "").trim()) {
+      const rootId = String(rootNodeId)
+      const hasRoot = filteredNodes.some((n) => String(n.id) === rootId)
+      if (hasRoot) {
+        const adj = new Map()
+        for (const n of filteredNodes) adj.set(String(n.id), new Set())
+        for (const e of filteredEdges) {
+          const s = String(e.source || "")
+          const t = String(e.target || "")
+          if (!adj.has(s)) adj.set(s, new Set())
+          if (!adj.has(t)) adj.set(t, new Set())
+          adj.get(s).add(t)
+          adj.get(t).add(s)
+        }
+        const keep = new Set([rootId])
+        const q = [rootId]
+        while (q.length) {
+          const cur = q.shift()
+          const nextSet = adj.get(cur) || new Set()
+          for (const nxt of nextSet) {
+            if (keep.has(nxt)) continue
+            keep.add(nxt)
+            q.push(nxt)
+          }
+        }
+        disconnectedHidden = Math.max(0, filteredNodes.length - keep.size)
+        filteredNodes = filteredNodes.filter((n) => keep.has(String(n.id)))
+        filteredEdges = filteredEdges.filter((e) => keep.has(String(e.source || "")) && keep.has(String(e.target || "")))
+      }
+    }
+
     const centerX = width / 2
     const centerY = height / 2
     const nodeById = new Map(filteredNodes.map((n) => [String(n.id), n]))
@@ -3198,8 +3230,8 @@ function GraphCanvas({ graphData, onNodeSelect }) {
       }
     })
 
-    return { nodes: positioned, edges: filteredEdges }
-  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree])
+    return { nodes: positioned, edges: filteredEdges, hiddenDisconnectedCount: disconnectedHidden }
+  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree, rootNodeId, showRootComponentOnly])
 
   const renderedNodes = useMemo(
     () => nodes.map((n) => ({ ...n, ...(nodeOverrides[String(n.id)] || {}) })),
@@ -3313,7 +3345,10 @@ function GraphCanvas({ graphData, onNodeSelect }) {
     <div className="graph-panel">
       <div className="graph-toolbar">
         <div className="graph-toolbar-main">
-          <span className="muted-inline">Knoten: {nodes.length} | Kanten: {edges.length}</span>
+          <span className="muted-inline">
+            Knoten: {nodes.length} | Kanten: {edges.length}
+            {showRootComponentOnly && hiddenDisconnectedCount > 0 ? ` | ${hiddenDisconnectedCount} isolierte Knoten ausgeblendet` : ""}
+          </span>
           <div className="actions-row">
             <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
               <option value="data">Datenebene</option>
@@ -4010,7 +4045,12 @@ function UserView({ token, currentUser, onLogout }) {
                 </div>
                 {graphError ? <p className="error">{graphError}</p> : null}
                 {graphData ? (
-                  <GraphCanvas graphData={graphData} onNodeSelect={onGraphNodeSelect} />
+                  <GraphCanvas
+                    graphData={graphData}
+                    onNodeSelect={onGraphNodeSelect}
+                    rootNodeId={selectedId}
+                    showRootComponentOnly={true}
+                  />
                 ) : (
                   <p className="muted-inline">Kein Graph geladen.</p>
                 )}
