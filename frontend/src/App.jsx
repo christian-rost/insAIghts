@@ -3102,7 +3102,15 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
     let disconnectedHidden = 0
     let peerInvoiceHidden = 0
     if (showRootComponentOnly && rootId) {
-      const hasRoot = filteredNodes.some((n) => String(n.id) === rootId)
+      const rootNode =
+        filteredNodes.find((n) => String(n.id) === rootId) ||
+        filteredNodes.find(
+          (n) =>
+            (n.labels || []).includes("Invoice") &&
+            String(n.properties?.id || "").trim() === rootId,
+        )
+      const rootGraphId = rootNode ? String(rootNode.id) : ""
+      const hasRoot = !!rootGraphId
       if (hasRoot) {
         const adj = new Map()
         for (const n of filteredNodes) adj.set(String(n.id), new Set())
@@ -3114,8 +3122,8 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
           adj.get(s).add(t)
           adj.get(t).add(s)
         }
-        const keep = new Set([rootId])
-        const q = [rootId]
+        const keep = new Set([rootGraphId])
+        const q = [rootGraphId]
         while (q.length) {
           const cur = q.shift()
           const nextSet = adj.get(cur) || new Set()
@@ -3134,7 +3142,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
         filteredNodes = filteredNodes.filter((n) => {
           const isInvoice = (n.labels || []).includes("Invoice")
           if (!isInvoice) return true
-          return String(n.id) === rootId
+          return String(n.id) === rootGraphId
         })
         const afterInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
         peerInvoiceHidden = Math.max(0, beforeInvoiceCount - afterInvoiceCount)
