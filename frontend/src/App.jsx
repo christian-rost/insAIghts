@@ -2085,6 +2085,8 @@ function AdminView({ token, currentUser, onLogout }) {
                     try {
                       setError("")
                       setNotice("")
+                      setAdminGraphQuestionResult(null)
+                      setAdminGraphQuestionError("")
                       const res = await getGlobalGraph(token, {
                         maxNodes: globalGraphMaxNodes || 500,
                         maxEdges: globalGraphMaxEdges || 1200,
@@ -2107,6 +2109,7 @@ function AdminView({ token, currentUser, onLogout }) {
                   graphData={globalGraphData}
                   highlightInvoiceIds={adminGraphHighlights.invoiceIds}
                   highlightInvoiceNumbers={adminGraphHighlights.invoiceNumbers}
+                  onResetHighlights={() => setAdminGraphQuestionResult(null)}
                 />
               ) : null}
 
@@ -3073,6 +3076,7 @@ function GraphCanvas({
   showRootComponentOnly = false,
   highlightInvoiceIds = [],
   highlightInvoiceNumbers = [],
+  onResetHighlights = null,
 }) {
   const width = 760
   const height = 360
@@ -3577,7 +3581,17 @@ function GraphCanvas({
             </select>
             <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.min(2.4, z + 0.1))}>+</button>
             <button className="btn btn-outline btn-sm" type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>-</button>
-            <button className="btn btn-outline btn-sm" type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>Reset</button>
+            <button
+              className="btn btn-outline btn-sm"
+              type="button"
+              onClick={() => {
+                setZoom(1)
+                setPan({ x: 0, y: 0 })
+                if (onResetHighlights) onResetHighlights()
+              }}
+            >
+              Reset
+            </button>
           </div>
         </div>
         <div className="graph-toolbar-filters">
@@ -4299,6 +4313,8 @@ function UserView({ token, currentUser, onLogout }) {
                     onClick={async () => {
                       try {
                         setGraphError("")
+                        setGraphQuestionResult(null)
+                        setGraphQuestionError("")
                         const graph = await getInvoiceGraph(token, selectedId)
                         setGraphData(graph)
                       } catch (gErr) {
@@ -4396,6 +4412,7 @@ function UserView({ token, currentUser, onLogout }) {
                     showRootComponentOnly={true}
                     highlightInvoiceIds={userGraphHighlights.invoiceIds}
                     highlightInvoiceNumbers={userGraphHighlights.invoiceNumbers}
+                    onResetHighlights={() => setGraphQuestionResult(null)}
                   />
                 ) : (
                   <p className="muted-inline">Kein Graph geladen.</p>
