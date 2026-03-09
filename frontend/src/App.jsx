@@ -2941,7 +2941,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
   const dragStateRef = useRef(null)
   const nodeDragRef = useRef(null)
 
-  const { nodes, edges, hiddenDisconnectedCount } = useMemo(() => {
+  const { nodes, edges, hiddenDisconnectedCount, hiddenPeerInvoiceCount } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
     const rawEdges = (graphData?.edges || []).map((e) => ({ ...e }))
 
@@ -3098,9 +3098,10 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
       filteredEdges = filteredEdges.filter((e) => keepIds.has(String(e.source || "")) && keepIds.has(String(e.target || "")))
     }
 
+    const rootId = String(rootNodeId || "").trim()
     let disconnectedHidden = 0
-    if (showRootComponentOnly && String(rootNodeId || "").trim()) {
-      const rootId = String(rootNodeId)
+    let peerInvoiceHidden = 0
+    if (showRootComponentOnly && rootId) {
       const hasRoot = filteredNodes.some((n) => String(n.id) === rootId)
       if (hasRoot) {
         const adj = new Map()
@@ -3127,6 +3128,22 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
         disconnectedHidden = Math.max(0, filteredNodes.length - keep.size)
         filteredNodes = filteredNodes.filter((n) => keep.has(String(n.id)))
         filteredEdges = filteredEdges.filter((e) => keep.has(String(e.source || "")) && keep.has(String(e.target || "")))
+
+        // In inbox mode keep only the selected invoice node as invoice anchor.
+        const beforeInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
+        filteredNodes = filteredNodes.filter((n) => {
+          const isInvoice = (n.labels || []).includes("Invoice")
+          if (!isInvoice) return true
+          return String(n.id) === rootId
+        })
+        const afterInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
+        peerInvoiceHidden = Math.max(0, beforeInvoiceCount - afterInvoiceCount)
+        const keepAfterInvoiceFilter = new Set(filteredNodes.map((n) => String(n.id)))
+        filteredEdges = filteredEdges.filter(
+          (e) =>
+            keepAfterInvoiceFilter.has(String(e.source || "")) &&
+            keepAfterInvoiceFilter.has(String(e.target || "")),
+        )
       }
     }
 
@@ -3230,7 +3247,12 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
       }
     })
 
-    return { nodes: positioned, edges: filteredEdges, hiddenDisconnectedCount: disconnectedHidden }
+    return {
+      nodes: positioned,
+      edges: filteredEdges,
+      hiddenDisconnectedCount: disconnectedHidden,
+      hiddenPeerInvoiceCount: peerInvoiceHidden,
+    }
   }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree, rootNodeId, showRootComponentOnly])
 
   const renderedNodes = useMemo(
@@ -3348,6 +3370,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
           <span className="muted-inline">
             Knoten: {nodes.length} | Kanten: {edges.length}
             {showRootComponentOnly && hiddenDisconnectedCount > 0 ? ` | ${hiddenDisconnectedCount} isolierte Knoten ausgeblendet` : ""}
+            {showRootComponentOnly && hiddenPeerInvoiceCount > 0 ? ` | ${hiddenPeerInvoiceCount} weitere Rechnungen ausgeblendet` : ""}
           </span>
           <div className="actions-row">
             <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
