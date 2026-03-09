@@ -260,7 +260,14 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
     ORDER BY relevance DESC, i.invoice_date DESC
     LIMIT $max_rows
     """
-    result = _run_cypher_read_query(cypher, max_rows=max_rows)
+    result = _run_cypher_read_query(
+        cypher,
+        max_rows=max_rows,
+        params={
+            "tokens": tokens,
+            "max_rows": max_rows,
+        },
+    )
     result["query"] = cypher.strip()
     result["tokens"] = tokens
     return result
@@ -309,7 +316,7 @@ def _rewrite_query_flexible(
     return True, safe_cypher, str(payload.get("explanation") or "").strip()
 
 
-def _run_cypher_read_query(cypher: str, max_rows: int) -> Dict[str, Any]:
+def _run_cypher_read_query(cypher: str, max_rows: int, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
     driver = get_graph_driver()
     if not driver:
         return {
@@ -323,7 +330,7 @@ def _run_cypher_read_query(cypher: str, max_rows: int) -> Dict[str, Any]:
 
     try:
         with driver.session() as session:
-            result = session.run(cypher)
+            result = session.run(cypher, **(params or {}))
             columns = list(result.keys())
             rows: List[Dict[str, Any]] = []
             truncated = False
