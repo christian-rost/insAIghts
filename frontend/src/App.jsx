@@ -2937,6 +2937,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
   const [aggregateLines, setAggregateLines] = useState(true)
   const [lineTopN, setLineTopN] = useState(8)
   const [minNodeDegree, setMinNodeDegree] = useState(0)
+  const [showPeerInvoices, setShowPeerInvoices] = useState(false)
   const [nodeOverrides, setNodeOverrides] = useState({})
   const dragStateRef = useRef(null)
   const nodeDragRef = useRef(null)
@@ -3137,21 +3138,23 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
         filteredNodes = filteredNodes.filter((n) => keep.has(String(n.id)))
         filteredEdges = filteredEdges.filter((e) => keep.has(String(e.source || "")) && keep.has(String(e.target || "")))
 
-        // In inbox mode keep only the selected invoice node as invoice anchor.
-        const beforeInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
-        filteredNodes = filteredNodes.filter((n) => {
-          const isInvoice = (n.labels || []).includes("Invoice")
-          if (!isInvoice) return true
-          return String(n.id) === rootGraphId
-        })
-        const afterInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
-        peerInvoiceHidden = Math.max(0, beforeInvoiceCount - afterInvoiceCount)
-        const keepAfterInvoiceFilter = new Set(filteredNodes.map((n) => String(n.id)))
-        filteredEdges = filteredEdges.filter(
-          (e) =>
-            keepAfterInvoiceFilter.has(String(e.source || "")) &&
-            keepAfterInvoiceFilter.has(String(e.target || "")),
-        )
+        if (!showPeerInvoices) {
+          // In inbox mode keep only the selected invoice node as invoice anchor.
+          const beforeInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
+          filteredNodes = filteredNodes.filter((n) => {
+            const isInvoice = (n.labels || []).includes("Invoice")
+            if (!isInvoice) return true
+            return String(n.id) === rootGraphId
+          })
+          const afterInvoiceCount = filteredNodes.filter((n) => (n.labels || []).includes("Invoice")).length
+          peerInvoiceHidden = Math.max(0, beforeInvoiceCount - afterInvoiceCount)
+          const keepAfterInvoiceFilter = new Set(filteredNodes.map((n) => String(n.id)))
+          filteredEdges = filteredEdges.filter(
+            (e) =>
+              keepAfterInvoiceFilter.has(String(e.source || "")) &&
+              keepAfterInvoiceFilter.has(String(e.target || "")),
+          )
+        }
       }
     }
 
@@ -3261,7 +3264,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
       hiddenDisconnectedCount: disconnectedHidden,
       hiddenPeerInvoiceCount: peerInvoiceHidden,
     }
-  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree, rootNodeId, showRootComponentOnly])
+  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree, rootNodeId, showRootComponentOnly, showPeerInvoices])
 
   const renderedNodes = useMemo(
     () => nodes.map((n) => ({ ...n, ...(nodeOverrides[String(n.id)] || {}) })),
@@ -3299,7 +3302,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
     setSelectedNodeId("")
     setNodeOverrides({})
     if (onNodeSelect) onNodeSelect(null)
-  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree])
+  }, [graphData, layerMode, showLineItems, showDataFields, showAppActions, aggregateLines, lineTopN, minNodeDegree, showPeerInvoices])
 
   useEffect(() => {
     if (!selectedNodeId) return
@@ -3397,6 +3400,12 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
           </div>
         </div>
         <div className="graph-toolbar-filters">
+          {showRootComponentOnly ? (
+            <label className="graph-toggle-item">
+              <input type="checkbox" checked={showPeerInvoices} onChange={(e) => setShowPeerInvoices(e.target.checked)} />
+              Weitere Rechnungen
+            </label>
+          ) : null}
           <label className="graph-toggle-item"><input type="checkbox" checked={showLineItems} onChange={(e) => setShowLineItems(e.target.checked)} /> Positionen</label>
           <label className="graph-toggle-item"><input type="checkbox" checked={showDataFields} onChange={(e) => setShowDataFields(e.target.checked)} /> Datenfelder</label>
           <label className="graph-toggle-item"><input type="checkbox" checked={showAppActions} onChange={(e) => setShowAppActions(e.target.checked)} /> Aktionen</label>

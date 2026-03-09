@@ -62,6 +62,7 @@ Case-Status:
 - `Graph neu laden` laedt den Subgraph der aktuellen Rechnung.
 - In der Inbox bleibt nur die ausgewaehlte Rechnung als Rechnungs-Knoten sichtbar; weitere Rechnungs-Knoten werden ausgeblendet.
 - Zusaetzlich werden isolierte Fremdknoten ausgeblendet.
+- Optional kann ueber den Toggle `Weitere Rechnungen` der erweiterte Kontext (z. B. ueber gemeinsame `Currency`-Knoten) eingeblendet werden.
 - Klick auf Node:
   - direkte Nachbarn werden hervorgehoben
   - indirekte Knoten werden abgedunkelt
