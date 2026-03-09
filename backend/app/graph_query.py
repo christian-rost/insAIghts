@@ -368,6 +368,34 @@ def _fallback_answer_text(question: str, row_count: int) -> str:
     return f"Es wurden {row_count} Treffer gefunden."
 
 
+def _deterministic_answer_text(question: str, rows: List[Dict[str, Any]]) -> str:
+    row_count = len(rows or [])
+    if row_count <= 0:
+        return f"Keine Treffer zur Frage '{question}' gefunden."
+    sample_numbers: List[str] = []
+    for row in rows[:5]:
+        inv = str(row.get("invoice_number") or "").strip()
+        if inv:
+            sample_numbers.append(inv)
+    if sample_numbers:
+        return f"Gefunden: {row_count} Rechnungen (z. B. {', '.join(sample_numbers)})."
+    return f"Gefunden: {row_count} Rechnungen."
+
+
+def _enforce_answer_consistency(question: str, rows: List[Dict[str, Any]], answer_text: str) -> str:
+    text = str(answer_text or "").strip()
+    row_count = len(rows or [])
+    if not text:
+        return _deterministic_answer_text(question, rows)
+    lower = text.lower()
+    says_none = any(token in lower for token in ["keine", "nicht gefunden", "no results", "no match"])
+    if row_count > 0 and says_none:
+        return _deterministic_answer_text(question, rows)
+    if row_count == 0 and not says_none:
+        return _deterministic_answer_text(question, rows)
+    return text
+
+
 def _summarize_result(question: str, cypher: str, rows: List[Dict[str, Any]], api_key: str) -> str:
     sample = rows[:MAX_PROMPT_ROWS]
     system_prompt = (
@@ -515,6 +543,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
             final_explanation = f"{final_explanation} | Fallback reason: {fallback_reason}".strip(" |")
 
     answer_text = _summarize_result(q, final_cypher, rows, api_key)
+    answer_text = _enforce_answer_consistency(q, rows, answer_text)
 
     return {
         "status": "ok",
