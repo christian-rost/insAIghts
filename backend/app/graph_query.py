@@ -17,6 +17,30 @@ CURRENCY_SYNONYMS: Dict[str, List[str]] = {
     "GBP": ["gbp", "pfund", "pound", "sterling", "£"],
     "CHF": ["chf", "franken", "franc", "sfr"],
 }
+QUESTION_STOPWORDS = {
+    "welche",
+    "welcher",
+    "welches",
+    "sind",
+    "ist",
+    "fuer",
+    "für",
+    "mit",
+    "von",
+    "der",
+    "die",
+    "das",
+    "den",
+    "dem",
+    "des",
+    "und",
+    "oder",
+    "rechnungen",
+    "rechnung",
+    "zeige",
+    "gib",
+    "alle",
+}
 
 ALLOWED_SCHEMA: Dict[str, List[str]] = {
     "labels": [
@@ -171,6 +195,74 @@ def _extract_currency_hints(question: str) -> List[str]:
                 break
     # stable dedupe
     return list(dict.fromkeys(out))
+
+
+def _extract_question_tokens(question: str, max_tokens: int = 6) -> List[str]:
+    q = _normalize_question_text(question).lower()
+    q = re.sub(r"[^a-z0-9äöüß_\\-\\s]", " ", q)
+    parts = [p.strip() for p in q.split() if p.strip()]
+    tokens: List[str] = []
+    for p in parts:
+        if p in QUESTION_STOPWORDS:
+            continue
+        if len(p) < 3:
+            continue
+        tokens.append(p)
+    deduped = list(dict.fromkeys(tokens))
+    return deduped[:max_tokens]
+
+
+def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, Any]:
+    tokens = _extract_question_tokens(question)
+    if not tokens:
+        return {
+            "status": "ok",
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "truncated": False,
+            "query": "",
+        }
+
+    cypher = """
+    MATCH (i:Invoice)
+    OPTIONAL MATCH (i)-[:BELONGS_TO]->(sup:Supplier)
+    OPTIONAL MATCH (i)-[:IN_CURRENCY]->(cur:Currency)
+    OPTIONAL MATCH (i)-[:HAS_STATUS]->(st:InvoiceStatus)
+    OPTIONAL MATCH (i)-[:HAS_DATA_FIELD]->(df:InvoiceDataField)
+    WITH i, sup, cur, st, collect(distinct df) AS dfs, $tokens AS tokens
+    WITH i, sup, cur, st, dfs, tokens,
+         reduce(score = 0,
+                t IN tokens |
+                  score
+                  + CASE WHEN toLower(coalesce(i.invoice_number, '')) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(coalesce(i.supplier_name, '')) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(coalesce(sup.name, '')) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(coalesce(i.currency, '')) CONTAINS t THEN 2 ELSE 0 END
+                  + CASE WHEN toLower(coalesce(cur.code, '')) CONTAINS t THEN 2 ELSE 0 END
+                  + CASE WHEN toLower(coalesce(st.name, '')) CONTAINS t THEN 1 ELSE 0 END
+                  + reduce(dfScore = 0,
+                           d IN dfs |
+                             dfScore
+                             + CASE WHEN toLower(coalesce(d.value, '')) CONTAINS t THEN 4 ELSE 0 END
+                             + CASE WHEN toLower(coalesce(d.field_name, '')) CONTAINS t THEN 1 ELSE 0 END
+                    )
+         ) AS relevance
+    WHERE relevance > 0
+    RETURN
+      i.id AS invoice_id,
+      i.invoice_number AS invoice_number,
+      coalesce(sup.name, i.supplier_name) AS supplier_name,
+      coalesce(cur.code, i.currency) AS currency,
+      i.status AS status,
+      i.gross_amount AS gross_amount,
+      relevance
+    ORDER BY relevance DESC, i.invoice_date DESC
+    LIMIT $max_rows
+    """
+    result = _run_cypher_read_query(cypher, max_rows=max_rows)
+    result["query"] = cypher.strip()
+    return result
 
 
 def _rewrite_query_flexible(
@@ -388,6 +480,15 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
                 match_mode = "flexible"
                 if flex_reason:
                     final_explanation = f"{explanation} | Flexible fallback: {flex_reason}".strip(" |")
+
+    if len(rows) == 0:
+        semantic_result = _run_semantic_contains_fallback(q, max_rows=bounded_max_rows)
+        if semantic_result.get("status") == "ok" and int(semantic_result.get("row_count") or 0) > 0:
+            query_result = semantic_result
+            rows = query_result.get("rows") or []
+            final_cypher = str(semantic_result.get("query") or final_cypher)
+            match_mode = "semantic_contains"
+            final_explanation = f"{final_explanation} | Semantic fallback: contains search over invoice core fields and InvoiceDataField values.".strip(" |")
 
     answer_text = _summarize_result(q, final_cypher, rows, api_key)
 

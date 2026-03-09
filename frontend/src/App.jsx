@@ -2103,7 +2103,11 @@ function AdminView({ token, currentUser, onLogout }) {
                     </p>
                     {adminGraphQuestionResult.match_mode ? (
                       <p className="muted-inline">
-                        <strong>Modus:</strong> {adminGraphQuestionResult.match_mode === "flexible" ? "flexibel (Fallback aktiv)" : "direkt"}
+                        <strong>Modus:</strong> {adminGraphQuestionResult.match_mode === "flexible"
+                          ? "flexibel (LLM-Fallback)"
+                          : adminGraphQuestionResult.match_mode === "semantic_contains"
+                            ? "flexibel (semantic contains)"
+                            : "direkt"}
                       </p>
                     ) : null}
                     {adminGraphQuestionResult.explanation ? (
@@ -4237,7 +4241,11 @@ function UserView({ token, currentUser, onLogout }) {
                       </p>
                       {graphQuestionResult.match_mode ? (
                         <p className="muted-inline">
-                          <strong>Modus:</strong> {graphQuestionResult.match_mode === "flexible" ? "flexibel (Fallback aktiv)" : "direkt"}
+                          <strong>Modus:</strong> {graphQuestionResult.match_mode === "flexible"
+                            ? "flexibel (LLM-Fallback)"
+                            : graphQuestionResult.match_mode === "semantic_contains"
+                              ? "flexibel (semantic contains)"
+                              : "direkt"}
                         </p>
                       ) : null}
                       {graphQuestionResult.explanation ? (
