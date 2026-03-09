@@ -674,9 +674,20 @@ label {
   stroke-width: 2.8;
 }
 
-.graph-node-hit {
+.graph-node-hit-halo {
+  fill: none;
   stroke: #f59e0b;
-  stroke-width: 3.6;
+  stroke-width: 4.2;
+  opacity: 0.92;
+}
+
+.graph-node-hit {
+  stroke: #ffb020;
+  stroke-width: 4;
+}
+
+.graph-node-nonhit {
+  opacity: 0.35;
 }
 
 .graph-node-dim {
@@ -691,6 +702,11 @@ label {
 
 .graph-label-dim {
   opacity: 0.25;
+}
+
+.graph-label-hit {
+  fill: #8a4b00;
+  font-weight: 700;
 }
 
 .graph-node-detail {

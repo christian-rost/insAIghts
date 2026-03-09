@@ -3100,6 +3100,8 @@ function GraphCanvas({
     [highlightInvoiceNumbers],
   )
 
+  const hasInvoiceHighlights = highlightInvoiceIdSet.size > 0 || highlightInvoiceNumberSet.size > 0
+
   const { nodes, edges, hiddenDisconnectedCount, hiddenPeerInvoiceCount } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
     const rawEdges = (graphData?.edges || []).map((e) => ({ ...e }))
@@ -3528,6 +3530,15 @@ function GraphCanvas({
     return false
   }
 
+  function isInvoiceNode(node) {
+    return (node.labels || []).includes("Invoice")
+  }
+
+  const visibleHighlightCount = useMemo(
+    () => renderedNodes.filter((n) => isHighlightedInvoiceNode(n)).length,
+    [renderedNodes, highlightInvoiceIdSet, highlightInvoiceNumberSet],
+  )
+
   function shouldShowLabel(node, direct) {
     if (labelMode === "none") return false
     if (labelMode === "all") return true
@@ -3551,6 +3562,7 @@ function GraphCanvas({
             Knoten: {nodes.length} | Kanten: {edges.length}
             {showRootComponentOnly && hiddenDisconnectedCount > 0 ? ` | ${hiddenDisconnectedCount} isolierte Knoten ausgeblendet` : ""}
             {showRootComponentOnly && hiddenPeerInvoiceCount > 0 ? ` | ${hiddenPeerInvoiceCount} weitere Rechnungen ausgeblendet` : ""}
+            {hasInvoiceHighlights ? ` | Treffer markiert: ${visibleHighlightCount}` : ""}
           </span>
           <div className="actions-row">
             <select className="input btn-sm" value={layerMode} onChange={(e) => setLayerMode(e.target.value)}>
@@ -3670,6 +3682,7 @@ function GraphCanvas({
             const selected = String(selectedNodeId) === String(node.id)
             const direct = isNodeDirectlyConnected(node.id)
             const highlighted = isHighlightedInvoiceNode(node)
+            const nonHitInvoice = hasInvoiceHighlights && isInvoiceNode(node) && !highlighted
             const showLabel = shouldShowLabel(node, direct)
             return (
               <g
@@ -3686,15 +3699,27 @@ function GraphCanvas({
                 }}
                 className="graph-node-group"
               >
+                {highlighted ? (
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={(selected ? 14 : (node.labels || []).includes("InvoiceLineGroup") ? 12 : 11) + 6}
+                    className="graph-node-hit-halo"
+                  />
+                ) : null}
                 <circle
                   cx={node.x}
                   cy={node.y}
                   r={selected ? 14 : (node.labels || []).includes("InvoiceLineGroup") ? 12 : 11}
                   fill={nodeColor(node)}
-                  className={`${selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}${highlighted ? " graph-node-hit" : ""}`}
+                  className={`${selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}${highlighted ? " graph-node-hit" : ""}${nonHitInvoice ? " graph-node-nonhit" : ""}`}
                 />
                 {showLabel ? (
-                  <text x={node.x + 16} y={node.y + 4} className={direct ? "graph-label" : "graph-label graph-label-dim"}>
+                  <text
+                    x={node.x + 16}
+                    y={node.y + 4}
+                    className={`${direct ? "graph-label" : "graph-label graph-label-dim"}${highlighted ? " graph-label-hit" : ""}`}
+                  >
                     {nodeLabel(node).slice(0, 48)}
                   </text>
                 ) : null}
