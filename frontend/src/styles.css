@@ -674,6 +674,11 @@ label {
   stroke-width: 2.8;
 }
 
+.graph-node-hit {
+  stroke: #f59e0b;
+  stroke-width: 3.6;
+}
+
 .graph-node-dim {
   opacity: 0.28;
 }

@@ -83,6 +83,7 @@ Case-Status:
   - Modus (`direkt`, `flexibel`, oder `fallback versucht (kein Treffer)`)
   - die generierte Cypher-Query (voll sichtbar)
   - Ergebnistabelle inkl. Trefferanzahl
+  - Treffer-Rechnungen werden im Graph als markierte Knoten hervorgehoben
 - Sicherheit:
   - nur lesende Cypher-Kommandos erlaubt
   - schreibende Befehle werden blockiert

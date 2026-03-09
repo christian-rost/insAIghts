@@ -83,6 +83,7 @@ Nicht in Env pflegen:
   - inkl. sichtbarer Cypher-Query
   - inkl. Ergebnisliste
   - inkl. Modus-Anzeige (`direkt` / `flexibel`)
+  - Treffer-Rechnungen werden im Global-Graph visuell hervorgehoben
 - Alias-Review fuer beliebige Attribute (`entity_type`)
 - Graph-Insights laden (Top N Auswertungen)
 - Graph-UX-Steuerungen fuer Inbox und Global-Graph:

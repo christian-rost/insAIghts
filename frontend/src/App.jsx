@@ -180,6 +180,33 @@ function formatMoney(value) {
   return n.toFixed(2)
 }
 
+function extractGraphResultInvoiceKeys(result) {
+  const rows = Array.isArray(result?.rows) ? result.rows : []
+  const invoiceIds = new Set()
+  const invoiceNumbers = new Set()
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue
+    const directId = String(row.invoice_id || row.id || "").trim()
+    const directNumber = String(row.invoice_number || "").trim()
+    if (directId) invoiceIds.add(directId)
+    if (directNumber) invoiceNumbers.add(directNumber)
+
+    const nested = row.i
+    if (nested && typeof nested === "object") {
+      const nestedId = String(nested.id || "").trim()
+      const nestedNumber = String(nested.invoice_number || "").trim()
+      if (nestedId) invoiceIds.add(nestedId)
+      if (nestedNumber) invoiceNumbers.add(nestedNumber)
+    }
+  }
+
+  return {
+    invoiceIds: Array.from(invoiceIds),
+    invoiceNumbers: Array.from(invoiceNumbers),
+  }
+}
+
 function LoginView({ onLogin, loading, error }) {
   const [mode, setMode] = useState("login")
   const [username, setUsername] = useState("")
@@ -715,6 +742,10 @@ function AdminView({ token, currentUser, onLogout }) {
   }, [])
 
   const isAdmin = useMemo(() => (currentUser?.roles || []).includes("ADMIN"), [currentUser])
+  const adminGraphHighlights = useMemo(
+    () => extractGraphResultInvoiceKeys(adminGraphQuestionResult),
+    [adminGraphQuestionResult],
+  )
   const filteredAuditEvents = useMemo(() => {
     const byType = String(auditEventTypeFilter || "").trim().toLowerCase()
     const byActor = String(auditActorFilter || "").trim().toLowerCase()
@@ -2071,7 +2102,13 @@ function AdminView({ token, currentUser, onLogout }) {
                 </button>
               </div>
               {globalGraphError ? <p className="error">{globalGraphError}</p> : null}
-              {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
+              {globalGraphData ? (
+                <GraphCanvas
+                  graphData={globalGraphData}
+                  highlightInvoiceIds={adminGraphHighlights.invoiceIds}
+                  highlightInvoiceNumbers={adminGraphHighlights.invoiceNumbers}
+                />
+              ) : null}
 
               <div className="invoice-divider" />
               <div className="row">
@@ -3029,7 +3066,14 @@ function AdminView({ token, currentUser, onLogout }) {
   )
 }
 
-function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootComponentOnly = false }) {
+function GraphCanvas({
+  graphData,
+  onNodeSelect,
+  rootNodeId = "",
+  showRootComponentOnly = false,
+  highlightInvoiceIds = [],
+  highlightInvoiceNumbers = [],
+}) {
   const width = 760
   const height = 360
   const [zoom, setZoom] = useState(1)
@@ -3047,6 +3091,14 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
   const [nodeOverrides, setNodeOverrides] = useState({})
   const dragStateRef = useRef(null)
   const nodeDragRef = useRef(null)
+  const highlightInvoiceIdSet = useMemo(
+    () => new Set((highlightInvoiceIds || []).map((x) => String(x || "").trim()).filter(Boolean)),
+    [highlightInvoiceIds],
+  )
+  const highlightInvoiceNumberSet = useMemo(
+    () => new Set((highlightInvoiceNumbers || []).map((x) => String(x || "").trim().toLowerCase()).filter(Boolean)),
+    [highlightInvoiceNumbers],
+  )
 
   const { nodes, edges, hiddenDisconnectedCount, hiddenPeerInvoiceCount } = useMemo(() => {
     const rawNodes = (graphData?.nodes || []).map((n) => ({ ...n }))
@@ -3465,6 +3517,17 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
     return labels.includes("InvoiceLine") || labels.includes("InvoiceDataField") || labels.includes("InvoiceAction")
   }
 
+  function isHighlightedInvoiceNode(node) {
+    const labels = node.labels || []
+    if (!labels.includes("Invoice")) return false
+    const p = node.properties || {}
+    const pid = String(p.id || "").trim()
+    const pnum = String(p.invoice_number || "").trim().toLowerCase()
+    if (pid && highlightInvoiceIdSet.has(pid)) return true
+    if (pnum && highlightInvoiceNumberSet.has(pnum)) return true
+    return false
+  }
+
   function shouldShowLabel(node, direct) {
     if (labelMode === "none") return false
     if (labelMode === "all") return true
@@ -3606,6 +3669,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
           {renderedNodes.map((node) => {
             const selected = String(selectedNodeId) === String(node.id)
             const direct = isNodeDirectlyConnected(node.id)
+            const highlighted = isHighlightedInvoiceNode(node)
             const showLabel = shouldShowLabel(node, direct)
             return (
               <g
@@ -3627,7 +3691,7 @@ function GraphCanvas({ graphData, onNodeSelect, rootNodeId = "", showRootCompone
                   cy={node.y}
                   r={selected ? 14 : (node.labels || []).includes("InvoiceLineGroup") ? 12 : 11}
                   fill={nodeColor(node)}
-                  className={selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}
+                  className={`${selected ? "graph-node selected" : direct ? "graph-node" : "graph-node graph-node-dim"}${highlighted ? " graph-node-hit" : ""}`}
                 />
                 {showLabel ? (
                   <text x={node.x + 16} y={node.y + 4} className={direct ? "graph-label" : "graph-label graph-label-dim"}>
@@ -3875,6 +3939,10 @@ function UserView({ token, currentUser, onLogout }) {
   const extractedHeaderRows = useMemo(
     () => (selectedInvoice ? buildExtractedHeaderRows(selectedInvoice) : []),
     [selectedInvoice],
+  )
+  const userGraphHighlights = useMemo(
+    () => extractGraphResultInvoiceKeys(graphQuestionResult),
+    [graphQuestionResult],
   )
 
   return (
@@ -4301,6 +4369,8 @@ function UserView({ token, currentUser, onLogout }) {
                     onNodeSelect={onGraphNodeSelect}
                     rootNodeId={selectedId}
                     showRootComponentOnly={true}
+                    highlightInvoiceIds={userGraphHighlights.invoiceIds}
+                    highlightInvoiceNumbers={userGraphHighlights.invoiceNumbers}
                   />
                 ) : (
                   <p className="muted-inline">Kein Graph geladen.</p>
