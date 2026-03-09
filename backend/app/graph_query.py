@@ -234,18 +234,18 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
     WITH i, sup, cur, st, dfs, tokens,
          reduce(score = 0,
                 t IN tokens |
-                  score
-                  + CASE WHEN toLower(coalesce(i.invoice_number, '')) CONTAINS t THEN 3 ELSE 0 END
-                  + CASE WHEN toLower(coalesce(i.supplier_name, '')) CONTAINS t THEN 3 ELSE 0 END
-                  + CASE WHEN toLower(coalesce(sup.name, '')) CONTAINS t THEN 3 ELSE 0 END
-                  + CASE WHEN toLower(coalesce(i.currency, '')) CONTAINS t THEN 2 ELSE 0 END
-                  + CASE WHEN toLower(coalesce(cur.code, '')) CONTAINS t THEN 2 ELSE 0 END
-                  + CASE WHEN toLower(coalesce(st.name, '')) CONTAINS t THEN 1 ELSE 0 END
+                 score
+                  + CASE WHEN toLower(toString(coalesce(i.invoice_number, ''))) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(toString(coalesce(i.supplier_name, ''))) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(toString(coalesce(sup.name, ''))) CONTAINS t THEN 3 ELSE 0 END
+                  + CASE WHEN toLower(toString(coalesce(i.currency, ''))) CONTAINS t THEN 2 ELSE 0 END
+                  + CASE WHEN toLower(toString(coalesce(cur.code, ''))) CONTAINS t THEN 2 ELSE 0 END
+                  + CASE WHEN toLower(toString(coalesce(st.name, ''))) CONTAINS t THEN 1 ELSE 0 END
                   + reduce(dfScore = 0,
                            d IN dfs |
                              dfScore
-                             + CASE WHEN toLower(coalesce(d.value, '')) CONTAINS t THEN 4 ELSE 0 END
-                             + CASE WHEN toLower(coalesce(d.field_name, '')) CONTAINS t THEN 1 ELSE 0 END
+                             + CASE WHEN toLower(toString(coalesce(d.value, ''))) CONTAINS t THEN 4 ELSE 0 END
+                             + CASE WHEN toLower(toString(coalesce(d.field_name, ''))) CONTAINS t THEN 1 ELSE 0 END
                     )
          ) AS relevance
     WHERE relevance > 0
@@ -262,6 +262,7 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
     """
     result = _run_cypher_read_query(cypher, max_rows=max_rows)
     result["query"] = cypher.strip()
+    result["tokens"] = tokens
     return result
 
 
@@ -463,7 +464,11 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
     final_explanation = explanation
     match_mode = "exact"
 
+    fallback_attempted = False
+    fallback_reason = ""
+
     if len(rows) == 0:
+        fallback_attempted = True
         ok_flex, flex_cypher, flex_reason = _rewrite_query_flexible(
             question=q,
             original_cypher=cypher,
@@ -480,8 +485,13 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
                 match_mode = "flexible"
                 if flex_reason:
                     final_explanation = f"{explanation} | Flexible fallback: {flex_reason}".strip(" |")
+            else:
+                fallback_reason = str(flex_result.get("reason") or "")
+        elif not ok_flex:
+            fallback_reason = str(flex_reason or "")
 
     if len(rows) == 0:
+        fallback_attempted = True
         semantic_result = _run_semantic_contains_fallback(q, max_rows=bounded_max_rows)
         if semantic_result.get("status") == "ok" and int(semantic_result.get("row_count") or 0) > 0:
             query_result = semantic_result
@@ -489,6 +499,13 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
             final_cypher = str(semantic_result.get("query") or final_cypher)
             match_mode = "semantic_contains"
             final_explanation = f"{final_explanation} | Semantic fallback: contains search over invoice core fields and InvoiceDataField values.".strip(" |")
+        elif semantic_result.get("status") != "ok":
+            fallback_reason = str(semantic_result.get("reason") or fallback_reason)
+
+    if len(rows) == 0 and fallback_attempted:
+        match_mode = "fallback_no_match"
+        if fallback_reason:
+            final_explanation = f"{final_explanation} | Fallback reason: {fallback_reason}".strip(" |")
 
     answer_text = _summarize_result(q, final_cypher, rows, api_key)
 

@@ -2107,6 +2107,8 @@ function AdminView({ token, currentUser, onLogout }) {
                           ? "flexibel (LLM-Fallback)"
                           : adminGraphQuestionResult.match_mode === "semantic_contains"
                             ? "flexibel (semantic contains)"
+                            : adminGraphQuestionResult.match_mode === "fallback_no_match"
+                              ? "fallback versucht (kein Treffer)"
                             : "direkt"}
                       </p>
                     ) : null}
@@ -4245,6 +4247,8 @@ function UserView({ token, currentUser, onLogout }) {
                             ? "flexibel (LLM-Fallback)"
                             : graphQuestionResult.match_mode === "semantic_contains"
                               ? "flexibel (semantic contains)"
+                              : graphQuestionResult.match_mode === "fallback_no_match"
+                                ? "fallback versucht (kein Treffer)"
                               : "direkt"}
                         </p>
                       ) : null}

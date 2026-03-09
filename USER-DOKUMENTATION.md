@@ -80,7 +80,7 @@ Case-Status:
     (Synonyme/Wertevarianten, case-insensitive, z. B. `Euro` -> `EUR`)
 - In der UI siehst du:
   - kurze Antwort in natuerlicher Sprache
-  - Modus (`direkt` oder `flexibel`)
+  - Modus (`direkt`, `flexibel`, oder `fallback versucht (kein Treffer)`)
   - die generierte Cypher-Query (voll sichtbar)
   - Ergebnistabelle inkl. Trefferanzahl
 - Sicherheit:
