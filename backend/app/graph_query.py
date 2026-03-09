@@ -36,6 +36,17 @@ ALLOWED_SCHEMA: Dict[str, List[str]] = {
     ],
 }
 
+LABEL_PROPERTY_HINTS: Dict[str, List[str]] = {
+    "Invoice": ["id", "invoice_number", "invoice_date", "status", "currency", "gross_amount"],
+    "Supplier": ["name"],
+    "Currency": ["code"],
+    "InvoiceStatus": ["name"],
+    "InvoiceDataField": ["field_name", "value"],
+    "InvoiceLine": ["id", "line_no", "description", "quantity", "line_amount"],
+    "InvoiceAction": ["id", "action_type", "from_status", "to_status"],
+    "Recipient": ["name"],
+}
+
 DISALLOWED_QUERY_PATTERNS = [
     r"\bCREATE\b",
     r"\bMERGE\b",
@@ -122,6 +133,19 @@ def _validate_readonly_cypher(cypher: str, max_rows: int) -> Tuple[bool, str, st
                 break
 
     return True, query, ""
+
+
+def _normalize_known_property_mismatches(cypher: str) -> str:
+    query = str(cypher or "")
+    # Our graph model stores Currency as :Currency {code: "..."}.
+    # If LLM emits {name: "..."} for Currency, rewrite to {code: "..."}.
+    query = re.sub(
+        r"(:Currency\s*\{\s*)name(\s*:\s*)",
+        r"\1code\2",
+        query,
+        flags=re.IGNORECASE,
+    )
+    return query
 
 
 def _run_cypher_read_query(cypher: str, max_rows: int) -> Dict[str, Any]:
@@ -231,7 +255,9 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         f"3) LIMIT <= {bounded_max_rows}.\n"
         "4) Nutze nur diese Labels/Relationen: "
         f"Labels={ALLOWED_SCHEMA['labels']}, Relationen={ALLOWED_SCHEMA['relationships']}.\n"
-        "5) Gib JSON zurueck: {\"cypher\": string, \"explanation\": string}.\n\n"
+        f"5) Nutze passende Properties je Label: {LABEL_PROPERTY_HINTS}.\n"
+        "6) Wichtig: Bei :Currency immer Property 'code' (nicht 'name').\n"
+        "7) Gib JSON zurueck: {\"cypher\": string, \"explanation\": string}.\n\n"
         f"Frage: {q}"
     )
 
@@ -244,6 +270,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         }
 
     cypher_raw = str(payload.get("cypher") or "").strip()
+    cypher_raw = _normalize_known_property_mismatches(cypher_raw)
     explanation = str(payload.get("explanation") or "").strip()
 
     valid, cypher, validation_reason = _validate_readonly_cypher(cypher_raw, max_rows=bounded_max_rows)
