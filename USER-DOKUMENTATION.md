@@ -1,6 +1,6 @@
 # User-Dokumentation insAIghts
 
-Stand: 08.03.2026
+Stand: 09.03.2026
 
 ## 1. Zielgruppe
 Diese Doku richtet sich an fachliche Anwender (AP Clerk, Approver), die Rechnungen in der Inbox bearbeiten.
@@ -69,7 +69,23 @@ Case-Status:
 - Click+Hold auf Node:
   - Node kann innerhalb der Flaeche verschoben werden
 
-## 9. Fehlerbilder und schnelle Hilfe
+## 9. Graph-Fragen mit LLM
+- Im Bereich `GRAPH` gibt es das Eingabefeld `Graph fragen`.
+- Beispiel: `Welche Rechnungen sind in EUR gestellt?`
+- Ablauf:
+  - Mistral interpretiert die Frage
+  - erzeugt eine read-only Cypher-Abfrage
+  - Query wird serverseitig validiert und gegen Neo4j ausgefuehrt
+- In der UI siehst du:
+  - kurze Antwort in natuerlicher Sprache
+  - die generierte Cypher-Query (voll sichtbar)
+  - Ergebnistabelle inkl. Trefferanzahl
+- Sicherheit:
+  - nur lesende Cypher-Kommandos erlaubt
+  - schreibende Befehle werden blockiert
+  - Ergebnisse sind per LIMIT begrenzt
+
+## 10. Fehlerbilder und schnelle Hilfe
 - `Failed to fetch`:
   - API nicht erreichbar oder CORS falsch
   - Session abgelaufen -> neu einloggen
@@ -82,7 +98,7 @@ Case-Status:
 Hinweis Berechtigungen:
 - Anwender koennen Loeschung nur anfordern; die Freigabe/Ablehnung erfolgt durch Admin.
 
-## 10. Datenschutz und Sicherheit
+## 11. Datenschutz und Sicherheit
 - Verarbeitung nach Secure-by-Design und DSGVO-Grundsaetzen.
 - Aktionen werden revisionssicher protokolliert.
 - Nur notwendige Daten sind in der UI sichtbar.

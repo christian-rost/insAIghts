@@ -714,6 +714,24 @@ label {
   padding: 0.45rem 0.55rem;
 }
 
+.graph-question-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.graph-question-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.graph-question-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
 .graph-fields-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -817,6 +835,10 @@ label {
   .graph-toolbar-main {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .graph-question-form {
+    grid-template-columns: 1fr;
   }
 
   .inbox-item-number {

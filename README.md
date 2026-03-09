@@ -1,6 +1,6 @@
 # insAIghts
 
-Stand: 08.03.2026
+Stand: 09.03.2026
 
 insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit:
 - FastAPI Backend
@@ -33,6 +33,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Inbox-Detail mit einklappbaren Header-Extrakten
 - Inbox-Aktionsbereich mit 2-zeiligem Layout (Kommentarzeile + Buttonzeile)
 - Graph-Funktion in Inbox + Admin
+- Graph-Fragefunktion (LLM-gestuetzte Cypher-Interpretation mit sichtbarer Query)
 - Graph-Steuerungen fuer bessere Lesbarkeit (Auto-Labels, Detail-Filter, Top-N-Positionen-Clustering, Min-Degree)
 - Inbox-Graph blendet unverbundene Fremdknoten aus und zeigt nur die Komponente der gewaehlten Rechnung
 - Generische Alias-Verwaltung pro Attribut (`entity_type`)
@@ -108,6 +109,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Graph:
   - `GET /api/graph/invoices/{invoice_id}`
   - `GET /api/graph/global`
+  - `POST /api/graph/query`
   - `POST /api/graph/sync/invoices/{invoice_id}`
   - `POST /api/graph/sync/invoices`
 

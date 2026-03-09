@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
+  askGraphQuestion,
   createUser,
   createInvoiceDeleteRequest,
   createAttributeAlias,
@@ -3562,6 +3563,10 @@ function UserView({ token, currentUser, onLogout }) {
   const [graphData, setGraphData] = useState(null)
   const [graphError, setGraphError] = useState("")
   const [graphSelection, setGraphSelection] = useState(null)
+  const [graphQuestion, setGraphQuestion] = useState("")
+  const [graphQuestionLoading, setGraphQuestionLoading] = useState(false)
+  const [graphQuestionError, setGraphQuestionError] = useState("")
+  const [graphQuestionResult, setGraphQuestionResult] = useState(null)
   const [actionComment, setActionComment] = useState("")
   const [headerFieldsOpen, setHeaderFieldsOpen] = useState(true)
   const [notice, setNotice] = useState("")
@@ -3595,6 +3600,9 @@ function UserView({ token, currentUser, onLogout }) {
         setGraphData(null)
         setGraphError("")
         setGraphSelection(null)
+        setGraphQuestion("")
+        setGraphQuestionError("")
+        setGraphQuestionResult(null)
       }
     } catch (e) {
       setError(String(e.message || e))
@@ -3658,8 +3666,29 @@ function UserView({ token, currentUser, onLogout }) {
       setSelectedActions(actionsRes.items || [])
       setSelectedCases(casesRes || [])
       setGraphSelection(null)
+      setGraphQuestionError("")
+      setGraphQuestionResult(null)
     } catch (e) {
       setError(String(e.message || e))
+    }
+  }
+
+  async function runGraphQuestion() {
+    const question = String(graphQuestion || "").trim()
+    if (!question) {
+      setGraphQuestionError("Bitte eine Frage eingeben.")
+      return
+    }
+    try {
+      setGraphQuestionLoading(true)
+      setGraphQuestionError("")
+      const res = await askGraphQuestion(token, { question, maxRows: 100 })
+      setGraphQuestionResult(res)
+    } catch (e) {
+      setGraphQuestionResult(null)
+      setGraphQuestionError(String(e.message || e))
+    } finally {
+      setGraphQuestionLoading(false)
     }
   }
 
@@ -4082,6 +4111,66 @@ function UserView({ token, currentUser, onLogout }) {
                   >
                     Graph neu laden
                   </button>
+                </div>
+                <div className="graph-question-box">
+                  <form
+                    className="graph-question-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault()
+                      await runGraphQuestion()
+                    }}
+                  >
+                    <input
+                      className="input"
+                      value={graphQuestion}
+                      onChange={(e) => setGraphQuestion(e.target.value)}
+                      placeholder="Frage an den Graphen, z. B. Welche Rechnungen sind in EUR gestellt?"
+                    />
+                    <button className="btn btn-outline" type="submit" disabled={graphQuestionLoading}>
+                      {graphQuestionLoading ? "Frage laeuft..." : "Graph fragen"}
+                    </button>
+                  </form>
+                  {graphQuestionError ? <p className="error">{graphQuestionError}</p> : null}
+                  {graphQuestionResult ? (
+                    <div className="graph-question-result">
+                      <p className="muted-inline">
+                        <strong>Antwort:</strong> {graphQuestionResult.answer_text || "-"}
+                      </p>
+                      {graphQuestionResult.explanation ? (
+                        <p className="muted-inline">
+                          <strong>Interpretation:</strong> {graphQuestionResult.explanation}
+                        </p>
+                      ) : null}
+                      <div className="invoice-label">GENERIERTE CYPHER-QUERY</div>
+                      <pre className="graph-node-json">{graphQuestionResult.cypher || "-"}</pre>
+                      <div className="invoice-label">ERGEBNIS ({graphQuestionResult.row_count || 0})</div>
+                      {(graphQuestionResult.rows || []).length === 0 ? (
+                        <p className="muted-inline">Keine Treffer.</p>
+                      ) : (
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              {(graphQuestionResult.columns || Object.keys(graphQuestionResult.rows[0] || {})).map((col) => (
+                                <th key={col}>{String(col || "-")}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(graphQuestionResult.rows || []).map((row, idx) => (
+                              <tr key={`gq-row-${idx}`}>
+                                {(graphQuestionResult.columns || Object.keys(row || {})).map((col) => (
+                                  <td key={`${idx}:${col}`}>{row?.[col] == null ? "-" : String(row[col])}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                      {graphQuestionResult.truncated ? (
+                        <p className="muted-inline">Ergebnis gekuerzt (LIMIT aktiv).</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 {graphError ? <p className="error">{graphError}</p> : null}
                 {graphData ? (

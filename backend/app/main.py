@@ -40,6 +40,7 @@ from .graph import (
     graph_reset_invoice_domain,
     graph_sync_invoice,
 )
+from .graph_query import ask_graph_question
 from .graph_config_storage import get_graph_config, update_graph_config
 from .invoice_action_storage import create_invoice_action, list_invoice_actions
 from .invoice_mapping import map_extracted_document
@@ -259,6 +260,11 @@ class PipelineRunRequest(BaseModel):
     max_map: int = Field(default=200, ge=1, le=5000)
     max_validate: int = Field(default=200, ge=1, le=5000)
     sync_limit: int = Field(default=200, ge=1, le=5000)
+
+
+class GraphQuestionRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=1000)
+    max_rows: int = Field(default=100, ge=1, le=500)
 
 
 class ReprocessDocumentsRequest(BaseModel):
@@ -1489,6 +1495,32 @@ async def graph_global_get(
     if graph_data.get("status") in {"unavailable", "error"}:
         raise HTTPException(status_code=502, detail=graph_data.get("reason", "Graph unavailable"))
     return graph_data
+
+
+@app.post("/api/graph/query")
+async def graph_query_ask(
+    payload: GraphQuestionRequest,
+    current_user: Dict = Depends(get_current_user),
+) -> Dict:
+    result = ask_graph_question(payload.question, max_rows=payload.max_rows)
+    log_admin_event(
+        event_type="graph.query_asked",
+        actor_user_id=current_user["id"],
+        target_type="graph_query",
+        metadata_json={
+            "question": payload.question[:300],
+            "max_rows": payload.max_rows,
+            "status": result.get("status"),
+            "row_count": result.get("row_count"),
+            "cypher": str(result.get("cypher") or "")[:1200],
+        },
+    )
+    status = str(result.get("status") or "")
+    if status in {"provider_unavailable", "invalid_query"}:
+        raise HTTPException(status_code=400, detail=result.get("reason", "Graph question failed"))
+    if status in {"unavailable", "provider_error", "error"}:
+        raise HTTPException(status_code=502, detail=result.get("reason", "Graph question failed"))
+    return result
 
 
 @app.post("/api/graph/sync/invoices/{invoice_id}")
