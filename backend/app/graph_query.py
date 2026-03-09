@@ -11,6 +11,12 @@ from .provider_storage import get_provider_key
 
 MISTRAL_MODEL = "mistral-small-latest"
 MAX_PROMPT_ROWS = 25
+CURRENCY_SYNONYMS: Dict[str, List[str]] = {
+    "EUR": ["eur", "euro", "euros", "€"],
+    "USD": ["usd", "us-dollar", "us dollar", "dollar", "$"],
+    "GBP": ["gbp", "pfund", "pound", "sterling", "£"],
+    "CHF": ["chf", "franken", "franc", "sfr"],
+}
 
 ALLOWED_SCHEMA: Dict[str, List[str]] = {
     "labels": [
@@ -148,6 +154,68 @@ def _normalize_known_property_mismatches(cypher: str) -> str:
     return query
 
 
+def _normalize_question_text(question: str) -> str:
+    q = str(question or "")
+    q = q.replace("€", " euro ").replace("$", " dollar ").replace("£", " pound ")
+    return re.sub(r"\s+", " ", q).strip()
+
+
+def _extract_currency_hints(question: str) -> List[str]:
+    q = _normalize_question_text(question).lower()
+    out: List[str] = []
+    for code, synonyms in CURRENCY_SYNONYMS.items():
+        for token in [code.lower(), *synonyms]:
+            token_l = token.lower()
+            if token_l in q:
+                out.append(code)
+                break
+    # stable dedupe
+    return list(dict.fromkeys(out))
+
+
+def _rewrite_query_flexible(
+    *,
+    question: str,
+    original_cypher: str,
+    explanation: str,
+    max_rows: int,
+    api_key: str,
+) -> Tuple[bool, str, str]:
+    currency_hints = _extract_currency_hints(question)
+    system_prompt = (
+        "You are a Neo4j Cypher expert. "
+        "Rewrite a read-only query to improve recall when value spellings/synonyms differ. "
+        "Return JSON only."
+    )
+    user_prompt = (
+        "Die bisherige Query lieferte 0 Treffer. Schreibe eine robustere, aber weiterhin read-only Query.\n"
+        "Regeln:\n"
+        "1) Nur MATCH/OPTIONAL MATCH/WITH/WHERE/RETURN/ORDER BY/SKIP/LIMIT.\n"
+        "2) Keine Schreiboperationen.\n"
+        f"3) LIMIT <= {max_rows}.\n"
+        "4) Nutze case-insensitive Vergleiche fuer String-Werte (toLower(...)).\n"
+        "5) Fuer Freitext-Attribute nutze bevorzugt exact-insensitive oder contains-insensitive.\n"
+        "6) Fuer Currency nutze Property c.code und canonical ISO-Code (z. B. EUR statt Euro).\n"
+        "7) Erhalte die fachliche Intention der Frage.\n"
+        "8) JSON-Format: {\"cypher\": string, \"explanation\": string}.\n\n"
+        f"Frage: {question}\n"
+        f"Vorherige Query: {original_cypher}\n"
+        f"Vorherige Erklaerung: {explanation}\n"
+        f"Waehrungshinweise: {currency_hints}\n"
+        f"Erlaubte Labels: {ALLOWED_SCHEMA['labels']}\n"
+        f"Erlaubte Relationen: {ALLOWED_SCHEMA['relationships']}\n"
+        f"Label-Property-Hints: {LABEL_PROPERTY_HINTS}"
+    )
+    ok, payload, reason = _call_mistral_json(system_prompt, user_prompt, api_key)
+    if not ok:
+        return False, "", reason
+    cypher = _normalize_known_property_mismatches(str(payload.get("cypher") or "").strip())
+    valid, safe_cypher, validation_reason = _validate_readonly_cypher(cypher, max_rows=max_rows)
+    if not valid:
+        return False, "", validation_reason
+    return True, safe_cypher, str(payload.get("explanation") or "").strip()
+
+
 def _run_cypher_read_query(cypher: str, max_rows: int) -> Dict[str, Any]:
     driver = get_graph_driver()
     if not driver:
@@ -225,7 +293,7 @@ def _summarize_result(question: str, cypher: str, rows: List[Dict[str, Any]], ap
 
 
 def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
-    q = str(question or "").strip()
+    q = _normalize_question_text(question)
     if not q:
         return {
             "status": "error",
@@ -256,8 +324,9 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         "4) Nutze nur diese Labels/Relationen: "
         f"Labels={ALLOWED_SCHEMA['labels']}, Relationen={ALLOWED_SCHEMA['relationships']}.\n"
         f"5) Nutze passende Properties je Label: {LABEL_PROPERTY_HINTS}.\n"
-        "6) Wichtig: Bei :Currency immer Property 'code' (nicht 'name').\n"
-        "7) Gib JSON zurueck: {\"cypher\": string, \"explanation\": string}.\n\n"
+        "6) Wichtig: Bei :Currency immer Property 'code' (nicht 'name') und bei Waehrungswoertern wie Euro/€ canonical ISO-Code verwenden (EUR).\n"
+        "7) Interpretiere Werte flexibel (Synonyme, Gross/Kleinschreibung, kleine Schreibvarianten).\n"
+        "8) Gib JSON zurueck: {\"cypher\": string, \"explanation\": string}.\n\n"
         f"Frage: {q}"
     )
 
@@ -298,15 +367,39 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         }
 
     rows = query_result.get("rows") or []
-    answer_text = _summarize_result(q, cypher, rows, api_key)
+    final_cypher = cypher
+    final_explanation = explanation
+    match_mode = "exact"
+
+    if len(rows) == 0:
+        ok_flex, flex_cypher, flex_reason = _rewrite_query_flexible(
+            question=q,
+            original_cypher=cypher,
+            explanation=explanation,
+            max_rows=bounded_max_rows,
+            api_key=api_key,
+        )
+        if ok_flex and flex_cypher != cypher:
+            flex_result = _run_cypher_read_query(flex_cypher, max_rows=bounded_max_rows)
+            if flex_result.get("status") == "ok" and int(flex_result.get("row_count") or 0) > 0:
+                query_result = flex_result
+                rows = query_result.get("rows") or []
+                final_cypher = flex_cypher
+                match_mode = "flexible"
+                if flex_reason:
+                    final_explanation = f"{explanation} | Flexible fallback: {flex_reason}".strip(" |")
+
+    answer_text = _summarize_result(q, final_cypher, rows, api_key)
 
     return {
         "status": "ok",
         "provider": "mistral",
         "model": MISTRAL_MODEL,
         "question": q,
-        "explanation": explanation,
-        "cypher": cypher,
+        "explanation": final_explanation,
+        "cypher": final_cypher,
+        "cypher_primary": cypher,
+        "match_mode": match_mode,
         "columns": query_result.get("columns") or [],
         "rows": rows,
         "row_count": int(query_result.get("row_count") or 0),

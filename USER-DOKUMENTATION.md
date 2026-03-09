@@ -76,8 +76,11 @@ Case-Status:
   - Mistral interpretiert die Frage
   - erzeugt eine read-only Cypher-Abfrage
   - Query wird serverseitig validiert und gegen Neo4j ausgefuehrt
+  - bei 0 Treffern wird automatisch ein flexibler Fallback versucht
+    (Synonyme/Wertevarianten, case-insensitive, z. B. `Euro` -> `EUR`)
 - In der UI siehst du:
   - kurze Antwort in natuerlicher Sprache
+  - Modus (`direkt` oder `flexibel`)
   - die generierte Cypher-Query (voll sichtbar)
   - Ergebnistabelle inkl. Trefferanzahl
 - Sicherheit:

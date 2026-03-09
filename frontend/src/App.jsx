@@ -4136,10 +4136,21 @@ function UserView({ token, currentUser, onLogout }) {
                       <p className="muted-inline">
                         <strong>Antwort:</strong> {graphQuestionResult.answer_text || "-"}
                       </p>
+                      {graphQuestionResult.match_mode ? (
+                        <p className="muted-inline">
+                          <strong>Modus:</strong> {graphQuestionResult.match_mode === "flexible" ? "flexibel (Fallback aktiv)" : "direkt"}
+                        </p>
+                      ) : null}
                       {graphQuestionResult.explanation ? (
                         <p className="muted-inline">
                           <strong>Interpretation:</strong> {graphQuestionResult.explanation}
                         </p>
+                      ) : null}
+                      {graphQuestionResult.cypher_primary && graphQuestionResult.cypher_primary !== graphQuestionResult.cypher ? (
+                        <>
+                          <div className="invoice-label">PRIMAERE CYPHER-QUERY</div>
+                          <pre className="graph-node-json">{graphQuestionResult.cypher_primary}</pre>
+                        </>
                       ) : null}
                       <div className="invoice-label">GENERIERTE CYPHER-QUERY</div>
                       <pre className="graph-node-json">{graphQuestionResult.cypher || "-"}</pre>
