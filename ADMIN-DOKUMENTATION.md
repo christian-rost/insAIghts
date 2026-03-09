@@ -1,6 +1,6 @@
 # Admin-Dokumentation insAIghts
 
-Stand: 08.03.2026
+Stand: 09.03.2026
 
 ## 1. Ziel
 Diese Doku beschreibt Betrieb, Konfiguration und Governance der Plattform ueber die Admin-Oberflaeche.
@@ -79,6 +79,10 @@ Nicht in Env pflegen:
 - Datenebenen-Felder auswaehlen
 - Bulk-Sync aller Rechnungen
 - Globalen Graph laden
+- Natuerliche Graph-Fragen (LLM) direkt im Admin-Tab stellen
+  - inkl. sichtbarer Cypher-Query
+  - inkl. Ergebnisliste
+  - inkl. Modus-Anzeige (`direkt` / `flexibel`)
 - Alias-Review fuer beliebige Attribute (`entity_type`)
 - Graph-Insights laden (Top N Auswertungen)
 - Graph-UX-Steuerungen fuer Inbox und Global-Graph:
@@ -120,6 +124,7 @@ Endpunkt:
 - `GET /api/admin/graph/insights/trends?window_days=30&compare_days=30&granularity=week`
 - `GET /api/admin/graph/insights/drilldown?metric=reject_rate&period_start=YYYY-MM-DD&period_end=YYYY-MM-DD`
 - `GET /api/admin/graph/insights/explain?window_days=30&compare_days=30&granularity=week&limit=10`
+- `POST /api/graph/query`
 
 Gelieferte Auswertungen:
 - `supplier_risk`

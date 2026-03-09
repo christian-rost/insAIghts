@@ -325,6 +325,10 @@ function AdminView({ token, currentUser, onLogout }) {
   const [globalGraphMaxEdges, setGlobalGraphMaxEdges] = useState(1200)
   const [graphInsights, setGraphInsights] = useState(null)
   const [graphInsightsLimit, setGraphInsightsLimit] = useState(10)
+  const [adminGraphQuestion, setAdminGraphQuestion] = useState("")
+  const [adminGraphQuestionLoading, setAdminGraphQuestionLoading] = useState(false)
+  const [adminGraphQuestionError, setAdminGraphQuestionError] = useState("")
+  const [adminGraphQuestionResult, setAdminGraphQuestionResult] = useState(null)
   const [graphTrend, setGraphTrend] = useState(null)
   const [trendWindowDays, setTrendWindowDays] = useState(30)
   const [trendCompareDays, setTrendCompareDays] = useState(30)
@@ -629,6 +633,25 @@ function AdminView({ token, currentUser, onLogout }) {
       if (next?.insights?.status === "ok") setGraphInsights(next.insights)
     } catch (e) {
       setError(String(e.message || e))
+    }
+  }
+
+  async function runAdminGraphQuestion() {
+    const question = String(adminGraphQuestion || "").trim()
+    if (!question) {
+      setAdminGraphQuestionError("Bitte eine Frage eingeben.")
+      return
+    }
+    try {
+      setAdminGraphQuestionLoading(true)
+      setAdminGraphQuestionError("")
+      const res = await askGraphQuestion(token, { question, maxRows: 200 })
+      setAdminGraphQuestionResult(res)
+    } catch (e) {
+      setAdminGraphQuestionResult(null)
+      setAdminGraphQuestionError(String(e.message || e))
+    } finally {
+      setAdminGraphQuestionLoading(false)
     }
   }
 
@@ -2049,6 +2072,82 @@ function AdminView({ token, currentUser, onLogout }) {
               </div>
               {globalGraphError ? <p className="error">{globalGraphError}</p> : null}
               {globalGraphData ? <GraphCanvas graphData={globalGraphData} /> : null}
+
+              <div className="invoice-divider" />
+              <div className="row">
+                <div className="invoice-label">GRAPH FRAGEN (LLM)</div>
+              </div>
+              <div className="graph-question-box">
+                <form
+                  className="graph-question-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    await runAdminGraphQuestion()
+                  }}
+                >
+                  <input
+                    className="input"
+                    value={adminGraphQuestion}
+                    onChange={(e) => setAdminGraphQuestion(e.target.value)}
+                    placeholder="Frage an den Graphen, z. B. Welche Rechnungen sind in Euro gestellt?"
+                  />
+                  <button className="btn btn-outline" type="submit" disabled={adminGraphQuestionLoading}>
+                    {adminGraphQuestionLoading ? "Frage laeuft..." : "Graph fragen"}
+                  </button>
+                </form>
+                {adminGraphQuestionError ? <p className="error">{adminGraphQuestionError}</p> : null}
+                {adminGraphQuestionResult ? (
+                  <div className="graph-question-result">
+                    <p className="muted-inline">
+                      <strong>Antwort:</strong> {adminGraphQuestionResult.answer_text || "-"}
+                    </p>
+                    {adminGraphQuestionResult.match_mode ? (
+                      <p className="muted-inline">
+                        <strong>Modus:</strong> {adminGraphQuestionResult.match_mode === "flexible" ? "flexibel (Fallback aktiv)" : "direkt"}
+                      </p>
+                    ) : null}
+                    {adminGraphQuestionResult.explanation ? (
+                      <p className="muted-inline">
+                        <strong>Interpretation:</strong> {adminGraphQuestionResult.explanation}
+                      </p>
+                    ) : null}
+                    {adminGraphQuestionResult.cypher_primary && adminGraphQuestionResult.cypher_primary !== adminGraphQuestionResult.cypher ? (
+                      <>
+                        <div className="invoice-label">PRIMAERE CYPHER-QUERY</div>
+                        <pre className="graph-node-json">{adminGraphQuestionResult.cypher_primary}</pre>
+                      </>
+                    ) : null}
+                    <div className="invoice-label">GENERIERTE CYPHER-QUERY</div>
+                    <pre className="graph-node-json">{adminGraphQuestionResult.cypher || "-"}</pre>
+                    <div className="invoice-label">ERGEBNIS ({adminGraphQuestionResult.row_count || 0})</div>
+                    {(adminGraphQuestionResult.rows || []).length === 0 ? (
+                      <p className="muted-inline">Keine Treffer.</p>
+                    ) : (
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            {(adminGraphQuestionResult.columns || Object.keys(adminGraphQuestionResult.rows[0] || {})).map((col) => (
+                              <th key={col}>{String(col || "-")}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(adminGraphQuestionResult.rows || []).map((row, idx) => (
+                            <tr key={`admin-gq-row-${idx}`}>
+                              {(adminGraphQuestionResult.columns || Object.keys(row || {})).map((col) => (
+                                <td key={`${idx}:${col}`}>{row?.[col] == null ? "-" : String(row[col])}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {adminGraphQuestionResult.truncated ? (
+                      <p className="muted-inline">Ergebnis gekuerzt (LIMIT aktiv).</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
 
               <div className="invoice-divider" />
               <div className="row">
