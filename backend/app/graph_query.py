@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from typing import Any, Dict, List, Tuple
 
 import httpx
@@ -40,6 +41,43 @@ QUESTION_STOPWORDS = {
     "zeige",
     "gib",
     "alle",
+}
+MONTH_NAMES = {
+    "januar": 1,
+    "jan": 1,
+    "january": 1,
+    "februar": 2,
+    "feb": 2,
+    "february": 2,
+    "maerz": 3,
+    "märz": 3,
+    "mrz": 3,
+    "march": 3,
+    "april": 4,
+    "apr": 4,
+    "mai": 5,
+    "may": 5,
+    "juni": 6,
+    "jun": 6,
+    "june": 6,
+    "juli": 7,
+    "jul": 7,
+    "july": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "sept": 9,
+    "oktober": 10,
+    "okt": 10,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "dezember": 12,
+    "dez": 12,
+    "december": 12,
+    "dec": 12,
 }
 
 ALLOWED_SCHEMA: Dict[str, List[str]] = {
@@ -212,7 +250,75 @@ def _extract_question_tokens(question: str, max_tokens: int = 6) -> List[str]:
     return deduped[:max_tokens]
 
 
-def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, Any]:
+def _month_range(year: int, month: int) -> Tuple[str, str]:
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    return start.isoformat(), end.isoformat()
+
+
+def _year_range(year: int) -> Tuple[str, str]:
+    return date(year, 1, 1).isoformat(), date(year + 1, 1, 1).isoformat()
+
+
+def _extract_hard_constraints(question: str) -> Dict[str, Any]:
+    q = _normalize_question_text(question).lower()
+    constraints: Dict[str, Any] = {
+        "currency_codes": _extract_currency_hints(question),
+        "date_from": None,
+        "date_to": None,
+    }
+
+    month = None
+    for name, num in MONTH_NAMES.items():
+        if re.search(rf"\b{re.escape(name)}\b", q):
+            month = num
+            break
+
+    year_match = re.search(r"\b(20\d{2})\b", q)
+    year = int(year_match.group(1)) if year_match else None
+
+    if month and year:
+        constraints["date_from"], constraints["date_to"] = _month_range(year, month)
+    elif year:
+        constraints["date_from"], constraints["date_to"] = _year_range(year)
+    return constraints
+
+
+def _row_matches_constraints(row: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
+    currency_codes = set(constraints.get("currency_codes") or [])
+    date_from = str(constraints.get("date_from") or "").strip()
+    date_to = str(constraints.get("date_to") or "").strip()
+
+    if currency_codes:
+        currency = str(row.get("currency") or "").strip().upper()
+        if not currency or currency not in currency_codes:
+            return False
+
+    if date_from and date_to:
+        inv_date = str(row.get("invoice_date") or "").strip()
+        if not inv_date:
+            return False
+        if not (date_from <= inv_date < date_to):
+            return False
+
+    return True
+
+
+def _apply_constraints_to_result(result: Dict[str, Any], constraints: Dict[str, Any]) -> Dict[str, Any]:
+    if result.get("status") != "ok":
+        return result
+    if not (constraints.get("currency_codes") or constraints.get("date_from") or constraints.get("date_to")):
+        return result
+    rows = result.get("rows") or []
+    filtered = [r for r in rows if isinstance(r, dict) and _row_matches_constraints(r, constraints)]
+    return {
+        **result,
+        "rows": filtered,
+        "row_count": len(filtered),
+    }
+
+
+def _run_semantic_contains_fallback(question: str, max_rows: int, constraints: Dict[str, Any]) -> Dict[str, Any]:
     tokens = _extract_question_tokens(question)
     if not tokens:
         return {
@@ -232,6 +338,7 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
     OPTIONAL MATCH (i)-[:HAS_DATA_FIELD]->(df:InvoiceDataField)
     WITH i, sup, cur, st, collect(distinct df) AS dfs, $tokens AS tokens
     WITH i, sup, cur, st, dfs, tokens,
+         CASE WHEN i.invoice_date IS NULL THEN NULL ELSE toString(date(i.invoice_date)) END AS inv_date,
          reduce(score = 0,
                 t IN tokens |
                  score
@@ -247,17 +354,30 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
                              + CASE WHEN toLower(toString(coalesce(d.value, ''))) CONTAINS t THEN 4 ELSE 0 END
                              + CASE WHEN toLower(toString(coalesce(d.field_name, ''))) CONTAINS t THEN 1 ELSE 0 END
                     )
-         ) AS relevance
+         ) AS relevance,
+         $currency_codes AS currency_codes,
+         $date_from AS date_from,
+         $date_to AS date_to
     WHERE relevance > 0
+      AND (size(currency_codes) = 0 OR toUpper(toString(coalesce(cur.code, i.currency, ''))) IN currency_codes)
+      AND (
+        date_from IS NULL OR date_to IS NULL
+        OR (
+          inv_date IS NOT NULL
+          AND inv_date >= date_from
+          AND inv_date < date_to
+        )
+      )
     RETURN
       i.id AS invoice_id,
       i.invoice_number AS invoice_number,
+      inv_date AS invoice_date,
       coalesce(sup.name, i.supplier_name) AS supplier_name,
       coalesce(cur.code, i.currency) AS currency,
       i.status AS status,
       i.gross_amount AS gross_amount,
       relevance
-    ORDER BY relevance DESC, i.invoice_date DESC
+    ORDER BY relevance DESC, inv_date DESC
     LIMIT $max_rows
     """
     result = _run_cypher_read_query(
@@ -266,6 +386,9 @@ def _run_semantic_contains_fallback(question: str, max_rows: int) -> Dict[str, A
         params={
             "tokens": tokens,
             "max_rows": max_rows,
+            "currency_codes": constraints.get("currency_codes") or [],
+            "date_from": constraints.get("date_from"),
+            "date_to": constraints.get("date_to"),
         },
     )
     result["query"] = cypher.strip()
@@ -430,6 +553,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         }
 
     bounded_max_rows = max(1, min(int(max_rows or 100), 500))
+    constraints = _extract_hard_constraints(q)
 
     api_key = get_provider_key("mistral")
     if not api_key:
@@ -481,6 +605,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         }
 
     query_result = _run_cypher_read_query(cypher, max_rows=bounded_max_rows)
+    query_result = _apply_constraints_to_result(query_result, constraints)
     if query_result.get("status") != "ok":
         return {
             "status": query_result.get("status") or "error",
@@ -513,6 +638,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
         )
         if ok_flex and flex_cypher != cypher:
             flex_result = _run_cypher_read_query(flex_cypher, max_rows=bounded_max_rows)
+            flex_result = _apply_constraints_to_result(flex_result, constraints)
             if flex_result.get("status") == "ok" and int(flex_result.get("row_count") or 0) > 0:
                 query_result = flex_result
                 rows = query_result.get("rows") or []
@@ -527,7 +653,7 @@ def ask_graph_question(question: str, max_rows: int = 100) -> Dict[str, Any]:
 
     if len(rows) == 0:
         fallback_attempted = True
-        semantic_result = _run_semantic_contains_fallback(q, max_rows=bounded_max_rows)
+        semantic_result = _run_semantic_contains_fallback(q, max_rows=bounded_max_rows, constraints=constraints)
         if semantic_result.get("status") == "ok" and int(semantic_result.get("row_count") or 0) > 0:
             query_result = semantic_result
             rows = query_result.get("rows") or []
