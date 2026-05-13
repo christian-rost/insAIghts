@@ -18,6 +18,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Roadmap: `roadmap-12-monate-plattform.md`
 - Sprintplan: `sprintplan-q1-rechnungsverarbeitung.md`
 - Anforderungen: `anforderungen.md`
+- Graph AB-Prozess: `konzept-graph-auftragsbestaetigung.md`
 
 ## Aktueller Funktionsumfang
 - Auth mit `username/password` (+ Self-Registration)

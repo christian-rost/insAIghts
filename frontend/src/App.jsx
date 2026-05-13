@@ -3987,7 +3987,7 @@ function UserView({ token, currentUser, onLogout }) {
   return (
     <main className="app-layout inbox-layout">
       <header className="header">
-        <h2>View Invoices</h2>
+        <h2>Rechnungsübersicht</h2>
         <div className="header-user">
           Angemeldet als <span>{currentUser?.username}</span>
           <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
