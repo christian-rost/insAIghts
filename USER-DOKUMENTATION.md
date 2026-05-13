@@ -23,9 +23,10 @@ Zusaetzlich:
 - Filter nach Status
 - Suche nach Lieferant oder Rechnungsnummer
 - Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
-- Sticky Header und Filterleiste fuer schnellen Zugriff beim Scrollen
+- Header und Filterleiste fuer schnellen Zugriff
 - Modernisierte Workspace-Optik mit klareren Karten, Status-Badges und fokussierter Dokumentvorschau
 - Desktop-Workspace mit normalem Browser-Scroll, damit lange Rechnungsdetails und Positionen immer erreichbar bleiben
+- Dezente UI-Effekte fuer Hover, Fokus, aktive Rechnungen, Detail-Tabs und Dokumentvorschau
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:
