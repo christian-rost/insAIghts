@@ -84,7 +84,7 @@ Nicht in Env pflegen:
   - Summary-Karten fuer Kopfdaten
   - Aktionsblock unterhalb der Positionen, damit Positionslisten nicht verdeckt werden
   - fokussierte PDF/Bild-Vorschau
-  - dezente Motion-/Hover-Effekte ohne eigene Scrollcontainer
+  - dezente Motion-/Hover-Effekte innerhalb der getrennten Scrollbereiche
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen

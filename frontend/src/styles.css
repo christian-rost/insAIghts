@@ -532,7 +532,9 @@ label {
 .inbox-detail-card,
 .inbox-pdf-card {
   min-height: 0;
+  min-width: 0;
   height: 100%;
+  max-height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -562,14 +564,23 @@ label {
   overflow: hidden;
 }
 
-.inbox-detail-body {
+.invoice-detail-scroll {
   position: relative;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.invoice-detail-body {
+  position: relative;
+  min-height: auto;
+  overflow: visible;
+  scroll-behavior: smooth;
   padding-bottom: 1.3rem;
 }
 
@@ -577,6 +588,8 @@ label {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -980,6 +993,7 @@ label {
 .pdf-viewer {
   min-height: 0;
   height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1353,6 +1367,7 @@ label {
   }
 
   .inbox-list,
+  .invoice-detail-scroll,
   .inbox-detail-body {
     overflow: visible;
   }

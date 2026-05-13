@@ -4127,7 +4127,8 @@ function UserView({ token, currentUser, onLogout }) {
           <div className="card-header">
             <h3>{selectedInvoice?.invoice_number ? `Rechnung ${selectedInvoice.invoice_number}` : "Rechnungsdetail"}</h3>
           </div>
-          <div className="card-body invoice-detail-body">
+          <div className="invoice-detail-scroll">
+            <div className="card-body invoice-detail-body">
             {!selectedInvoice ? (
               <p className="muted">Keine Rechnung ausgewaehlt.</p>
             ) : (
@@ -4465,6 +4466,7 @@ function UserView({ token, currentUser, onLogout }) {
                 ) : null}
               </>
             )}
+            </div>
           </div>
         </div>
 
