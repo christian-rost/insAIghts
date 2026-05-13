@@ -33,7 +33,7 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Inbox fuer Nicht-Admin-User
 - Inbox-Detail mit einklappbaren Header-Extrakten und Positionen direkt darunter
 - Inbox-Aktionsbereich mit 2-zeiligem Layout (Kommentarzeile + Buttonzeile)
-- Modernisierte Inbox-UX mit Workspace-Layout, normalem Browser-Scroll fuer lange Rechnungsdetails, Segment-Tabs, Summary-Karten, Aktionsblock unterhalb der Positionen, fokussierter Dokumentvorschau und dezenten Motion-/Hover-Effekten
+- Modernisierte Inbox-UX mit Workspace-Layout, Sticky Header/Filter, normalem Browser-Scroll fuer lange Rechnungsdetails, Segment-Tabs, Summary-Karten, Aktionsblock unterhalb der Positionen, fokussierter Dokumentvorschau und dezenten Motion-/Hover-Effekten
 - Graph-Funktion in Inbox + Admin
 - Graph-Fragefunktion (LLM-gestuetzte Cypher-Interpretation mit sichtbarer Query)
 - Graph-Steuerungen fuer bessere Lesbarkeit (Auto-Labels, Detail-Filter, Top-N-Positionen-Clustering, Min-Degree)
