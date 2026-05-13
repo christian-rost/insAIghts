@@ -180,6 +180,12 @@ function formatMoney(value) {
   return n.toFixed(2)
 }
 
+function statusClassName(status) {
+  const raw = String(status || "UNBEKANNT")
+  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+  return `status-pill status-${key}`
+}
+
 function extractGraphResultInvoiceKeys(result) {
   const rows = Array.isArray(result?.rows) ? result.rows : []
   const invoiceIds = new Set()
@@ -3777,6 +3783,8 @@ function UserView({ token, currentUser, onLogout }) {
   const [graphQuestionResult, setGraphQuestionResult] = useState(null)
   const [actionComment, setActionComment] = useState("")
   const [headerFieldsOpen, setHeaderFieldsOpen] = useState(true)
+  const [detailTab, setDetailTab] = useState("overview")
+  const [graphPanelOpen, setGraphPanelOpen] = useState(false)
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
   const [search, setSearch] = useState("")
@@ -3811,6 +3819,8 @@ function UserView({ token, currentUser, onLogout }) {
         setGraphQuestion("")
         setGraphQuestionError("")
         setGraphQuestionResult(null)
+        setDetailTab("overview")
+        setGraphPanelOpen(false)
       }
     } catch (e) {
       setError(String(e.message || e))
@@ -3876,6 +3886,8 @@ function UserView({ token, currentUser, onLogout }) {
       setGraphSelection(null)
       setGraphQuestionError("")
       setGraphQuestionResult(null)
+      setDetailTab("overview")
+      setGraphPanelOpen(false)
     } catch (e) {
       setError(String(e.message || e))
     }
@@ -3986,13 +3998,15 @@ function UserView({ token, currentUser, onLogout }) {
 
   return (
     <main className="app-layout inbox-layout">
-      <header className="header">
+      <header className="header inbox-header">
         <h2>Rechnungsübersicht</h2>
         <div className="header-user">
           Angemeldet als <span>{currentUser?.username}</span>
           <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
         </div>
       </header>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {error ? <p className="error top-error">{error}</p> : null}
 
       <section className="card">
         <div className="card-body inbox-filterbar">
@@ -4056,7 +4070,10 @@ function UserView({ token, currentUser, onLogout }) {
                     className={`inbox-item ${isActive ? "active" : ""}`}
                     onClick={() => loadInvoiceDetail(inv.id)}
                   >
-                    <div className="inbox-item-number">{inv.invoice_number || "-"}</div>
+                    <div className="inbox-item-head">
+                      <div className="inbox-item-number">{inv.invoice_number || "-"}</div>
+                      <span className={`${statusClassName(inv.status)} status-pill-sm`}>{inv.status || "-"}</span>
+                    </div>
                     <div className="inbox-item-date">{inv.invoice_date || "-"}</div>
                     <div className="inbox-item-supplier">{inv.supplier_name || "-"}</div>
                   </button>
@@ -4075,350 +4092,345 @@ function UserView({ token, currentUser, onLogout }) {
               <p className="muted">Keine Rechnung ausgewaehlt.</p>
             ) : (
               <>
-                <div className="invoice-meta-grid">
-                  <div>
-                    <div className="invoice-label">RECHNUNGSNUMMER</div>
-                    <div className="invoice-value">{selectedInvoice.invoice_number || "-"}</div>
-                  </div>
-                  <div>
-                    <div className="invoice-label">DATUM</div>
-                    <div className="invoice-value">{selectedInvoice.invoice_date || "-"}</div>
-                  </div>
-                  <div>
-                    <div className="invoice-label">GESAMTPREIS</div>
-                    <div className="invoice-value invoice-price">
-                      {formatMoney(selectedInvoice.gross_amount)} {selectedInvoice.currency || ""}
+                <div className="detail-tabs" role="tablist" aria-label="Rechnungsdetail Tabs">
+                  <button type="button" className={`detail-tab ${detailTab === "overview" ? "active" : ""}`} onClick={() => setDetailTab("overview")}>Uebersicht</button>
+                  <button type="button" className={`detail-tab ${detailTab === "lines" ? "active" : ""}`} onClick={() => setDetailTab("lines")}>Positionen</button>
+                  <button type="button" className={`detail-tab ${detailTab === "actions" ? "active" : ""}`} onClick={() => setDetailTab("actions")}>Aktionen</button>
+                  <button type="button" className={`detail-tab ${detailTab === "cases" ? "active" : ""}`} onClick={() => setDetailTab("cases")}>Cases</button>
+                  <button type="button" className={`detail-tab ${detailTab === "graph" ? "active" : ""}`} onClick={() => setDetailTab("graph")}>Graph</button>
+                </div>
+
+                {detailTab === "overview" ? (
+                  <>
+                    <div className="invoice-summary-grid">
+                      <div className="invoice-summary-card">
+                        <div className="invoice-label">RECHNUNGSNUMMER</div>
+                        <div className="invoice-value">{selectedInvoice.invoice_number || "-"}</div>
+                      </div>
+                      <div className="invoice-summary-card">
+                        <div className="invoice-label">DATUM</div>
+                        <div className="invoice-value">{selectedInvoice.invoice_date || "-"}</div>
+                      </div>
+                      <div className="invoice-summary-card">
+                        <div className="invoice-label">GESAMTPREIS</div>
+                        <div className="invoice-value invoice-price">{formatMoney(selectedInvoice.gross_amount)} {selectedInvoice.currency || ""}</div>
+                      </div>
+                      <div className="invoice-summary-card">
+                        <div className="invoice-label">STATUS</div>
+                        <div className="invoice-value"><span className={statusClassName(selectedInvoice.status)}>{selectedInvoice.status || "-"}</span></div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="invoice-label">STATUS</div>
-                    <div className="invoice-value">{selectedInvoice.status || "-"}</div>
-                  </div>
-                </div>
 
-                <div className="invoice-divider" />
-                <div className="invoice-label">LEISTUNGSERBRINGER</div>
-                <div className="invoice-detail-block">
-                  <div className="invoice-label">NAME</div>
-                  <div className="invoice-value">{selectedInvoice.supplier_name || "-"}</div>
-                </div>
+                    <div className="invoice-divider" />
+                    <div className="invoice-label">LEISTUNGSERBRINGER</div>
+                    <div className="invoice-detail-block">
+                      <div className="invoice-label">NAME</div>
+                      <div className="invoice-value">{selectedInvoice.supplier_name || "-"}</div>
+                    </div>
 
-                <div className="invoice-divider" />
-                <div className="section-toggle-row">
-                  <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
-                  <button
-                    className="btn btn-outline btn-sm"
-                    type="button"
-                    onClick={() => setHeaderFieldsOpen((v) => !v)}
-                  >
-                    {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
-                  </button>
-                </div>
-                {headerFieldsOpen ? (
-                  extractedHeaderRows.length === 0 ? (
-                    <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
-                  ) : (
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>FELD</th>
-                          <th>WERT</th>
-                          <th>LLM</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {extractedHeaderRows.map((row) => (
-                          <tr key={row.field_name}>
-                            <td>
-                              <div className="mono">{row.field_name}</div>
-                              {row.description ? <div className="muted-inline">{row.description}</div> : null}
-                            </td>
-                            <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
-                            <td>{row.provided_by_llm ? "ja" : "nein"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )
-                ) : (
-                  <p className="muted-inline">Header-Felder eingeklappt.</p>
-                )}
-
-                <div className="invoice-divider" />
-                <div className="invoice-actions">
-                  <div className="invoice-actions-comment-row">
-                    <input
-                      className="input"
-                      value={actionComment}
-                      onChange={(e) => setActionComment(e.target.value)}
-                      placeholder="Kommentar (optional)"
-                    />
-                  </div>
-                  <div className="invoice-actions-button-row">
-                    <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>
-                      Approve
-                    </button>
-                    <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>
-                      Reject
-                    </button>
-                    <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>
-                      Hold
-                    </button>
-                    <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>
-                      Clarify
-                    </button>
-                    <button
-                      className="btn btn-outline"
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          if (!selectedId) return
-                          const reason = String(actionComment || "").trim()
-                          if (!reason) throw new Error("Bitte Begruendung im Kommentarfeld eintragen.")
-                          setError("")
-                          setNotice("")
-                          await createInvoiceDeleteRequest(token, selectedId, reason)
-                          setActionComment("")
-                          setNotice("Loeschantrag erstellt (warte auf Admin-Freigabe)")
-                        } catch (e) {
-                          setError(String(e.message || e))
-                        }
-                      }}
-                    >
-                      Loeschung anfordern
-                    </button>
-                  </div>
-                </div>
-
-                <div className="invoice-divider" />
-                <div className="invoice-label">LEISTUNGEN</div>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>BEZEICHNUNG</th>
-                      <th>MENGE</th>
-                      <th>WERT</th>
-                      <th>STEUER</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedLines.length === 0 ? (
-                      <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
-                    ) : (
-                      selectedLines.map((line) => (
-                        <tr
-                          key={line.id}
-                          className={
-                            graphSelection?.type === "line" && Number(line.line_no || 0) === Number(graphSelection.lineNo || -1)
-                              ? "row-highlight"
-                              : ""
-                          }
-                        >
-                          <td>{line.line_no ?? "-"}</td>
-                          <td>{line.description || "-"}</td>
-                          <td>{line.quantity ?? "-"}</td>
-                          <td>{formatMoney(line.line_amount)}</td>
-                          <td>{line.tax_rate ?? "-"}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-
-                <div className="invoice-divider" />
-                <div className="invoice-label">AKTIONSHISTORIE</div>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>ZEIT</th>
-                      <th>AKTION</th>
-                      <th>VON</th>
-                      <th>NACH</th>
-                      <th>USER</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedActions.length === 0 ? (
-                      <tr><td colSpan={5}>Keine Aktionen vorhanden.</td></tr>
-                    ) : (
-                      selectedActions.map((a) => (
-                        <tr
-                          key={a.id}
-                          className={
-                            graphSelection?.type === "action" && String(a.action_type || "") === String(graphSelection.actionType || "")
-                              ? "row-highlight"
-                              : ""
-                          }
-                        >
-                          <td>{a.created_at || "-"}</td>
-                          <td>{a.action_type || "-"}</td>
-                          <td>{a.from_status || "-"}</td>
-                          <td>{a.to_status || "-"}</td>
-                          <td>{a.actor_username || "-"}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-
-                <div className="invoice-divider" />
-                <div className="invoice-label">CASES / RUECKFRAGEN</div>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>TITEL</th>
-                      <th>STATUS</th>
-                      <th>VON</th>
-                      <th>NOTE</th>
-                      <th>AKTION</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedCases.length === 0 ? (
-                      <tr><td colSpan={5}>Keine Cases vorhanden.</td></tr>
-                    ) : (
-                      selectedCases.map((c) => (
-                        <tr key={c.id}>
-                          <td>{c.title || "-"}</td>
-                          <td>{c.status || "-"}</td>
-                          <td>{c.created_by_username || "-"}</td>
-                          <td>
-                            <input
-                              className="input"
-                              value={caseNotes[c.id] ?? c.resolved_note ?? ""}
-                              onChange={(e) => setCaseNotes((all) => ({ ...all, [c.id]: e.target.value }))}
-                              placeholder="Kommentar"
-                            />
-                          </td>
-                          <td>
-                            <div className="actions-row">
-                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "IN_PROGRESS")}>In Progress</button>
-                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "RESOLVED")}>Resolve</button>
-                              <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "CLOSED")}>Close</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-
-                <div className="invoice-divider" />
-                <div className="row">
-                  <div className="invoice-label">GRAPH</div>
-                  <button
-                    className="btn btn-outline btn-sm"
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        setGraphError("")
-                        setGraphQuestionResult(null)
-                        setGraphQuestionError("")
-                        const graph = await getInvoiceGraph(token, selectedId)
-                        setGraphData(graph)
-                      } catch (gErr) {
-                        setGraphData(null)
-                        setGraphError(String(gErr.message || gErr))
-                      }
-                    }}
-                  >
-                    Graph neu laden
-                  </button>
-                </div>
-                <div className="graph-question-box">
-                  <form
-                    className="graph-question-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault()
-                      await runGraphQuestion()
-                    }}
-                  >
-                    <input
-                      className="input"
-                      value={graphQuestion}
-                      onChange={(e) => setGraphQuestion(e.target.value)}
-                      placeholder="Frage an den Graphen, z. B. Welche Rechnungen sind in EUR gestellt?"
-                    />
-                    <button className="btn btn-outline" type="submit" disabled={graphQuestionLoading}>
-                      {graphQuestionLoading ? "Frage laeuft..." : "Graph fragen"}
-                    </button>
-                  </form>
-                  {graphQuestionError ? <p className="error">{graphQuestionError}</p> : null}
-                  {graphQuestionResult ? (
-                    <div className="graph-question-result">
-                      <p className="muted-inline">
-                        <strong>Antwort:</strong> {graphQuestionResult.answer_text || "-"}
-                      </p>
-                      {graphQuestionResult.match_mode ? (
-                        <p className="muted-inline">
-                          <strong>Modus:</strong> {graphQuestionResult.match_mode === "flexible"
-                            ? "flexibel (LLM-Fallback)"
-                            : graphQuestionResult.match_mode === "semantic_contains"
-                              ? "flexibel (semantic contains)"
-                              : graphQuestionResult.match_mode === "fallback_no_match"
-                                ? "fallback versucht (kein Treffer)"
-                              : "direkt"}
-                        </p>
-                      ) : null}
-                      {graphQuestionResult.explanation ? (
-                        <p className="muted-inline">
-                          <strong>Interpretation:</strong> {graphQuestionResult.explanation}
-                        </p>
-                      ) : null}
-                      {graphQuestionResult.cypher_primary && graphQuestionResult.cypher_primary !== graphQuestionResult.cypher ? (
-                        <>
-                          <div className="invoice-label">PRIMAERE CYPHER-QUERY</div>
-                          <pre className="graph-node-json">{graphQuestionResult.cypher_primary}</pre>
-                        </>
-                      ) : null}
-                      <div className="invoice-label">GENERIERTE CYPHER-QUERY</div>
-                      <pre className="graph-node-json">{graphQuestionResult.cypher || "-"}</pre>
-                      <div className="invoice-label">ERGEBNIS ({graphQuestionResult.row_count || 0})</div>
-                      {(graphQuestionResult.rows || []).length === 0 ? (
-                        <p className="muted-inline">Keine Treffer.</p>
+                    <div className="invoice-divider" />
+                    <div className="section-toggle-row">
+                      <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
+                      <button className="btn btn-outline btn-sm" type="button" onClick={() => setHeaderFieldsOpen((v) => !v)}>
+                        {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
+                      </button>
+                    </div>
+                    {headerFieldsOpen ? (
+                      extractedHeaderRows.length === 0 ? (
+                        <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
                       ) : (
                         <table className="table">
                           <thead>
                             <tr>
-                              {(graphQuestionResult.columns || Object.keys(graphQuestionResult.rows[0] || {})).map((col) => (
-                                <th key={col}>{String(col || "-")}</th>
-                              ))}
+                              <th>FELD</th>
+                              <th>WERT</th>
+                              <th>LLM</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {(graphQuestionResult.rows || []).map((row, idx) => (
-                              <tr key={`gq-row-${idx}`}>
-                                {(graphQuestionResult.columns || Object.keys(row || {})).map((col) => (
-                                  <td key={`${idx}:${col}`}>{row?.[col] == null ? "-" : String(row[col])}</td>
-                                ))}
+                            {extractedHeaderRows.map((row) => (
+                              <tr key={row.field_name}>
+                                <td>
+                                  <div className="mono">{row.field_name}</div>
+                                  {row.description ? <div className="muted-inline">{row.description}</div> : null}
+                                </td>
+                                <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
+                                <td>{row.provided_by_llm ? "ja" : "nein"}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
-                      )}
-                      {graphQuestionResult.truncated ? (
-                        <p className="muted-inline">Ergebnis gekuerzt (LIMIT aktiv).</p>
-                      ) : null}
+                      )
+                    ) : (
+                      <p className="muted-inline">Header-Felder eingeklappt.</p>
+                    )}
+
+                    <div className="invoice-divider" />
+                    <div className="invoice-actions">
+                      <div className="invoice-actions-comment-row">
+                        <input className="input" value={actionComment} onChange={(e) => setActionComment(e.target.value)} placeholder="Kommentar (optional)" />
+                      </div>
+                      <div className="invoice-actions-button-row">
+                        <button className="btn btn-primary" type="button" onClick={() => runAction("approve")}>Approve</button>
+                        <button className="btn btn-outline" type="button" onClick={() => runAction("reject")}>Reject</button>
+                        <button className="btn btn-outline" type="button" onClick={() => runAction("hold")}>Hold</button>
+                        <button className="btn btn-outline" type="button" onClick={() => runAction("request_clarification")}>Clarify</button>
+                        <button
+                          className="btn btn-outline"
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              if (!selectedId) return
+                              const reason = String(actionComment || "").trim()
+                              if (!reason) throw new Error("Bitte Begruendung im Kommentarfeld eintragen.")
+                              setError("")
+                              setNotice("")
+                              await createInvoiceDeleteRequest(token, selectedId, reason)
+                              setActionComment("")
+                              setNotice("Loeschantrag erstellt (warte auf Admin-Freigabe)")
+                            } catch (e) {
+                              setError(String(e.message || e))
+                            }
+                          }}
+                        >
+                          Loeschung anfordern
+                        </button>
+                      </div>
                     </div>
-                  ) : null}
-                </div>
-                {graphError ? <p className="error">{graphError}</p> : null}
-                {graphData ? (
-                  <GraphCanvas
-                    graphData={graphData}
-                    onNodeSelect={onGraphNodeSelect}
-                    rootNodeId={selectedId}
-                    showRootComponentOnly={true}
-                    highlightInvoiceIds={userGraphHighlights.invoiceIds}
-                    highlightInvoiceNumbers={userGraphHighlights.invoiceNumbers}
-                    onResetHighlights={() => setGraphQuestionResult(null)}
-                  />
-                ) : (
-                  <p className="muted-inline">Kein Graph geladen.</p>
-                )}
-                {graphSelection?.type === "supplier" ? (
-                  <p className="muted-inline">Graph-Auswahl Lieferant: {graphSelection.supplierName || "-"}</p>
+                  </>
+                ) : null}
+
+                {detailTab === "lines" ? (
+                  <>
+                    <div className="invoice-label">LEISTUNGEN</div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>BEZEICHNUNG</th>
+                          <th>MENGE</th>
+                          <th>WERT</th>
+                          <th>STEUER</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedLines.length === 0 ? (
+                          <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
+                        ) : (
+                          selectedLines.map((line) => (
+                            <tr
+                              key={line.id}
+                              className={graphSelection?.type === "line" && Number(line.line_no || 0) === Number(graphSelection.lineNo || -1) ? "row-highlight" : ""}
+                            >
+                              <td>{line.line_no ?? "-"}</td>
+                              <td>{line.description || "-"}</td>
+                              <td>{line.quantity ?? "-"}</td>
+                              <td>{formatMoney(line.line_amount)}</td>
+                              <td>{line.tax_rate ?? "-"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </>
+                ) : null}
+
+                {detailTab === "actions" ? (
+                  <>
+                    <div className="invoice-label">AKTIONSHISTORIE</div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>ZEIT</th>
+                          <th>AKTION</th>
+                          <th>VON</th>
+                          <th>NACH</th>
+                          <th>USER</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedActions.length === 0 ? (
+                          <tr><td colSpan={5}>Keine Aktionen vorhanden.</td></tr>
+                        ) : (
+                          selectedActions.map((a) => (
+                            <tr
+                              key={a.id}
+                              className={graphSelection?.type === "action" && String(a.action_type || "") === String(graphSelection.actionType || "") ? "row-highlight" : ""}
+                            >
+                              <td>{a.created_at || "-"}</td>
+                              <td>{a.action_type || "-"}</td>
+                              <td>{a.from_status || "-"}</td>
+                              <td>{a.to_status || "-"}</td>
+                              <td>{a.actor_username || "-"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </>
+                ) : null}
+
+                {detailTab === "cases" ? (
+                  <>
+                    <div className="invoice-label">CASES / RUECKFRAGEN</div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>TITEL</th>
+                          <th>STATUS</th>
+                          <th>VON</th>
+                          <th>NOTE</th>
+                          <th>AKTION</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedCases.length === 0 ? (
+                          <tr><td colSpan={5}>Keine Cases vorhanden.</td></tr>
+                        ) : (
+                          selectedCases.map((c) => (
+                            <tr key={c.id}>
+                              <td>{c.title || "-"}</td>
+                              <td>{c.status || "-"}</td>
+                              <td>{c.created_by_username || "-"}</td>
+                              <td>
+                                <input className="input" value={caseNotes[c.id] ?? c.resolved_note ?? ""} onChange={(e) => setCaseNotes((all) => ({ ...all, [c.id]: e.target.value }))} placeholder="Kommentar" />
+                              </td>
+                              <td>
+                                <div className="actions-row">
+                                  <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "IN_PROGRESS")}>In Progress</button>
+                                  <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "RESOLVED")}>Resolve</button>
+                                  <button className="btn btn-outline btn-sm" type="button" onClick={() => runCaseUpdate(c.id, "CLOSED")}>Close</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </>
+                ) : null}
+
+                {detailTab === "graph" ? (
+                  <>
+                    <div className="section-toggle-row">
+                      <div className="invoice-label">GRAPH</div>
+                      <div className="actions-row">
+                        <button className="btn btn-outline btn-sm" type="button" onClick={() => setGraphPanelOpen((v) => !v)}>
+                          {graphPanelOpen ? "Graph ausblenden" : "Graph anzeigen"}
+                        </button>
+                        {graphPanelOpen ? (
+                          <button
+                            className="btn btn-outline btn-sm"
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                setGraphError("")
+                                setGraphQuestionResult(null)
+                                setGraphQuestionError("")
+                                const graph = await getInvoiceGraph(token, selectedId)
+                                setGraphData(graph)
+                              } catch (gErr) {
+                                setGraphData(null)
+                                setGraphError(String(gErr.message || gErr))
+                              }
+                            }}
+                          >
+                            Graph neu laden
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    {!graphPanelOpen ? (
+                      <p className="muted-inline">Graph ist ausgeblendet. Mit "Graph anzeigen" einblenden.</p>
+                    ) : (
+                      <>
+                        <div className="graph-question-box">
+                          <form className="graph-question-form" onSubmit={async (e) => { e.preventDefault(); await runGraphQuestion() }}>
+                            <input
+                              className="input"
+                              value={graphQuestion}
+                              onChange={(e) => setGraphQuestion(e.target.value)}
+                              placeholder="Frage an den Graphen, z. B. Welche Rechnungen sind in EUR gestellt?"
+                            />
+                            <button className="btn btn-outline" type="submit" disabled={graphQuestionLoading}>
+                              {graphQuestionLoading ? "Frage laeuft..." : "Graph fragen"}
+                            </button>
+                          </form>
+                          {graphQuestionError ? <p className="error">{graphQuestionError}</p> : null}
+                          {graphQuestionResult ? (
+                            <div className="graph-question-result">
+                              <p className="muted-inline"><strong>Antwort:</strong> {graphQuestionResult.answer_text || "-"}</p>
+                              {graphQuestionResult.match_mode ? (
+                                <p className="muted-inline">
+                                  <strong>Modus:</strong> {graphQuestionResult.match_mode === "flexible"
+                                    ? "flexibel (LLM-Fallback)"
+                                    : graphQuestionResult.match_mode === "semantic_contains"
+                                      ? "flexibel (semantic contains)"
+                                      : graphQuestionResult.match_mode === "fallback_no_match"
+                                        ? "fallback versucht (kein Treffer)"
+                                        : "direkt"}
+                                </p>
+                              ) : null}
+                              {graphQuestionResult.explanation ? (
+                                <p className="muted-inline"><strong>Interpretation:</strong> {graphQuestionResult.explanation}</p>
+                              ) : null}
+                              {graphQuestionResult.cypher_primary && graphQuestionResult.cypher_primary !== graphQuestionResult.cypher ? (
+                                <>
+                                  <div className="invoice-label">PRIMAERE CYPHER-QUERY</div>
+                                  <pre className="graph-node-json">{graphQuestionResult.cypher_primary}</pre>
+                                </>
+                              ) : null}
+                              <div className="invoice-label">GENERIERTE CYPHER-QUERY</div>
+                              <pre className="graph-node-json">{graphQuestionResult.cypher || "-"}</pre>
+                              <div className="invoice-label">ERGEBNIS ({graphQuestionResult.row_count || 0})</div>
+                              {(graphQuestionResult.rows || []).length === 0 ? (
+                                <p className="muted-inline">Keine Treffer.</p>
+                              ) : (
+                                <table className="table">
+                                  <thead>
+                                    <tr>
+                                      {(graphQuestionResult.columns || Object.keys(graphQuestionResult.rows[0] || {})).map((col) => (
+                                        <th key={col}>{String(col || "-")}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(graphQuestionResult.rows || []).map((row, idx) => (
+                                      <tr key={`gq-row-${idx}`}>
+                                        {(graphQuestionResult.columns || Object.keys(row || {})).map((col) => (
+                                          <td key={`${idx}:${col}`}>{row?.[col] == null ? "-" : String(row[col])}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              {graphQuestionResult.truncated ? (
+                                <p className="muted-inline">Ergebnis gekuerzt (LIMIT aktiv).</p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                        {graphError ? <p className="error">{graphError}</p> : null}
+                        {graphData ? (
+                          <GraphCanvas
+                            graphData={graphData}
+                            onNodeSelect={onGraphNodeSelect}
+                            rootNodeId={selectedId}
+                            showRootComponentOnly={true}
+                            highlightInvoiceIds={userGraphHighlights.invoiceIds}
+                            highlightInvoiceNumbers={userGraphHighlights.invoiceNumbers}
+                            onResetHighlights={() => setGraphQuestionResult(null)}
+                          />
+                        ) : (
+                          <p className="muted-inline">Kein Graph geladen.</p>
+                        )}
+                        {graphSelection?.type === "supplier" ? (
+                          <p className="muted-inline">Graph-Auswahl Lieferant: {graphSelection.supplierName || "-"}</p>
+                        ) : null}
+                      </>
+                    )}
+                  </>
                 ) : null}
               </>
             )}
@@ -4449,8 +4461,6 @@ function UserView({ token, currentUser, onLogout }) {
         </div>
       </section>
 
-      {notice ? <p className="notice">{notice}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
     </main>
   )
 }
