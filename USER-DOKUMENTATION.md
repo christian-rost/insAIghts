@@ -33,6 +33,13 @@ Zusaetzlich:
 - Der PDF-Bereich kann in einen Fokusmodus geschaltet werden.
 - Status- und Aktionsfeedback wird visuell hervorgehoben; fehlende extrahierte Header-Werte werden markiert.
 - Der Graph-Tab zeigt bei vorhandenem Graph einen Knoten-Zaehler als schnellen Hinweis.
+- `Cmd/Ctrl + K` oeffnet die Command Palette fuer Navigation, Layoutwechsel, Tabs und Workflow-Aktionen.
+- Tastaturkuerzel: `J/K` oder Pfeiltasten wechseln Rechnungen, `/` fokussiert die Suche, `1/2/3` wechseln Layout-Presets, `O/T/C/G` wechseln Detail-Tabs, `P` schaltet PDF-Fokus.
+- Layout-Presets: `Pruefen`, `Beleg`, `Analyse`.
+- Smart Empty States geben konkrete Hinweise, wenn Filter/Suche keine Rechnungen liefern.
+- Die Review Checklist bewertet sichtbar, ob Lieferant, Betrag, Waehrung, Positionen, PDF und Header-Felder vorhanden sind.
+- Compare Mode vergleicht die aktuelle Rechnung mit einer zweiten Rechnung aus der aktuellen Liste.
+- Der Korrekturmodus ist aktuell ein lokaler Frontend-Entwurf. Werte werden nicht dauerhaft gespeichert, solange keine auditierbare Backend-Persistenz aktiviert ist.
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:

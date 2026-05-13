@@ -205,6 +205,16 @@ function statusClassName(status) {
   return `status-pill status-${key}`
 }
 
+function isTextEntryTarget(target) {
+  const tagName = String(target?.tagName || "").toLowerCase()
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target?.isContentEditable
+}
+
+function invoiceAmount(invoice) {
+  const n = Number(invoice?.gross_amount)
+  return Number.isFinite(n) ? n : 0
+}
+
 function extractGraphResultInvoiceKeys(result) {
   const rows = Array.isArray(result?.rows) ? result.rows : []
   const invoiceIds = new Set()
@@ -3800,6 +3810,8 @@ function GraphCanvas({
 }
 
 function UserView({ token, currentUser, onLogout }) {
+  const searchInputRef = useRef(null)
+  const commandInputRef = useRef(null)
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState("")
   const [selectedInvoice, setSelectedInvoice] = useState(null)
@@ -3823,6 +3835,15 @@ function UserView({ token, currentUser, onLogout }) {
   const [detailTab, setDetailTab] = useState("overview")
   const [graphPanelOpen, setGraphPanelOpen] = useState(false)
   const [pdfFocus, setPdfFocus] = useState(false)
+  const [layoutPreset, setLayoutPreset] = useState("review")
+  const [guidedReview, setGuidedReview] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
+  const [commandQuery, setCommandQuery] = useState("")
+  const [compareId, setCompareId] = useState("")
+  const [compareInvoice, setCompareInvoice] = useState(null)
+  const [compareLines, setCompareLines] = useState([])
+  const [correctionMode, setCorrectionMode] = useState(false)
+  const [draftCorrections, setDraftCorrections] = useState({})
   const [actionFeedback, setActionFeedback] = useState("")
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState(DEFAULT_INBOX_STATUS_FILTER)
@@ -3926,6 +3947,11 @@ function UserView({ token, currentUser, onLogout }) {
       setGraphQuestionError("")
       setGraphQuestionResult(null)
       setActionFeedback("")
+      setCompareId("")
+      setCompareInvoice(null)
+      setCompareLines([])
+      setDraftCorrections({})
+      setCorrectionMode(false)
       setDetailTab("overview")
       setGraphPanelOpen(false)
     } catch (e) {
@@ -3957,6 +3983,10 @@ function UserView({ token, currentUser, onLogout }) {
     try {
       setError("")
       setNotice("")
+      const currentIndex = items.findIndex((x) => x.id === selectedId)
+      const nextGuidedId = currentIndex >= 0
+        ? (items[currentIndex + 1]?.id || items[currentIndex - 1]?.id || selectedId)
+        : selectedId
       if (actionName === "approve") {
         await invoiceApprove(token, selectedId, actionComment)
       } else if (actionName === "reject") {
@@ -3967,7 +3997,7 @@ function UserView({ token, currentUser, onLogout }) {
         await invoiceRequestClarification(token, selectedId, actionComment)
       }
       setActionComment("")
-      await loadInbox(selectedId)
+      await loadInbox(guidedReview ? nextGuidedId : selectedId)
       setActionFeedback(actionName)
       setNotice(`Aktion ${actionName} erfolgreich`)
     } catch (e) {
@@ -4016,9 +4046,47 @@ function UserView({ token, currentUser, onLogout }) {
     setGraphSelection({ type: "other", raw: properties })
   }
 
+  async function selectByOffset(offset) {
+    if (!items.length) return
+    const currentIndex = Math.max(0, items.findIndex((x) => x.id === selectedId))
+    const nextIndex = Math.max(0, Math.min(items.length - 1, currentIndex + offset))
+    const next = items[nextIndex]
+    if (next?.id && next.id !== selectedId) {
+      await loadInvoiceDetail(next.id)
+    }
+  }
+
+  async function loadCompareInvoice(invoiceId) {
+    const id = String(invoiceId || "")
+    setCompareId(id)
+    if (!id) {
+      setCompareInvoice(null)
+      setCompareLines([])
+      return
+    }
+    try {
+      const [invoiceRes, linesRes] = await Promise.all([
+        getInvoice(token, id),
+        listInvoiceLines(token, id),
+      ])
+      setCompareInvoice(invoiceRes.item || null)
+      setCompareLines(linesRes.items || [])
+    } catch (e) {
+      setCompareInvoice(null)
+      setCompareLines([])
+      setError(String(e.message || e))
+    }
+  }
+
   useEffect(() => {
     loadInbox()
   }, [])
+
+  useEffect(() => {
+    if (!commandOpen) return undefined
+    const timer = window.setTimeout(() => commandInputRef.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [commandOpen])
 
   useEffect(() => {
     if (!actionFeedback) return undefined
@@ -4054,6 +4122,137 @@ function UserView({ token, currentUser, onLogout }) {
     [graphQuestionResult],
   )
 
+  const selectedIndex = useMemo(
+    () => items.findIndex((x) => x.id === selectedId),
+    [items, selectedId],
+  )
+  const reviewChecklist = useMemo(() => {
+    const amount = Number(selectedInvoice?.gross_amount)
+    return [
+      { label: "Lieferant erkannt", ok: !!selectedInvoice?.supplier_name },
+      { label: "Betrag plausibel", ok: Number.isFinite(amount) && amount > 0 },
+      { label: "Waehrung erkannt", ok: !!selectedInvoice?.currency },
+      { label: "Positionen vorhanden", ok: selectedLines.length > 0 },
+      { label: "PDF verfuegbar", ok: !!documentUrl && !documentError },
+      { label: "Header-Felder vollstaendig", ok: missingHeaderCount === 0 },
+    ]
+  }, [selectedInvoice, selectedLines, documentUrl, documentError, missingHeaderCount])
+  const reviewScore = useMemo(() => {
+    if (!reviewChecklist.length) return 0
+    return Math.round((reviewChecklist.filter((x) => x.ok).length / reviewChecklist.length) * 100)
+  }, [reviewChecklist])
+  const timelineItems = useMemo(() => {
+    const base = []
+    if (selectedInvoice?.created_at) {
+      base.push({
+        label: "Rechnung angelegt",
+        time: selectedInvoice.created_at,
+        meta: selectedInvoice.source_system || "System",
+      })
+    }
+    for (const action of selectedActions || []) {
+      base.push({
+        label: action.action_type || "Aktion",
+        time: action.created_at || "",
+        meta: [action.actor_username, action.from_status && action.to_status ? `${action.from_status} -> ${action.to_status}` : ""].filter(Boolean).join(" · "),
+      })
+    }
+    return base.slice(0, 8)
+  }, [selectedInvoice, selectedActions])
+  const compareDelta = compareInvoice ? invoiceAmount(selectedInvoice) - invoiceAmount(compareInvoice) : 0
+  const commandItems = useMemo(() => [
+    { label: "Suche fokussieren", hint: "/", run: () => searchInputRef.current?.focus() },
+    { label: "Naechste Rechnung", hint: "J / ↓", disabled: selectedIndex < 0 || selectedIndex >= items.length - 1, run: () => selectByOffset(1) },
+    { label: "Vorherige Rechnung", hint: "K / ↑", disabled: selectedIndex <= 0, run: () => selectByOffset(-1) },
+    { label: "Filter zuruecksetzen", hint: "alle Status", run: async () => {
+      setStatusFilter(DEFAULT_INBOX_STATUS_FILTER)
+      setSearch("")
+      await loadInbox("", DEFAULT_INBOX_STATUS_FILTER, "")
+    } },
+    { label: "Layout: Pruefen", hint: "1", run: () => { setLayoutPreset("review"); setPdfFocus(false) } },
+    { label: "Layout: Beleg", hint: "2", run: () => { setLayoutPreset("document"); setPdfFocus(true) } },
+    { label: "Layout: Analyse", hint: "3", run: () => { setLayoutPreset("analysis"); setPdfFocus(false); setDetailTab("graph"); setGraphPanelOpen(true) } },
+    { label: "Tab: Uebersicht", hint: "O", run: () => setDetailTab("overview") },
+    { label: "Tab: Aktionen", hint: "T", run: () => setDetailTab("actions") },
+    { label: "Tab: Cases", hint: "C", run: () => setDetailTab("cases") },
+    { label: "Tab: Graph", hint: "G", run: () => { setDetailTab("graph"); setGraphPanelOpen(true) } },
+    { label: pdfFocus ? "PDF-Fokus beenden" : "PDF-Fokus aktivieren", hint: "P", run: () => setPdfFocus((v) => !v) },
+    { label: guidedReview ? "Gefuehrte Pruefung beenden" : "Gefuehrte Pruefung starten", hint: "Flow", run: () => setGuidedReview((v) => !v) },
+    { label: correctionMode ? "Korrekturmodus verlassen" : "Korrekturmodus starten", hint: "Entwurf", run: () => setCorrectionMode((v) => !v) },
+    { label: "Header-Felder ein-/ausklappen", hint: "Felder", run: () => setHeaderFieldsOpen((v) => !v) },
+    { label: "Approve", hint: "Workflow", disabled: !selectedId, run: () => runAction("approve") },
+    { label: "Reject", hint: "Workflow", disabled: !selectedId, run: () => runAction("reject") },
+    { label: "Hold", hint: "Workflow", disabled: !selectedId, run: () => runAction("hold") },
+    { label: "Clarify", hint: "Workflow", disabled: !selectedId, run: () => runAction("request_clarification") },
+  ], [items, selectedIndex, selectedId, pdfFocus, guidedReview, correctionMode, actionComment, statusFilter, search])
+  const visibleCommands = useMemo(() => {
+    const q = commandQuery.trim().toLowerCase()
+    return commandItems.filter((item) => !q || item.label.toLowerCase().includes(q) || String(item.hint || "").toLowerCase().includes(q)).slice(0, 9)
+  }, [commandItems, commandQuery])
+
+  function executeCommand(command) {
+    if (!command || command.disabled) return
+    setCommandOpen(false)
+    setCommandQuery("")
+    command.run()
+  }
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      const key = String(event.key || "")
+      const lower = key.toLowerCase()
+      if ((event.metaKey || event.ctrlKey) && lower === "k") {
+        event.preventDefault()
+        setCommandOpen(true)
+        return
+      }
+      if (commandOpen) {
+        if (key === "Escape") {
+          event.preventDefault()
+          setCommandOpen(false)
+          setCommandQuery("")
+        }
+        return
+      }
+      if (isTextEntryTarget(event.target)) return
+      if (key === "/") {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+      } else if (lower === "j" || key === "ArrowDown") {
+        event.preventDefault()
+        selectByOffset(1)
+      } else if (lower === "k" || key === "ArrowUp") {
+        event.preventDefault()
+        selectByOffset(-1)
+      } else if (lower === "p") {
+        event.preventDefault()
+        setPdfFocus((v) => !v)
+      } else if (key === "1") {
+        setLayoutPreset("review")
+        setPdfFocus(false)
+      } else if (key === "2") {
+        setLayoutPreset("document")
+        setPdfFocus(true)
+      } else if (key === "3") {
+        setLayoutPreset("analysis")
+        setPdfFocus(false)
+        setDetailTab("graph")
+        setGraphPanelOpen(true)
+      } else if (lower === "o") {
+        setDetailTab("overview")
+      } else if (lower === "t") {
+        setDetailTab("actions")
+      } else if (lower === "c") {
+        setDetailTab("cases")
+      } else if (lower === "g") {
+        setDetailTab("graph")
+        setGraphPanelOpen(true)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [commandOpen, items, selectedId])
+
   return (
     <main className="app-layout inbox-layout">
       <header className="header inbox-header">
@@ -4067,6 +4266,47 @@ function UserView({ token, currentUser, onLogout }) {
         <div className="inbox-alert-stack">
           {notice ? <p className="notice">{notice}</p> : null}
           {error ? <p className="error top-error">{error}</p> : null}
+        </div>
+      ) : null}
+      {commandOpen ? (
+        <div className="command-overlay" role="dialog" aria-modal="true" aria-label="Command Palette">
+          <div className="command-palette">
+            <div className="command-head">
+              <strong>Command Palette</strong>
+              <span>Esc zum Schliessen</span>
+            </div>
+            <input
+              ref={commandInputRef}
+              className="input command-input"
+              value={commandQuery}
+              onChange={(e) => setCommandQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  executeCommand(visibleCommands.find((cmd) => !cmd.disabled))
+                }
+              }}
+              placeholder="Aktion suchen, z. B. Graph, PDF, Approve..."
+            />
+            <div className="command-list">
+              {visibleCommands.length === 0 ? (
+                <div className="command-empty">Keine passende Aktion.</div>
+              ) : (
+                visibleCommands.map((command) => (
+                  <button
+                    key={`${command.label}:${command.hint}`}
+                    type="button"
+                    className="command-item"
+                    disabled={command.disabled}
+                    onClick={() => executeCommand(command)}
+                  >
+                    <span>{command.label}</span>
+                    <kbd>{command.hint}</kbd>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -4092,6 +4332,7 @@ function UserView({ token, currentUser, onLogout }) {
             </select>
             <input
               className="input"
+              ref={searchInputRef}
               aria-label="Suche nach Lieferant oder Rechnungsnummer"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -4114,15 +4355,47 @@ function UserView({ token, currentUser, onLogout }) {
               Reset
             </button>
           </form>
+          <div className="workspace-toolbar">
+            <div className="preset-group" aria-label="Layout Presets">
+              <button className={`preset-btn ${layoutPreset === "review" ? "active" : ""}`} type="button" onClick={() => { setLayoutPreset("review"); setPdfFocus(false) }}>Pruefen</button>
+              <button className={`preset-btn ${layoutPreset === "document" ? "active" : ""}`} type="button" onClick={() => { setLayoutPreset("document"); setPdfFocus(true) }}>Beleg</button>
+              <button className={`preset-btn ${layoutPreset === "analysis" ? "active" : ""}`} type="button" onClick={() => { setLayoutPreset("analysis"); setPdfFocus(false); setDetailTab("graph"); setGraphPanelOpen(true) }}>Analyse</button>
+            </div>
+            <button className={`preset-btn ${guidedReview ? "active" : ""}`} type="button" onClick={() => setGuidedReview((v) => !v)}>
+              Gefuehrte Pruefung {guidedReview ? "aktiv" : ""}
+            </button>
+            <button className="preset-btn command-trigger" type="button" onClick={() => setCommandOpen(true)}>
+              Cmd/Ctrl + K
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className={`inbox-split ${pdfFocus ? "pdf-focused" : ""}`}>
+      <section className={`inbox-split layout-${layoutPreset} ${pdfFocus ? "pdf-focused" : ""}`}>
         <div className="card inbox-list-card">
           <div className="card-header"><h3>Rechnungen ({items.length})</h3></div>
           <div className="inbox-list">
             {items.length === 0 ? (
-              <div className="inbox-empty">Keine Rechnungen gefunden.</div>
+              <div className="inbox-empty smart-empty">
+                <strong>Keine Rechnungen gefunden.</strong>
+                <span>Pruefe Filter und Suche oder starte den Import im Admin-Bereich.</span>
+                <div className="smart-empty-actions">
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={async () => {
+                      setStatusFilter(DEFAULT_INBOX_STATUS_FILTER)
+                      setSearch("")
+                      await loadInbox("", DEFAULT_INBOX_STATUS_FILTER, "")
+                    }}
+                  >
+                    Filter zuruecksetzen
+                  </button>
+                  <button className="btn btn-outline btn-sm" type="button" onClick={() => searchInputRef.current?.focus()}>
+                    Suche fokussieren
+                  </button>
+                </div>
+              </div>
             ) : (
               items.map((inv) => {
                 const isActive = selectedId === inv.id
@@ -4190,6 +4463,66 @@ function UserView({ token, currentUser, onLogout }) {
                       </div>
                     </div>
 
+                    <div className="review-assistant-panel">
+                      <div className="review-assistant-head">
+                        <div>
+                          <div className="invoice-label">REVIEW CHECKLIST</div>
+                          <strong>{reviewScore}% bereit</strong>
+                        </div>
+                        <button className="btn btn-outline btn-sm" type="button" onClick={() => selectByOffset(1)}>
+                          Naechste Rechnung
+                        </button>
+                      </div>
+                      <div className="review-checklist">
+                        {reviewChecklist.map((item) => (
+                          <span key={item.label} className={`review-check ${item.ok ? "ok" : "warn"}`}>
+                            {item.ok ? "✓" : "!"} {item.label}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="shortcut-hints">
+                        <span><kbd>Cmd/Ctrl K</kbd> Commands</span>
+                        <span><kbd>J/K</kbd> Rechnung wechseln</span>
+                        <span><kbd>/</kbd> Suche</span>
+                        <span><kbd>1/2/3</kbd> Layout</span>
+                      </div>
+                    </div>
+
+                    <div className="compare-panel">
+                      <div className="section-toggle-row">
+                        <div className="invoice-label">COMPARE MODE</div>
+                        <select className="input compare-select" value={compareId} onChange={(e) => loadCompareInvoice(e.target.value)}>
+                          <option value="">Rechnung zum Vergleich waehlen</option>
+                          {items.filter((inv) => inv.id !== selectedId).map((inv) => (
+                            <option key={inv.id} value={inv.id}>
+                              {inv.invoice_number || "-"} · {inv.supplier_name || "-"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {compareInvoice ? (
+                        <div className="compare-grid">
+                          <div>
+                            <span>Aktuell</span>
+                            <strong>{selectedInvoice.invoice_number || "-"}</strong>
+                            <small>{selectedInvoice.supplier_name || "-"} · {formatMoney(selectedInvoice.gross_amount)} {selectedInvoice.currency || ""}</small>
+                          </div>
+                          <div>
+                            <span>Vergleich</span>
+                            <strong>{compareInvoice.invoice_number || "-"}</strong>
+                            <small>{compareInvoice.supplier_name || "-"} · {formatMoney(compareInvoice.gross_amount)} {compareInvoice.currency || ""}</small>
+                          </div>
+                          <div>
+                            <span>Differenz</span>
+                            <strong className={compareDelta >= 0 ? "delta-plus" : "delta-minus"}>{compareDelta >= 0 ? "+" : ""}{formatMoney(compareDelta)}</strong>
+                            <small>Positionen: {selectedLines.length} vs. {compareLines.length}</small>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="muted-inline">Optional: zweite Rechnung aus der aktuellen Liste fuer einen schnellen Vergleich auswaehlen.</p>
+                      )}
+                    </div>
+
                     <div className="invoice-divider" />
                     <div className="invoice-label">LEISTUNGSERBRINGER</div>
                     <div className="invoice-detail-block">
@@ -4205,10 +4538,18 @@ function UserView({ token, currentUser, onLogout }) {
                           {missingHeaderCount ? `${missingHeaderCount} ohne Wert` : "vollstaendig"}
                         </span>
                       </div>
-                      <button className="btn btn-outline btn-sm" type="button" onClick={() => setHeaderFieldsOpen((v) => !v)}>
-                        {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
-                      </button>
+                      <div className="actions-row">
+                        <button className={`btn btn-outline btn-sm ${correctionMode ? "btn-active-soft" : ""}`} type="button" onClick={() => setCorrectionMode((v) => !v)}>
+                          {correctionMode ? "Korrekturmodus aus" : "Korrekturmodus"}
+                        </button>
+                        <button className="btn btn-outline btn-sm" type="button" onClick={() => setHeaderFieldsOpen((v) => !v)}>
+                          {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
+                        </button>
+                      </div>
                     </div>
+                    {correctionMode ? (
+                      <p className="correction-note">Frontend-Entwurf: Werte koennen hier vorbereitet werden. Dauerhaftes Speichern bleibt deaktiviert, solange keine auditierbare Backend-API freigegeben ist.</p>
+                    ) : null}
                     {headerFieldsOpen ? (
                       extractedHeaderRows.length === 0 ? (
                         <p className="muted-inline">Keine konfigurierten Header-Felder im Mapping-Snapshot gefunden.</p>
@@ -4224,7 +4565,18 @@ function UserView({ token, currentUser, onLogout }) {
                             {extractedHeaderRows.map((row) => (
                               <tr key={row.field_name} className={!row.has_value ? "field-row-warning" : ""}>
                                 <td>{row.display_name || row.field_name}</td>
-                                <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
+                                <td>
+                                  {correctionMode ? (
+                                    <input
+                                      className="input inline-correction-input"
+                                      value={draftCorrections[row.field_name] ?? (row.has_value ? String(row.value) : "")}
+                                      onChange={(e) => setDraftCorrections((all) => ({ ...all, [row.field_name]: e.target.value }))}
+                                      placeholder="Korrekturwert"
+                                    />
+                                  ) : (
+                                    row.has_value ? String(row.value) : <span className="muted-inline">-</span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -4233,6 +4585,12 @@ function UserView({ token, currentUser, onLogout }) {
                     ) : (
                       <p className="muted-inline">Header-Felder eingeklappt.</p>
                     )}
+                    {correctionMode && Object.keys(draftCorrections).length > 0 ? (
+                      <div className="draft-corrections-panel">
+                        <strong>{Object.keys(draftCorrections).length} lokale Korrektur(en) vorbereitet</strong>
+                        <button className="btn btn-outline btn-sm" type="button" onClick={() => setDraftCorrections({})}>Entwurf verwerfen</button>
+                      </div>
+                    ) : null}
 
                     <div className="invoice-divider" />
                     <div className="invoice-label">LEISTUNGEN</div>
@@ -4303,6 +4661,23 @@ function UserView({ token, currentUser, onLogout }) {
 
                 {detailTab === "actions" ? (
                   <>
+                    <div className="invoice-label">AKTIVITAETS-TIMELINE</div>
+                    <div className="activity-timeline">
+                      {timelineItems.length === 0 ? (
+                        <p className="muted-inline">Noch keine Timeline-Eintraege vorhanden.</p>
+                      ) : (
+                        timelineItems.map((item, idx) => (
+                          <div className="timeline-item" key={`${item.label}:${item.time}:${idx}`}>
+                            <span className="timeline-dot" />
+                            <div>
+                              <strong>{item.label}</strong>
+                              <small>{item.time || "-"}{item.meta ? ` · ${item.meta}` : ""}</small>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="invoice-divider" />
                     <div className="invoice-label">AKTIONSHISTORIE</div>
                     <table className="table">
                       <thead>

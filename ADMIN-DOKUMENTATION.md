@@ -86,6 +86,8 @@ Nicht in Env pflegen:
   - fokussierte PDF/Bild-Vorschau
   - dezente Motion-/Hover-Effekte innerhalb der getrennten Scrollbereiche
   - Selection-Spotlight, Panel-Reveal, Sticky-Kontextleiste, PDF-Fokusmodus, Status-/Action-Feedback, Feldqualitaets-Hinweise und Graph-Peek-Zaehler
+  - Frontend-only Bedienfeatures: Command Palette, Keyboard Shortcuts, Layout-Presets, Smart Empty States, Review Checklist, Activity Timeline, Compare Mode und lokaler Korrektur-Entwurfsmodus
+  - Der Korrekturmodus persistiert bewusst noch nicht, damit keine nicht-auditierbaren Datenkorrekturen entstehen.
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen
