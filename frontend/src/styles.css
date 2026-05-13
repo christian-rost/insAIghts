@@ -526,6 +526,11 @@ label {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  transition: grid-template-columns 0.32s var(--ease-out);
+}
+
+.inbox-split.pdf-focused {
+  grid-template-columns: minmax(250px, 18%) minmax(440px, 30%) minmax(620px, 52%);
 }
 
 .inbox-list-card,
@@ -574,6 +579,7 @@ label {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  animation: detail-reveal 0.34s var(--ease-out) both;
 }
 
 .invoice-detail-body {
@@ -641,6 +647,7 @@ label {
   border-left: 4px solid var(--color-primary);
   padding-left: calc(1rem - 4px);
   box-shadow: inset 0 0 0 1px rgba(238, 127, 0, 0.14), var(--shadow-glow);
+  animation: selection-spotlight 0.9s var(--ease-out) both;
 }
 
 .inbox-item-head {
@@ -711,6 +718,11 @@ label {
   color: #9a3412;
 }
 
+.status-needs-review::before,
+.status-pending-approval::before {
+  animation: status-pulse 1.8s ease-in-out infinite;
+}
+
 .status-mapped,
 .status-validated,
 .status-approved {
@@ -732,6 +744,10 @@ label {
   color: #991b1b;
 }
 
+.status-action-flash {
+  animation: status-action-flash 1.4s var(--ease-out) both;
+}
+
 .detail-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -742,7 +758,7 @@ label {
   padding: 0.28rem;
   background: #f3f5f8;
   position: sticky;
-  top: -1rem;
+  top: 0;
   z-index: 6;
   box-shadow: 0 12px 22px rgba(255, 255, 255, 0.85);
 }
@@ -801,6 +817,45 @@ label {
 .detail-tab.active .tab-count {
   background: var(--color-primary);
   color: #ffffff;
+}
+
+.graph-peek-count {
+  background: rgba(238, 127, 0, 0.12);
+  color: var(--color-primary);
+}
+
+.detail-tab.active .graph-peek-count {
+  background: #ffffff;
+  color: var(--color-primary);
+}
+
+.invoice-context-mini {
+  position: sticky;
+  top: 3.2rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: -0.25rem 0 1rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(33, 52, 82, 0.1);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
+  box-shadow: 0 14px 32px rgba(20, 36, 61, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.invoice-context-mini span:not(.status-pill) {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.invoice-context-mini .mini-context-title {
+  color: var(--color-dark);
+  font-weight: 800;
 }
 
 .invoice-summary-grid {
@@ -893,6 +948,37 @@ label {
 
 .section-toggle-row .invoice-label {
   margin-bottom: 0;
+}
+
+.field-quality-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.55rem;
+  padding: 0.16rem 0.44rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  vertical-align: middle;
+}
+
+.field-quality-badge.ok {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.field-quality-badge.warn {
+  background: #fff7ed;
+  color: #9a3412;
+  box-shadow: 0 0 0 3px rgba(238, 127, 0, 0.08);
+}
+
+.field-row-warning td {
+  background: rgba(255, 247, 237, 0.64);
+}
+
+.field-row-warning td:first-child {
+  box-shadow: inset 3px 0 0 rgba(238, 127, 0, 0.5);
 }
 
 .invoice-actions {
@@ -1001,6 +1087,16 @@ label {
   background:
     radial-gradient(circle at 50% 0%, rgba(238, 127, 0, 0.08), transparent 16rem),
     linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.96));
+  animation: pdf-reveal 0.36s var(--ease-out) both;
+}
+
+.pdf-card-header {
+  gap: 0.6rem;
+}
+
+.pdf-focused-card {
+  border-color: rgba(238, 127, 0, 0.28);
+  box-shadow: 0 26px 64px rgba(20, 36, 61, 0.18);
 }
 
 .pdf-frame {
@@ -1259,6 +1355,64 @@ label {
   background: #ee7f00;
 }
 
+@keyframes selection-spotlight {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(238, 127, 0, 0.14), 0 0 0 rgba(238, 127, 0, 0);
+  }
+  36% {
+    box-shadow: inset 0 0 0 1px rgba(238, 127, 0, 0.22), 0 0 0 8px rgba(238, 127, 0, 0.13), var(--shadow-glow);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(238, 127, 0, 0.14), var(--shadow-glow);
+  }
+}
+
+@keyframes detail-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pdf-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(238, 127, 0, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(238, 127, 0, 0.18);
+  }
+}
+
+@keyframes status-action-flash {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+  28% {
+    transform: scale(1.045);
+    box-shadow: 0 0 0 7px rgba(34, 197, 94, 0.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @keyframes ambient-shift {
   from {
     background-position: 0% 0%, 100% 0%, 0% 0%;
@@ -1357,6 +1511,10 @@ label {
     overflow: visible;
   }
 
+  .inbox-split.pdf-focused {
+    grid-template-columns: 1fr;
+  }
+
   .inbox-list-card,
   .inbox-detail-card,
   .inbox-pdf-card {
@@ -1374,6 +1532,11 @@ label {
 
   .detail-tabs {
     position: static;
+  }
+
+  .invoice-context-mini {
+    position: static;
+    border-radius: 12px;
   }
 
   .invoice-meta-grid {

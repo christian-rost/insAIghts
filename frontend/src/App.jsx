@@ -3822,6 +3822,8 @@ function UserView({ token, currentUser, onLogout }) {
   const [headerFieldsOpen, setHeaderFieldsOpen] = useState(true)
   const [detailTab, setDetailTab] = useState("overview")
   const [graphPanelOpen, setGraphPanelOpen] = useState(false)
+  const [pdfFocus, setPdfFocus] = useState(false)
+  const [actionFeedback, setActionFeedback] = useState("")
   const [notice, setNotice] = useState("")
   const [statusFilter, setStatusFilter] = useState(DEFAULT_INBOX_STATUS_FILTER)
   const [search, setSearch] = useState("")
@@ -3923,6 +3925,7 @@ function UserView({ token, currentUser, onLogout }) {
       setGraphSelection(null)
       setGraphQuestionError("")
       setGraphQuestionResult(null)
+      setActionFeedback("")
       setDetailTab("overview")
       setGraphPanelOpen(false)
     } catch (e) {
@@ -3965,6 +3968,7 @@ function UserView({ token, currentUser, onLogout }) {
       }
       setActionComment("")
       await loadInbox(selectedId)
+      setActionFeedback(actionName)
       setNotice(`Aktion ${actionName} erfolgreich`)
     } catch (e) {
       setError(String(e.message || e))
@@ -4017,6 +4021,12 @@ function UserView({ token, currentUser, onLogout }) {
   }, [])
 
   useEffect(() => {
+    if (!actionFeedback) return undefined
+    const timer = window.setTimeout(() => setActionFeedback(""), 1800)
+    return () => window.clearTimeout(timer)
+  }, [actionFeedback])
+
+  useEffect(() => {
     return () => {
       if (documentUrl) {
         URL.revokeObjectURL(documentUrl)
@@ -4027,6 +4037,17 @@ function UserView({ token, currentUser, onLogout }) {
   const extractedHeaderRows = useMemo(
     () => (selectedInvoice ? buildExtractedHeaderRows(selectedInvoice) : []),
     [selectedInvoice],
+  )
+  const missingHeaderCount = useMemo(
+    () => extractedHeaderRows.filter((row) => !row.has_value).length,
+    [extractedHeaderRows],
+  )
+  const graphPeek = useMemo(
+    () => ({
+      nodes: Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0,
+      edges: Array.isArray(graphData?.edges) ? graphData.edges.length : 0,
+    }),
+    [graphData],
   )
   const userGraphHighlights = useMemo(
     () => extractGraphResultInvoiceKeys(graphQuestionResult),
@@ -4096,7 +4117,7 @@ function UserView({ token, currentUser, onLogout }) {
         </div>
       </section>
 
-      <section className="inbox-split">
+      <section className={`inbox-split ${pdfFocus ? "pdf-focused" : ""}`}>
         <div className="card inbox-list-card">
           <div className="card-header"><h3>Rechnungen ({items.length})</h3></div>
           <div className="inbox-list">
@@ -4129,7 +4150,7 @@ function UserView({ token, currentUser, onLogout }) {
           <div className="card-header">
             <h3>{selectedInvoice?.invoice_number ? `Rechnung ${selectedInvoice.invoice_number}` : "Rechnungsdetail"}</h3>
           </div>
-          <div className="invoice-detail-scroll">
+          <div className="invoice-detail-scroll" key={`detail-${selectedId || "empty"}`}>
             <div className="card-body invoice-detail-body">
             {!selectedInvoice ? (
               <p className="muted">Keine Rechnung ausgewaehlt.</p>
@@ -4139,7 +4160,13 @@ function UserView({ token, currentUser, onLogout }) {
                   <button type="button" className={`detail-tab ${detailTab === "overview" ? "active" : ""}`} onClick={() => setDetailTab("overview")}>Uebersicht</button>
                   <button type="button" className={`detail-tab ${detailTab === "actions" ? "active" : ""}`} onClick={() => setDetailTab("actions")}>Aktionen <span className="tab-count">{selectedActions.length}</span></button>
                   <button type="button" className={`detail-tab ${detailTab === "cases" ? "active" : ""}`} onClick={() => setDetailTab("cases")}>Cases <span className="tab-count">{selectedCases.length}</span></button>
-                  <button type="button" className={`detail-tab ${detailTab === "graph" ? "active" : ""}`} onClick={() => setDetailTab("graph")}>Graph</button>
+                  <button type="button" className={`detail-tab ${detailTab === "graph" ? "active" : ""}`} onClick={() => setDetailTab("graph")}>Graph {graphPeek.nodes ? <span className="tab-count graph-peek-count" title={`${graphPeek.nodes} Knoten, ${graphPeek.edges} Kanten`}>{graphPeek.nodes}</span> : null}</button>
+                </div>
+                <div className="invoice-context-mini" aria-label="Aktuelle Rechnung">
+                  <span className="mini-context-title">{selectedInvoice.invoice_number || "-"}</span>
+                  <span>{selectedInvoice.supplier_name || "-"}</span>
+                  <span>{formatMoney(selectedInvoice.gross_amount)} {selectedInvoice.currency || ""}</span>
+                  <span className={`${statusClassName(selectedInvoice.status)} status-pill-sm ${actionFeedback ? "status-action-flash" : ""}`}>{selectedInvoice.status || "-"}</span>
                 </div>
 
                 {detailTab === "overview" ? (
@@ -4159,7 +4186,7 @@ function UserView({ token, currentUser, onLogout }) {
                       </div>
                       <div className="invoice-summary-card">
                         <div className="invoice-label">STATUS</div>
-                        <div className="invoice-value"><span className={statusClassName(selectedInvoice.status)}>{selectedInvoice.status || "-"}</span></div>
+                        <div className="invoice-value"><span className={`${statusClassName(selectedInvoice.status)} ${actionFeedback ? "status-action-flash" : ""}`}>{selectedInvoice.status || "-"}</span></div>
                       </div>
                     </div>
 
@@ -4172,7 +4199,12 @@ function UserView({ token, currentUser, onLogout }) {
 
                     <div className="invoice-divider" />
                     <div className="section-toggle-row">
-                      <div className="invoice-label">EXTRAHIERTE FELDER (HEADER)</div>
+                      <div className="invoice-label">
+                        EXTRAHIERTE FELDER (HEADER)
+                        <span className={`field-quality-badge ${missingHeaderCount ? "warn" : "ok"}`}>
+                          {missingHeaderCount ? `${missingHeaderCount} ohne Wert` : "vollstaendig"}
+                        </span>
+                      </div>
                       <button className="btn btn-outline btn-sm" type="button" onClick={() => setHeaderFieldsOpen((v) => !v)}>
                         {headerFieldsOpen ? "Einklappen" : "Ausklappen"}
                       </button>
@@ -4190,7 +4222,7 @@ function UserView({ token, currentUser, onLogout }) {
                           </thead>
                           <tbody>
                             {extractedHeaderRows.map((row) => (
-                              <tr key={row.field_name}>
+                              <tr key={row.field_name} className={!row.has_value ? "field-row-warning" : ""}>
                                 <td>{row.display_name || row.field_name}</td>
                                 <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
                               </tr>
@@ -4472,9 +4504,14 @@ function UserView({ token, currentUser, onLogout }) {
           </div>
         </div>
 
-        <div className="card inbox-pdf-card">
-          <div className="card-header"><h3>PDF / Dokument</h3></div>
-          <div className="card-body pdf-viewer">
+        <div className={`card inbox-pdf-card ${pdfFocus ? "pdf-focused-card" : ""}`}>
+          <div className="card-header pdf-card-header">
+            <h3>PDF / Dokument</h3>
+            <button className="btn btn-outline-light btn-sm" type="button" onClick={() => setPdfFocus((v) => !v)}>
+              {pdfFocus ? "Normal" : "Fokus"}
+            </button>
+          </div>
+          <div className="card-body pdf-viewer" key={`pdf-${selectedId || "empty"}`}>
             {documentError ? <p className="error">{documentError}</p> : null}
             {!selectedInvoice ? (
               <p className="muted">Keine Rechnung ausgewaehlt.</p>

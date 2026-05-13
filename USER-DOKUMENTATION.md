@@ -28,6 +28,11 @@ Zusaetzlich:
 - Modernisierte Workspace-Optik mit klareren Karten, Status-Badges und fokussierter Dokumentvorschau
 - Desktop-Workspace mit drei unabhaengig scrollbaren Bereichen: Rechnungsliste, Rechnungsdetail und PDF/Dokumentvorschau
 - Dezente UI-Effekte fuer Hover, Fokus, aktive Rechnungen, Detail-Tabs und Dokumentvorschau
+- Aktive Rechnungen werden per Selection-Spotlight hervorgehoben; Detailbereich und PDF blenden beim Rechnungswechsel weich ein.
+- Eine Sticky-Kontextleiste im Detailbereich zeigt Rechnungsnummer, Lieferant, Betrag und Status beim Scrollen weiter an.
+- Der PDF-Bereich kann in einen Fokusmodus geschaltet werden.
+- Status- und Aktionsfeedback wird visuell hervorgehoben; fehlende extrahierte Header-Werte werden markiert.
+- Der Graph-Tab zeigt bei vorhandenem Graph einen Knoten-Zaehler als schnellen Hinweis.
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:

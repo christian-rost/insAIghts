@@ -85,6 +85,7 @@ Nicht in Env pflegen:
   - Aktionsblock unterhalb der Positionen, damit Positionslisten nicht verdeckt werden
   - fokussierte PDF/Bild-Vorschau
   - dezente Motion-/Hover-Effekte innerhalb der getrennten Scrollbereiche
+  - Selection-Spotlight, Panel-Reveal, Sticky-Kontextleiste, PDF-Fokusmodus, Status-/Action-Feedback, Feldqualitaets-Hinweise und Graph-Peek-Zaehler
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen
