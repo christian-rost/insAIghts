@@ -59,6 +59,7 @@ import {
 
 const APPROVAL_ROLE_OPTIONS = ["AP_CLERK", "APPROVER", "ADMIN"]
 const CORE_GRAPH_FIELD_OPTIONS = ["supplier_name", "currency", "status"]
+const DEFAULT_INBOX_STATUS_FILTER = ""
 const DEFAULT_FIELD_DISPLAY_NAMES = {
   supplier_name: "Lieferantenname",
   invoice_number: "Rechnungsnummer",
@@ -3822,7 +3823,7 @@ function UserView({ token, currentUser, onLogout }) {
   const [detailTab, setDetailTab] = useState("overview")
   const [graphPanelOpen, setGraphPanelOpen] = useState(false)
   const [notice, setNotice] = useState("")
-  const [statusFilter, setStatusFilter] = useState("NEEDS_REVIEW")
+  const [statusFilter, setStatusFilter] = useState(DEFAULT_INBOX_STATUS_FILTER)
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -4057,7 +4058,7 @@ function UserView({ token, currentUser, onLogout }) {
               await loadInbox()
             }}
           >
-            <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select className="input" aria-label="Statusfilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">alle Status</option>
               <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
               <option value="VALIDATED">VALIDATED</option>
@@ -4070,6 +4071,7 @@ function UserView({ token, currentUser, onLogout }) {
             </select>
             <input
               className="input"
+              aria-label="Suche nach Lieferant oder Rechnungsnummer"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Suche nach Lieferant oder Rechnungsnummer"
@@ -4081,7 +4083,7 @@ function UserView({ token, currentUser, onLogout }) {
               className="btn btn-outline"
               type="button"
               onClick={async () => {
-                const resetStatus = "NEEDS_REVIEW"
+                const resetStatus = DEFAULT_INBOX_STATUS_FILTER
                 const resetSearch = ""
                 setStatusFilter(resetStatus)
                 setSearch(resetSearch)

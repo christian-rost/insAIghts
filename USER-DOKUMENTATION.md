@@ -21,6 +21,7 @@ Die Inbox ist 3-spaltig:
 
 Zusaetzlich:
 - Filter nach Status
+- Beim Start und nach `Reset` ist der Statusfilter auf `alle Status` gesetzt.
 - Suche nach Lieferant oder Rechnungsnummer
 - Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
 - Feste Header- und Filterleiste fuer schnellen Zugriff
