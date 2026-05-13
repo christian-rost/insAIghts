@@ -25,6 +25,7 @@ Zusaetzlich:
 - Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
 - Sticky Header und Filterleiste fuer schnellen Zugriff beim Scrollen
 - Modernisierte Workspace-Optik mit klareren Karten, Status-Badges und fokussierter Dokumentvorschau
+- Desktop-Workspace mit fixer Kopf-/Filterzone und drei unabhaengig scrollbaren Arbeitsbereichen
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:
@@ -48,6 +49,7 @@ Der Aktionsbereich ist zweizeilig aufgebaut:
 - Zeile 2: Aktionsbuttons
 Jede Aktion kann optional mit Kommentar erfolgen.
 Der Aktionsbereich bleibt im Uebersichts-Tab als Sticky-Leiste sichtbar, damit Freigaben auch bei laengeren Positionslisten erreichbar bleiben.
+Im Desktop-Layout scrollen Rechnungsliste, Detailbereich und Dokumentvorschau getrennt voneinander.
 
 ## 6. Workflow-Logik
 - Erlaubte Statuswechsel werden serverseitig geprueft.

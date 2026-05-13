@@ -394,24 +394,50 @@ label {
 }
 
 .inbox-layout {
-  width: calc(100% - 1.25rem);
+  width: calc(100vw - 1rem);
   max-width: none;
+  height: calc(100vh - 1rem);
+  margin: 0.5rem auto;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.75rem;
+  overflow: hidden;
+  position: relative;
 }
 
 .inbox-header {
-  position: sticky;
-  top: 0.5rem;
+  position: relative;
+  top: auto;
   z-index: 30;
-  min-height: 72px;
+  min-height: 68px;
   box-shadow: var(--shadow-strong);
 }
 
 .inbox-filter-card {
-  position: sticky;
-  top: 5.25rem;
+  position: relative;
+  top: auto;
   z-index: 24;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 18px 44px rgba(33, 52, 82, 0.1);
+}
+
+.inbox-alert-stack {
+  position: absolute;
+  top: 4.9rem;
+  right: 1rem;
+  z-index: 60;
+  width: min(520px, calc(100% - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  pointer-events: none;
+}
+
+.inbox-alert-stack .notice,
+.inbox-alert-stack .error {
+  margin: 0;
+  box-shadow: 0 16px 34px rgba(20, 36, 61, 0.14);
+  pointer-events: auto;
 }
 
 .inbox-filterbar {
@@ -432,28 +458,38 @@ label {
   display: grid;
   grid-template-columns: minmax(280px, 24%) minmax(520px, 42%) minmax(420px, 34%);
   gap: 1.05rem;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
 }
 
 .inbox-list-card,
 .inbox-detail-card,
 .inbox-pdf-card {
-  min-height: 72vh;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   animation: panel-rise 0.45s var(--ease-out) both;
 }
 
 .inbox-detail-card {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .inbox-detail-body {
   position: relative;
-  overflow: visible;
+  min-height: 0;
+  overflow: auto;
+  scroll-behavior: smooth;
 }
 
 .inbox-list {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: auto;
 }
 
 .inbox-item {
@@ -574,6 +610,10 @@ label {
   border-radius: 12px;
   padding: 0.28rem;
   background: #f3f5f8;
+  position: sticky;
+  top: -1rem;
+  z-index: 6;
+  box-shadow: 0 12px 22px rgba(255, 255, 255, 0.85);
 }
 
 .detail-tab {
@@ -784,10 +824,12 @@ label {
 }
 
 .pdf-viewer {
-  min-height: 66vh;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow: hidden;
   background:
     radial-gradient(circle at 50% 0%, rgba(238, 127, 0, 0.08), transparent 16rem),
     linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.96));
@@ -795,7 +837,9 @@ label {
 
 .pdf-frame {
   width: 100%;
-  height: 66vh;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   border: 8px solid #2e343d;
   border-radius: 10px;
   background: #ffffff;
@@ -804,7 +848,10 @@ label {
 
 .pdf-image {
   width: 100%;
-  max-height: 66vh;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   object-fit: contain;
   border: 8px solid #2e343d;
   border-radius: 10px;
@@ -1046,6 +1093,21 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .inbox-layout {
+    width: calc(100% - 1rem);
+    height: auto;
+    min-height: 100vh;
+    margin: 0.5rem auto;
+    display: flex;
+    overflow: visible;
+  }
+
+  .inbox-alert-stack {
+    position: static;
+    width: 100%;
+    pointer-events: auto;
+  }
+
   .header {
     flex-direction: column;
     align-items: flex-start;
@@ -1062,12 +1124,25 @@ label {
 
   .inbox-split {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .inbox-list-card,
   .inbox-detail-card,
   .inbox-pdf-card {
     min-height: auto;
+    height: auto;
+    display: block;
+    overflow: hidden;
+  }
+
+  .inbox-list,
+  .inbox-detail-body {
+    overflow: visible;
+  }
+
+  .detail-tabs {
+    position: static;
   }
 
   .invoice-meta-grid {
@@ -1103,6 +1178,12 @@ label {
   .pdf-image {
     height: 52vh;
     max-height: 52vh;
+  }
+
+  .pdf-viewer {
+    height: auto;
+    min-height: 52vh;
+    overflow: visible;
   }
 
   .graph-svg {

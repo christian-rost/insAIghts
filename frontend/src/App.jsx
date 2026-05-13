@@ -4041,8 +4041,12 @@ function UserView({ token, currentUser, onLogout }) {
           <button className="btn btn-outline-light btn-sm" onClick={onLogout}>Logout</button>
         </div>
       </header>
-      {notice ? <p className="notice">{notice}</p> : null}
-      {error ? <p className="error top-error">{error}</p> : null}
+      {notice || error ? (
+        <div className="inbox-alert-stack">
+          {notice ? <p className="notice">{notice}</p> : null}
+          {error ? <p className="error top-error">{error}</p> : null}
+        </div>
+      ) : null}
 
       <section className="card inbox-filter-card">
         <div className="card-body inbox-filterbar">

@@ -78,7 +78,8 @@ Nicht in Env pflegen:
   - Zeile 1: Kommentarfeld
   - Zeile 2: Workflow-Buttons
 - Die Anwender-Inbox nutzt eine modernisierte Workspace-Optik:
-  - Sticky Header/Filter fuer schnellen Zugriff
+  - fixe Header-/Filterzone fuer schnellen Zugriff
+  - unabhaengig scrollbare Panels fuer Liste, Details und Dokument
   - segmentierte Detail-Tabs mit Zaehlern
   - Summary-Karten fuer Kopfdaten
   - Sticky-Aktionsleiste im Uebersichts-Tab
