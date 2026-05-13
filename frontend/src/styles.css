@@ -394,14 +394,16 @@ label {
 }
 
 .inbox-layout {
+  --inbox-panel-height: calc(100vh - 10.75rem);
   width: calc(100vw - 1rem);
   max-width: none;
-  height: calc(100vh - 1rem);
+  min-height: calc(100vh - 1rem);
+  height: auto;
   margin: 0.5rem auto;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -460,7 +462,8 @@ label {
   gap: 1.05rem;
   align-items: stretch;
   min-height: 0;
-  height: 100%;
+  height: var(--inbox-panel-height);
+  min-height: 430px;
 }
 
 .inbox-list-card,
@@ -481,8 +484,12 @@ label {
 .inbox-detail-body {
   position: relative;
   min-height: 0;
-  overflow: auto;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 1.3rem;
 }
 
@@ -490,7 +497,11 @@ label {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .inbox-item {
@@ -1093,6 +1104,7 @@ label {
 
   .inbox-layout {
     width: calc(100% - 1rem);
+    --inbox-panel-height: auto;
     height: auto;
     min-height: 100vh;
     margin: 0.5rem auto;
@@ -1123,6 +1135,8 @@ label {
   .inbox-split {
     grid-template-columns: 1fr;
     height: auto;
+    min-height: 0;
+    max-height: none;
   }
 
   .inbox-list-card,
