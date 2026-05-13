@@ -4179,18 +4179,13 @@ function UserView({ token, currentUser, onLogout }) {
                             <tr>
                               <th>FELD</th>
                               <th>WERT</th>
-                              <th>LLM</th>
                             </tr>
                           </thead>
                           <tbody>
                             {extractedHeaderRows.map((row) => (
                               <tr key={row.field_name}>
-                                <td>
-                                  <div>{row.display_name || row.field_name}</div>
-                                  <div className="muted-inline mono">{row.field_name}</div>
-                                </td>
+                                <td>{row.display_name || row.field_name}</td>
                                 <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
-                                <td>{row.provided_by_llm ? "ja" : "nein"}</td>
                               </tr>
                             ))}
                           </tbody>
