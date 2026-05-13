@@ -48,7 +48,7 @@ Der Aktionsbereich ist zweizeilig aufgebaut:
 - Zeile 1: Kommentarfeld
 - Zeile 2: Aktionsbuttons
 Jede Aktion kann optional mit Kommentar erfolgen.
-Der Aktionsbereich bleibt im Uebersichts-Tab als Sticky-Leiste sichtbar, damit Freigaben auch bei laengeren Positionslisten erreichbar bleiben.
+Der Aktionsbereich ist als eigener Block unterhalb der Positionsliste angeordnet, damit die Positionen im Workspace nicht verdeckt werden.
 Im Desktop-Layout scrollen Rechnungsliste, Detailbereich und Dokumentvorschau getrennt voneinander.
 
 ## 6. Workflow-Logik

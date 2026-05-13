@@ -82,7 +82,7 @@ Nicht in Env pflegen:
   - unabhaengig scrollbare Panels fuer Liste, Details und Dokument
   - segmentierte Detail-Tabs mit Zaehlern
   - Summary-Karten fuer Kopfdaten
-  - Sticky-Aktionsleiste im Uebersichts-Tab
+  - Aktionsblock unterhalb der Positionen, damit Positionslisten nicht verdeckt werden
   - fokussierte PDF/Bild-Vorschau
 
 ### 4.6 Graph

@@ -483,6 +483,7 @@ label {
   min-height: 0;
   overflow: auto;
   scroll-behavior: smooth;
+  padding-bottom: 1.3rem;
 }
 
 .inbox-list {
@@ -736,15 +737,12 @@ label {
   flex-direction: column;
   gap: 0.65rem;
   margin-top: 0.15rem;
-  position: sticky;
-  bottom: 0.75rem;
-  z-index: 5;
   padding: 0.85rem;
   border: 1px solid rgba(33, 52, 82, 0.11);
   border-radius: 14px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 239, 0.94));
-  box-shadow: 0 18px 36px rgba(33, 52, 82, 0.12);
+  box-shadow: 0 12px 28px rgba(33, 52, 82, 0.1);
   backdrop-filter: blur(12px);
 }
 
