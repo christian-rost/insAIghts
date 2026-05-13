@@ -522,7 +522,7 @@ Festlegung:
   - Selektives Dokument-Reprocessing ueber Checkbox-Auswahl in der Dokumentliste
   - Loeschantrag-Queue im Admin-Tab (PENDING/APPROVED/REJECTED, Approve/Reject)
   - Provider-Admin-UI fuer Mistral Key (aktivieren/rotieren)
-  - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Beschreibung + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
+  - Admin-UI fuer konfigurierbare Extraktionsfelder (Header/Line-Items mit Feldname + Anzeigename + Beschreibung/Prompt + Datentyp), inkl. Inline-Bearbeitung bestehender Felder
   - Admin-UI fuer Workflow-Regeln (formularbasiert) inkl. Runtime-Update ohne Redeploy
   - Admin-KPI-Panel (Dokumente/Rechnungen, Statusverteilungen, offene Cases, Freigaben 24h)
   - Admin-Danger-Zone fuer globalen Pipeline-Reset (Dokumente/Rechnungen/Positionen/Aktionen/Cases)
@@ -532,8 +532,9 @@ Festlegung:
   - Aktionsbereich in der Inbox als 2-Zeilen-Layout (Kommentarzeile + Buttonzeile) optimiert
   - Anwenderaktion `Loeschung anfordern` (role-separated, keine Direkt-Loeschung fuer Nicht-Admin)
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
-  - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Wert + LLM-Indikator)
+  - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Anzeigename, Wert + LLM-Indikator)
   - Header-Extraktionsfelder in der Inbox sind auf- und zuklappbar
+  - Positionen/Leistungen werden im Uebersichts-Tab direkt unter den Header-Feldern angezeigt
   - Graph-Nutzbarkeit in der Inbox: interaktive Subgraph-Ansicht mit Knoten/Kanten, Zoom/Pan und Knotendetails pro Rechnung; Knotenauswahl markiert passende Positionen/Aktionen
   - Graph-Darstellung ist in Layer getrennt umschaltbar: Datenebene / Anwendungsebene / Alles
   - Felder der Graph-Datenebene sind ueber Admin konfigurierbar und steuern, welche gemeinsamen Feldwerte Rechnungen verknuepfen

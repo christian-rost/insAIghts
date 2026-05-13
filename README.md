@@ -28,10 +28,10 @@ insAIghts ist eine Daten- und Operationsplattform fuer Rechnungsverarbeitung mit
 - Provider-Management (Mistral Key ueber UI)
 - MinIO als aktuell einzige produktive Quelle
 - OCR/Parsing + Extraktion ueber Mistral
-- Konfigurierbare Extraktionsfelder (header/line_item)
+- Konfigurierbare Extraktionsfelder (header/line_item) mit technischem Feldnamen, Anzeigename und Prompt-Beschreibung
 - Mapping + Validation + Workflow-Aktionen
 - Inbox fuer Nicht-Admin-User
-- Inbox-Detail mit einklappbaren Header-Extrakten
+- Inbox-Detail mit einklappbaren Header-Extrakten und Positionen direkt darunter
 - Inbox-Aktionsbereich mit 2-zeiligem Layout (Kommentarzeile + Buttonzeile)
 - Graph-Funktion in Inbox + Admin
 - Graph-Fragefunktion (LLM-gestuetzte Cypher-Interpretation mit sichtbarer Query)

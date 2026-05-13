@@ -22,15 +22,16 @@ Die Inbox ist 3-spaltig:
 Zusaetzlich:
 - Filter nach Status
 - Suche nach Lieferant oder Rechnungsnummer
+- Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:
 - Kopfdaten (Rechnungsnummer, Datum, Gesamtpreis, Status)
 - Lieferant
-- Extrahierte Felder (konfigurierbar, auf-/zuklappbar)
-- Positionen (`Leistungen`)
+- Extrahierte Felder (konfigurierbar, auf-/zuklappbar, mit fachlichem Anzeigename)
+- Positionen (`Leistungen`) direkt unter den Header-Feldern
 - Aktionshistorie
-- Graph-Ausschnitt
+- Graph-Ausschnitt im Graph-Tab, standardmaessig ausgeblendet
 
 ## 5. Verfuegbare Aktionen
 Fuer eine Rechnung:
@@ -59,7 +60,8 @@ Case-Status:
 - `CLOSED`
 
 ## 8. Graph in der Inbox
-- `Graph neu laden` laedt den Subgraph der aktuellen Rechnung.
+- Der Graph liegt im Tab `Graph` und ist standardmaessig ausgeblendet.
+- `Graph anzeigen` blendet die Graph-Uebersicht ein; `Graph neu laden` laedt den Subgraph der aktuellen Rechnung.
 - In der Inbox werden standardmaessig verbundene Rechnungs-Knoten im gemeinsamen Kontext angezeigt (z. B. ueber `Currency`).
 - Isolierte Fremdknoten werden weiterhin ausgeblendet.
 - Ueber den Toggle `Weitere Rechnungen` kann der erweiterte Rechnungs-Kontext ein- oder ausgeblendet werden.

@@ -13,6 +13,7 @@ Dieser Guide bringt dich schnell von 0 auf einen lauffaehigen Stand mit:
 
 ## 2. Voraussetzungen
 - Supabase Projekt + SQL Schema aus `supabase/schema.sql`
+- Bei bestehenden Installationen: SQL-Migration `supabase/add_extraction_field_display_name.sql` ausfuehren.
 - Neo4j erreichbar (z. B. `bolt://neo4j:7687`)
 - MinIO Bucket mit Testrechnungen
 - Mistral API Key

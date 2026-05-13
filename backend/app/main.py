@@ -338,6 +338,7 @@ class ExtractionFieldResponse(BaseModel):
     entity_name: str
     scope: str
     field_name: str
+    display_name: str = ""
     description: str = ""
     data_type: str = "string"
     is_required: bool = False
@@ -351,6 +352,7 @@ class ExtractionFieldUpsertRequest(BaseModel):
     entity_name: str = "invoice"
     scope: str = Field(pattern="^(header|line_item)$")
     field_name: str = Field(min_length=1, max_length=128)
+    display_name: str = ""
     description: str = ""
     data_type: str = Field(default="string", pattern="^(string|number|integer|date|boolean)$")
     is_required: bool = False
@@ -581,6 +583,7 @@ async def admin_upsert_extraction_field(
         entity_name=payload.entity_name,
         scope=payload.scope,
         field_name=payload.field_name,
+        display_name=payload.display_name,
         description=payload.description,
         data_type=payload.data_type,
         is_required=payload.is_required,
@@ -597,6 +600,7 @@ async def admin_upsert_extraction_field(
             "entity_name": payload.entity_name,
             "scope": payload.scope,
             "field_name": payload.field_name,
+            "display_name": payload.display_name,
         },
         diff_before={"field": before_row} if before_row else None,
         diff_after={"field": after},

@@ -59,6 +59,22 @@ import {
 
 const APPROVAL_ROLE_OPTIONS = ["AP_CLERK", "APPROVER", "ADMIN"]
 const CORE_GRAPH_FIELD_OPTIONS = ["supplier_name", "currency", "status"]
+const DEFAULT_FIELD_DISPLAY_NAMES = {
+  supplier_name: "Lieferantenname",
+  invoice_number: "Rechnungsnummer",
+  invoice_date: "Rechnungsdatum",
+  due_date: "Faelligkeitsdatum",
+  currency: "Waehrung",
+  gross_amount: "Bruttobetrag",
+  net_amount: "Nettobetrag",
+  tax_amount: "Steuerbetrag",
+  line_no: "Positionsnummer",
+  description: "Positionsbeschreibung",
+  quantity: "Menge",
+  unit_price: "Einzelpreis",
+  line_amount: "Positionsbetrag",
+  tax_rate: "Steuersatz",
+}
 
 function defaultWorkflowRules() {
   return {
@@ -149,6 +165,7 @@ function buildExtractedHeaderRows(invoice) {
       const value = hasLlmValue ? llmValue : coreValueMap[fieldName]
       return {
         field_name: fieldName,
+        display_name: f?.display_name || DEFAULT_FIELD_DISPLAY_NAMES[fieldName] || fieldName,
         description: f?.description || "",
         data_type: f?.data_type || "string",
         is_required: !!f?.is_required,
@@ -162,6 +179,7 @@ function buildExtractedHeaderRows(invoice) {
     if (!fieldName || known.has(fieldName)) continue
     rows.push({
       field_name: fieldName,
+      display_name: DEFAULT_FIELD_DISPLAY_NAMES[fieldName] || fieldName,
       description: "nicht im Feld-Snapshot konfiguriert",
       data_type: "string",
       is_required: false,
@@ -384,6 +402,7 @@ function AdminView({ token, currentUser, onLogout }) {
     entity_name: "invoice",
     scope: "header",
     field_name: "",
+    display_name: "",
     description: "",
     data_type: "string",
     is_required: false,
@@ -528,6 +547,7 @@ function AdminView({ token, currentUser, onLogout }) {
       for (const row of rows || []) {
         const key = `${row.scope}:${row.field_name}`
         drafts[key] = {
+          display_name: row.display_name || row.field_name || "",
           description: row.description || "",
           data_type: row.data_type || "string",
           is_required: !!row.is_required,
@@ -943,13 +963,14 @@ function AdminView({ token, currentUser, onLogout }) {
                       entity_name: fieldForm.entity_name,
                       scope: fieldForm.scope,
                       field_name: fieldForm.field_name.trim(),
+                      display_name: fieldForm.display_name.trim(),
                       description: fieldForm.description.trim(),
                       data_type: fieldForm.data_type,
                       is_required: fieldForm.is_required,
                       is_enabled: fieldForm.is_enabled,
                       sort_order: Number(fieldForm.sort_order || 0),
                     })
-                    setFieldForm((f) => ({ ...f, field_name: "", description: "", sort_order: 100 }))
+                    setFieldForm((f) => ({ ...f, field_name: "", display_name: "", description: "", sort_order: 100 }))
                     await loadExtractionFields()
                     setNotice("Extraktionsfeld gespeichert")
                   } catch (err) {
@@ -967,6 +988,10 @@ function AdminView({ token, currentUser, onLogout }) {
                 <label>
                   Feldname
                   <input className="input" value={fieldForm.field_name} onChange={(e) => setFieldForm((f) => ({ ...f, field_name: e.target.value }))} required />
+                </label>
+                <label>
+                  Anzeigename
+                  <input className="input" value={fieldForm.display_name} onChange={(e) => setFieldForm((f) => ({ ...f, display_name: e.target.value }))} placeholder="z. B. Lieferantenname" />
                 </label>
                 <label>
                   Beschreibung (Prompt)
@@ -1008,6 +1033,7 @@ function AdminView({ token, currentUser, onLogout }) {
                   <tr>
                     <th>Scope</th>
                     <th>Feld</th>
+                    <th>Anzeigename</th>
                     <th>Beschreibung</th>
                     <th>Typ</th>
                     <th>Pflicht</th>
@@ -1021,6 +1047,7 @@ function AdminView({ token, currentUser, onLogout }) {
                   {extractionFields.map((f) => {
                     const key = `${f.scope}:${f.field_name}`
                     const draft = extractionFieldDrafts[key] || {
+                      display_name: f.display_name || f.field_name || "",
                       description: f.description || "",
                       data_type: f.data_type || "string",
                       is_required: !!f.is_required,
@@ -1028,6 +1055,7 @@ function AdminView({ token, currentUser, onLogout }) {
                       sort_order: Number(f.sort_order || 0),
                     }
                     const isDirty =
+                      (draft.display_name || "") !== (f.display_name || f.field_name || "") ||
                       (draft.description || "") !== (f.description || "") ||
                       (draft.data_type || "string") !== (f.data_type || "string") ||
                       !!draft.is_required !== !!f.is_required ||
@@ -1037,6 +1065,13 @@ function AdminView({ token, currentUser, onLogout }) {
                     <tr key={key}>
                       <td>{f.scope}</td>
                       <td className="mono">{f.field_name}</td>
+                      <td>
+                        <input
+                          className="input"
+                          value={draft.display_name}
+                          onChange={(e) => setExtractionFieldDrafts((all) => ({ ...all, [key]: { ...draft, display_name: e.target.value } }))}
+                        />
+                      </td>
                       <td>
                         <input
                           className="input"
@@ -1101,6 +1136,7 @@ function AdminView({ token, currentUser, onLogout }) {
                                 entity_name: f.entity_name,
                                 scope: f.scope,
                                 field_name: f.field_name,
+                                display_name: draft.display_name,
                                 description: draft.description,
                                 data_type: draft.data_type,
                                 is_required: !!draft.is_required,
@@ -4094,7 +4130,6 @@ function UserView({ token, currentUser, onLogout }) {
               <>
                 <div className="detail-tabs" role="tablist" aria-label="Rechnungsdetail Tabs">
                   <button type="button" className={`detail-tab ${detailTab === "overview" ? "active" : ""}`} onClick={() => setDetailTab("overview")}>Uebersicht</button>
-                  <button type="button" className={`detail-tab ${detailTab === "lines" ? "active" : ""}`} onClick={() => setDetailTab("lines")}>Positionen</button>
                   <button type="button" className={`detail-tab ${detailTab === "actions" ? "active" : ""}`} onClick={() => setDetailTab("actions")}>Aktionen</button>
                   <button type="button" className={`detail-tab ${detailTab === "cases" ? "active" : ""}`} onClick={() => setDetailTab("cases")}>Cases</button>
                   <button type="button" className={`detail-tab ${detailTab === "graph" ? "active" : ""}`} onClick={() => setDetailTab("graph")}>Graph</button>
@@ -4151,8 +4186,8 @@ function UserView({ token, currentUser, onLogout }) {
                             {extractedHeaderRows.map((row) => (
                               <tr key={row.field_name}>
                                 <td>
-                                  <div className="mono">{row.field_name}</div>
-                                  {row.description ? <div className="muted-inline">{row.description}</div> : null}
+                                  <div>{row.display_name || row.field_name}</div>
+                                  <div className="muted-inline mono">{row.field_name}</div>
                                 </td>
                                 <td>{row.has_value ? String(row.value) : <span className="muted-inline">-</span>}</td>
                                 <td>{row.provided_by_llm ? "ja" : "nein"}</td>
@@ -4164,6 +4199,38 @@ function UserView({ token, currentUser, onLogout }) {
                     ) : (
                       <p className="muted-inline">Header-Felder eingeklappt.</p>
                     )}
+
+                    <div className="invoice-divider" />
+                    <div className="invoice-label">LEISTUNGEN</div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>BEZEICHNUNG</th>
+                          <th>MENGE</th>
+                          <th>WERT</th>
+                          <th>STEUER</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedLines.length === 0 ? (
+                          <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
+                        ) : (
+                          selectedLines.map((line) => (
+                            <tr
+                              key={line.id}
+                              className={graphSelection?.type === "line" && Number(line.line_no || 0) === Number(graphSelection.lineNo || -1) ? "row-highlight" : ""}
+                            >
+                              <td>{line.line_no ?? "-"}</td>
+                              <td>{line.description || "-"}</td>
+                              <td>{line.quantity ?? "-"}</td>
+                              <td>{formatMoney(line.line_amount)}</td>
+                              <td>{line.tax_rate ?? "-"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
 
                     <div className="invoice-divider" />
                     <div className="invoice-actions">
@@ -4197,41 +4264,6 @@ function UserView({ token, currentUser, onLogout }) {
                         </button>
                       </div>
                     </div>
-                  </>
-                ) : null}
-
-                {detailTab === "lines" ? (
-                  <>
-                    <div className="invoice-label">LEISTUNGEN</div>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>BEZEICHNUNG</th>
-                          <th>MENGE</th>
-                          <th>WERT</th>
-                          <th>STEUER</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedLines.length === 0 ? (
-                          <tr><td colSpan={5}>Keine Positionen gefunden.</td></tr>
-                        ) : (
-                          selectedLines.map((line) => (
-                            <tr
-                              key={line.id}
-                              className={graphSelection?.type === "line" && Number(line.line_no || 0) === Number(graphSelection.lineNo || -1) ? "row-highlight" : ""}
-                            >
-                              <td>{line.line_no ?? "-"}</td>
-                              <td>{line.description || "-"}</td>
-                              <td>{line.quantity ?? "-"}</td>
-                              <td>{formatMoney(line.line_amount)}</td>
-                              <td>{line.tax_rate ?? "-"}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
                   </>
                 ) : null}
 

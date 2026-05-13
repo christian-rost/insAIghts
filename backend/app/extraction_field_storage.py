@@ -8,20 +8,20 @@ from .config import EXTRACTION_FIELDS_TABLE
 from .database import get_db
 
 DEFAULT_FIELDS = [
-    {"entity_name": "invoice", "scope": "header", "field_name": "supplier_name", "description": "Name des Lieferanten", "data_type": "string", "is_required": True, "is_enabled": True, "sort_order": 10},
-    {"entity_name": "invoice", "scope": "header", "field_name": "invoice_number", "description": "Eindeutige Rechnungsnummer", "data_type": "string", "is_required": True, "is_enabled": True, "sort_order": 20},
-    {"entity_name": "invoice", "scope": "header", "field_name": "invoice_date", "description": "Rechnungsdatum", "data_type": "date", "is_required": True, "is_enabled": True, "sort_order": 30},
-    {"entity_name": "invoice", "scope": "header", "field_name": "due_date", "description": "Faelligkeitsdatum", "data_type": "date", "is_required": False, "is_enabled": True, "sort_order": 40},
-    {"entity_name": "invoice", "scope": "header", "field_name": "currency", "description": "Waehrung als ISO Code", "data_type": "string", "is_required": False, "is_enabled": True, "sort_order": 50},
-    {"entity_name": "invoice", "scope": "header", "field_name": "gross_amount", "description": "Bruttobetrag der Rechnung", "data_type": "number", "is_required": True, "is_enabled": True, "sort_order": 60},
-    {"entity_name": "invoice", "scope": "header", "field_name": "net_amount", "description": "Nettobetrag der Rechnung", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 70},
-    {"entity_name": "invoice", "scope": "header", "field_name": "tax_amount", "description": "Steuerbetrag", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 80},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "line_no", "description": "Positionsnummer", "data_type": "integer", "is_required": False, "is_enabled": True, "sort_order": 10},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "description", "description": "Positionsbeschreibung", "data_type": "string", "is_required": False, "is_enabled": True, "sort_order": 20},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "quantity", "description": "Menge", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 30},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "unit_price", "description": "Einzelpreis", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 40},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "line_amount", "description": "Gesamtbetrag der Position", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 50},
-    {"entity_name": "invoice", "scope": "line_item", "field_name": "tax_rate", "description": "Steuersatz der Position in Prozent", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 60},
+    {"entity_name": "invoice", "scope": "header", "field_name": "supplier_name", "display_name": "Lieferantenname", "description": "Name des Lieferanten", "data_type": "string", "is_required": True, "is_enabled": True, "sort_order": 10},
+    {"entity_name": "invoice", "scope": "header", "field_name": "invoice_number", "display_name": "Rechnungsnummer", "description": "Eindeutige Rechnungsnummer", "data_type": "string", "is_required": True, "is_enabled": True, "sort_order": 20},
+    {"entity_name": "invoice", "scope": "header", "field_name": "invoice_date", "display_name": "Rechnungsdatum", "description": "Rechnungsdatum", "data_type": "date", "is_required": True, "is_enabled": True, "sort_order": 30},
+    {"entity_name": "invoice", "scope": "header", "field_name": "due_date", "display_name": "Faelligkeitsdatum", "description": "Faelligkeitsdatum", "data_type": "date", "is_required": False, "is_enabled": True, "sort_order": 40},
+    {"entity_name": "invoice", "scope": "header", "field_name": "currency", "display_name": "Waehrung", "description": "Waehrung als ISO Code", "data_type": "string", "is_required": False, "is_enabled": True, "sort_order": 50},
+    {"entity_name": "invoice", "scope": "header", "field_name": "gross_amount", "display_name": "Bruttobetrag", "description": "Bruttobetrag der Rechnung", "data_type": "number", "is_required": True, "is_enabled": True, "sort_order": 60},
+    {"entity_name": "invoice", "scope": "header", "field_name": "net_amount", "display_name": "Nettobetrag", "description": "Nettobetrag der Rechnung", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 70},
+    {"entity_name": "invoice", "scope": "header", "field_name": "tax_amount", "display_name": "Steuerbetrag", "description": "Steuerbetrag", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 80},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "line_no", "display_name": "Positionsnummer", "description": "Positionsnummer", "data_type": "integer", "is_required": False, "is_enabled": True, "sort_order": 10},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "description", "display_name": "Positionsbeschreibung", "description": "Positionsbeschreibung", "data_type": "string", "is_required": False, "is_enabled": True, "sort_order": 20},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "quantity", "display_name": "Menge", "description": "Menge", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 30},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "unit_price", "display_name": "Einzelpreis", "description": "Einzelpreis", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 40},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "line_amount", "display_name": "Positionsbetrag", "description": "Gesamtbetrag der Position", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 50},
+    {"entity_name": "invoice", "scope": "line_item", "field_name": "tax_rate", "display_name": "Steuersatz", "description": "Steuersatz der Position in Prozent", "data_type": "number", "is_required": False, "is_enabled": True, "sort_order": 60},
 ]
 
 _mem_fields: Dict[str, Dict[str, Any]] = {}
@@ -40,11 +40,13 @@ def _now_iso() -> str:
 
 
 def _normalize(row: Dict[str, Any]) -> Dict[str, Any]:
+    field_name = row.get("field_name")
     return {
         "id": row.get("id"),
         "entity_name": row.get("entity_name"),
         "scope": row.get("scope"),
-        "field_name": row.get("field_name"),
+        "field_name": field_name,
+        "display_name": row.get("display_name") or field_name or "",
         "description": row.get("description") or "",
         "data_type": (row.get("data_type") or "string").lower(),
         "is_required": bool(row.get("is_required", False)),
@@ -71,7 +73,12 @@ def _ensure_defaults_db() -> None:
         )
         if result.data:
             continue
-        db.table(EXTRACTION_FIELDS_TABLE).insert(row).execute()
+        try:
+            db.table(EXTRACTION_FIELDS_TABLE).insert(row).execute()
+        except Exception as exc:
+            if "display_name" not in str(exc):
+                raise
+            db.table(EXTRACTION_FIELDS_TABLE).insert({k: v for k, v in row.items() if k != "display_name"}).execute()
 
 
 def list_extraction_fields(entity_name: str = "invoice", enabled_only: bool = False) -> List[Dict[str, Any]]:
@@ -96,6 +103,7 @@ def upsert_extraction_field(
     entity_name: str,
     scope: str,
     field_name: str,
+    display_name: str,
     description: str,
     data_type: str,
     is_required: bool,
@@ -115,6 +123,7 @@ def upsert_extraction_field(
         "entity_name": entity_name,
         "scope": scope,
         "field_name": field_name,
+        "display_name": display_name or field_name,
         "description": description,
         "data_type": data_type,
         "is_required": is_required,
@@ -136,14 +145,31 @@ def upsert_extraction_field(
             .execute()
         )
         if existing.data:
-            result = (
-                db.table(EXTRACTION_FIELDS_TABLE)
-                .update(payload)
-                .eq("id", existing.data[0]["id"])
-                .execute()
-            )
+            try:
+                result = (
+                    db.table(EXTRACTION_FIELDS_TABLE)
+                    .update(payload)
+                    .eq("id", existing.data[0]["id"])
+                    .execute()
+                )
+            except Exception as exc:
+                if "display_name" not in str(exc):
+                    raise
+                fallback_payload = {k: v for k, v in payload.items() if k != "display_name"}
+                result = (
+                    db.table(EXTRACTION_FIELDS_TABLE)
+                    .update(fallback_payload)
+                    .eq("id", existing.data[0]["id"])
+                    .execute()
+                )
         else:
-            result = db.table(EXTRACTION_FIELDS_TABLE).insert(payload).execute()
+            try:
+                result = db.table(EXTRACTION_FIELDS_TABLE).insert(payload).execute()
+            except Exception as exc:
+                if "display_name" not in str(exc):
+                    raise
+                fallback_payload = {k: v for k, v in payload.items() if k != "display_name"}
+                result = db.table(EXTRACTION_FIELDS_TABLE).insert(fallback_payload).execute()
         rows = result.data or []
         return _normalize(rows[0] if rows else payload)
 

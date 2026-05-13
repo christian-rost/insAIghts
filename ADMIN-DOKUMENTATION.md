@@ -45,6 +45,8 @@ Nicht in Env pflegen:
 
 ### 4.2 Model / Felder
 - Extraktionsfelder fuer Header und Line-Items
+- Pro Extraktionsfeld werden technischer Feldname, Anzeigename und Beschreibung gepflegt.
+- Der Anzeigename wird in der Anwenderoberflaeche angezeigt; die Beschreibung ist die Prompt-Anweisung fuer das LLM.
 - Datentyp, Pflichtfeld, Aktivierung, Sortierung
 - Workflow-Regeln (Betragslimits, Rollen, Four-Eyes)
 
@@ -71,6 +73,7 @@ Nicht in Env pflegen:
 
 ### 4.9 Inbox UX (Anwenderoberflaeche)
 - Header-Extraktionsfelder sind auf-/zuklappbar.
+- Positionen/Leistungen werden in der Uebersicht direkt unter den Header-Feldern angezeigt.
 - Aktionsbereich ist 2-zeilig aufgebaut:
   - Zeile 1: Kommentarfeld
   - Zeile 2: Workflow-Buttons
