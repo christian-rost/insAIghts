@@ -396,14 +396,13 @@ label {
 .inbox-layout {
   width: calc(100vw - 1rem);
   max-width: none;
-  height: calc(100vh - 1rem);
-  height: calc(100dvh - 1rem);
-  min-height: 0;
+  min-height: calc(100vh - 1rem);
+  height: auto;
   margin: 0.5rem auto;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -460,48 +459,39 @@ label {
   display: grid;
   grid-template-columns: minmax(280px, 24%) minmax(520px, 42%) minmax(420px, 34%);
   gap: 1.05rem;
-  align-items: stretch;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
+  align-items: start;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
 }
 
 .inbox-list-card,
 .inbox-detail-card,
 .inbox-pdf-card {
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  min-height: auto;
+  height: auto;
+  display: block;
+  overflow: visible;
   animation: panel-rise 0.45s var(--ease-out) both;
 }
 
 .inbox-detail-card {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .inbox-detail-body {
-  flex: 1 1 auto;
   position: relative;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: auto;
+  overflow: visible;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
   padding-bottom: 1.3rem;
 }
 
 .inbox-list {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  min-height: auto;
+  overflow: visible;
 }
 
 .inbox-item {
@@ -833,13 +823,12 @@ label {
 }
 
 .pdf-viewer {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
+  min-height: 66vh;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(circle at 50% 0%, rgba(238, 127, 0, 0.08), transparent 16rem),
     linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.96));
@@ -847,9 +836,8 @@ label {
 
 .pdf-frame {
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
+  height: 66vh;
+  min-height: 520px;
   border: 8px solid #2e343d;
   border-radius: 10px;
   background: #ffffff;
@@ -858,10 +846,7 @@ label {
 
 .pdf-image {
   width: 100%;
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
+  max-height: 66vh;
   object-fit: contain;
   border: 8px solid #2e343d;
   border-radius: 10px;
@@ -1136,7 +1121,6 @@ label {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
-    max-height: none;
   }
 
   .inbox-list-card,
@@ -1145,7 +1129,7 @@ label {
     min-height: auto;
     height: auto;
     display: block;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .inbox-list,

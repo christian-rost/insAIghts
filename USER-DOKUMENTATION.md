@@ -25,7 +25,7 @@ Zusaetzlich:
 - Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
 - Sticky Header und Filterleiste fuer schnellen Zugriff beim Scrollen
 - Modernisierte Workspace-Optik mit klareren Karten, Status-Badges und fokussierter Dokumentvorschau
-- Desktop-Workspace mit fixer Kopf-/Filterzone und drei unabhaengig scrollbaren Arbeitsbereichen
+- Desktop-Workspace mit normalem Browser-Scroll, damit lange Rechnungsdetails und Positionen immer erreichbar bleiben
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:

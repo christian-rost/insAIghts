@@ -79,7 +79,7 @@ Nicht in Env pflegen:
   - Zeile 2: Workflow-Buttons
 - Die Anwender-Inbox nutzt eine modernisierte Workspace-Optik:
   - fixe Header-/Filterzone fuer schnellen Zugriff
-  - unabhaengig scrollbare Panels fuer Liste, Details und Dokument
+  - normaler Browser-Scroll fuer lange Rechnungsdetails und Positionslisten
   - segmentierte Detail-Tabs mit Zaehlern
   - Summary-Karten fuer Kopfdaten
   - Aktionsblock unterhalb der Positionen, damit Positionslisten nicht verdeckt werden
