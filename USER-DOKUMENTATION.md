@@ -1,6 +1,6 @@
 # User-Dokumentation insAIghts
 
-Stand: 09.03.2026
+Stand: 13.05.2026
 
 ## 1. Zielgruppe
 Diese Doku richtet sich an fachliche Anwender (AP Clerk, Approver), die Rechnungen in der Inbox bearbeiten.
@@ -23,6 +23,8 @@ Zusaetzlich:
 - Filter nach Status
 - Suche nach Lieferant oder Rechnungsnummer
 - Detail-Tabs fuer Uebersicht, Aktionen, Cases und Graph
+- Sticky Header und Filterleiste fuer schnellen Zugriff beim Scrollen
+- Modernisierte Workspace-Optik mit klareren Karten, Status-Badges und fokussierter Dokumentvorschau
 
 ## 4. Rechnungsdetails
 Im Detailbereich siehst du:
@@ -45,6 +47,7 @@ Der Aktionsbereich ist zweizeilig aufgebaut:
 - Zeile 1: Kommentarfeld
 - Zeile 2: Aktionsbuttons
 Jede Aktion kann optional mit Kommentar erfolgen.
+Der Aktionsbereich bleibt im Uebersichts-Tab als Sticky-Leiste sichtbar, damit Freigaben auch bei laengeren Positionslisten erreichbar bleiben.
 
 ## 6. Workflow-Logik
 - Erlaubte Statuswechsel werden serverseitig geprueft.

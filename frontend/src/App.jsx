@@ -4044,7 +4044,7 @@ function UserView({ token, currentUser, onLogout }) {
       {notice ? <p className="notice">{notice}</p> : null}
       {error ? <p className="error top-error">{error}</p> : null}
 
-      <section className="card">
+      <section className="card inbox-filter-card">
         <div className="card-body inbox-filterbar">
           <form
             className="inbox-filter-form"
@@ -4123,15 +4123,15 @@ function UserView({ token, currentUser, onLogout }) {
           <div className="card-header">
             <h3>{selectedInvoice?.invoice_number ? `Rechnung ${selectedInvoice.invoice_number}` : "Rechnungsdetail"}</h3>
           </div>
-          <div className="card-body">
+          <div className="card-body invoice-detail-body">
             {!selectedInvoice ? (
               <p className="muted">Keine Rechnung ausgewaehlt.</p>
             ) : (
               <>
                 <div className="detail-tabs" role="tablist" aria-label="Rechnungsdetail Tabs">
                   <button type="button" className={`detail-tab ${detailTab === "overview" ? "active" : ""}`} onClick={() => setDetailTab("overview")}>Uebersicht</button>
-                  <button type="button" className={`detail-tab ${detailTab === "actions" ? "active" : ""}`} onClick={() => setDetailTab("actions")}>Aktionen</button>
-                  <button type="button" className={`detail-tab ${detailTab === "cases" ? "active" : ""}`} onClick={() => setDetailTab("cases")}>Cases</button>
+                  <button type="button" className={`detail-tab ${detailTab === "actions" ? "active" : ""}`} onClick={() => setDetailTab("actions")}>Aktionen <span className="tab-count">{selectedActions.length}</span></button>
+                  <button type="button" className={`detail-tab ${detailTab === "cases" ? "active" : ""}`} onClick={() => setDetailTab("cases")}>Cases <span className="tab-count">{selectedCases.length}</span></button>
                   <button type="button" className={`detail-tab ${detailTab === "graph" ? "active" : ""}`} onClick={() => setDetailTab("graph")}>Graph</button>
                 </div>
 

@@ -77,6 +77,12 @@ Nicht in Env pflegen:
 - Aktionsbereich ist 2-zeilig aufgebaut:
   - Zeile 1: Kommentarfeld
   - Zeile 2: Workflow-Buttons
+- Die Anwender-Inbox nutzt eine modernisierte Workspace-Optik:
+  - Sticky Header/Filter fuer schnellen Zugriff
+  - segmentierte Detail-Tabs mit Zaehlern
+  - Summary-Karten fuer Kopfdaten
+  - Sticky-Aktionsleiste im Uebersichts-Tab
+  - fokussierte PDF/Bild-Vorschau
 
 ### 4.6 Graph
 - Datenebenen-Felder auswaehlen

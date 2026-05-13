@@ -530,6 +530,7 @@ Festlegung:
   - Anwenderoberflaeche (AP-Inbox) fuer Nicht-Admin-User mit 3-Spalten-Layout: Liste links, Rechnungsdaten Mitte, PDF/Bild-Vorschau rechts
   - Anwenderaktionen im Detail (`Approve`, `Reject`, `Hold`, `Clarify`) mit Kommentar und Timeline
   - Aktionsbereich in der Inbox als 2-Zeilen-Layout (Kommentarzeile + Buttonzeile) optimiert
+  - Modernisierte Inbox-UX mit Sticky Header/Filter, segmentierten Detail-Tabs, Summary-Karten, Sticky-Aktionsleiste und fokussierter Dokumentvorschau
   - Anwenderaktion `Loeschung anfordern` (role-separated, keine Direkt-Loeschung fuer Nicht-Admin)
   - Cases/Rueckfragen je Rechnung mit Statussteuerung (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`)
   - Sichtbarkeit konfigurierter Extraktionsfelder in der Inbox je Rechnung ("Extrahierte Felder (Header)" mit Anzeigename, Wert + LLM-Indikator)
